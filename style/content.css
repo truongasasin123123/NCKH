@@ -1,0 +1,47 @@
+.item-sider {
+    width: 100%;
+    height: 100%;
+    list-style: none;
+    padding: 0;
+    background-color: #fff;
+    border-radius: 0px 0px 12px 12px;
+    box-shadow: rgba(0.05, 0, 0, 0.05) 0px 0px 0px 1px;
+    padding: 0px 15px 15px 15px;
+}
+
+.item-sider li {
+    width: 100%;
+    height: 50px;
+    border-bottom: 1px solid rgb(221, 211, 211);
+    padding: 15px;
+    cursor: pointer;
+    position: relative;
+}
+
+.item-sider li::after{
+    content: "";    
+    position: absolute;
+    left: 0;
+    bottom: -2px;
+    height: 2px;
+    width: 100%;
+    background-color: green;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.4s ease;
+}
+
+.item-sider li:hover::after{
+    transform: scaleX(1);
+}
+
+.li-link {
+    width: 100%;
+    height: auto;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.li-link:hover{
+    color: green;
+}

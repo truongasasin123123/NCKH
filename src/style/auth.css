@@ -1,0 +1,80 @@
+/* ========== AUTH LAYOUT ========== */
+
+.auth-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 50px;
+}
+
+.auth-logo {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.auth-logo img {
+  height: 55px;
+}
+
+/* box */
+.auth-box {
+  width: 100%;
+  max-width: 420px;
+  padding: 32px;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin-top: 100px;
+  margin-bottom: 160px;
+}
+
+/* title */
+.auth-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #018f01;
+  text-align: center;
+}
+
+.auth-sub {
+  margin-bottom: 20px;
+  color: #2f855a;
+  text-align: center;
+}
+
+/* input */
+.custom-input .ant-input,
+.custom-input .ant-input-password {
+  height: 36px;
+}
+
+/* button */
+.custom-button {
+  width: 100%;
+  height: 40px;
+  font-weight: 600;
+  background: #2f855a;
+  border-radius: 6px;
+}
+
+.custom-button:hover {
+  background: #197949 !important;
+}
+
+/* link */
+.register-login-link {
+  text-align: center;
+}
+
+.register-login-link a {
+  color: #2f855a;
+}
+
+/* responsive */
+@media (max-width: 430px) {
+  .auth-box {
+    padding: 16px;
+    box-shadow: none;
+    background: transparent;
+  }
+}

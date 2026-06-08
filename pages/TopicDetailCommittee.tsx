@@ -7,9 +7,15 @@ import {
 import {
     ArrowLeftOutlined, CheckCircleOutlined, CloseCircleOutlined, EditOutlined, SaveOutlined, CloseOutlined,
 } from '@ant-design/icons';
-import { getTopicById, getMemberByid } from './Quản lý thông tin đề án/TopicService';
+import {
+    getTopicById,
+    getMemberByid,
+    changeProjectState,
+    deleteProject,
+    updateProjectDate,
+} from './Quản lý thông tin đề án/TopicService';
 import type { TopicLoad, ThanhVienDT } from './Quản lý thông tin đề án/TopicService';
-import ApiAxios from '../axios.config';
+import { createNofitfications } from './Quản lý thông tin đề án/NotificationService';
 
 const TopicDetailCommittee: React.FC = () => {
     const { MaDT } = useParams<{ MaDT: string }>();
@@ -83,63 +89,89 @@ const TopicDetailCommittee: React.FC = () => {
     };
 
     // Xử lý phê duyệt
-    const handleApprove = () => {
+    const handleApprove = async () => {
         if (!topic) return;
-        // TODO: Gọi API cập nhật trạng thái
-        setTopic({ ...topic, TrangThai: 'Đã phê duyệt' }); // ← cập nhật state local
-        message.success('Đã phê duyệt đề tài thành công!');
-        setApproveModalOpen(false);
-        setApproveNote('');
-        // Tự động kéo xuống phần chỉnh sửa kinh phí
-        setTimeout(() => {
-            scrollRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 100);
+
+        try {
+            setLoading(true);
+            await changeProjectState(topic.MaDT, 'Đã phê duyệt');
+            setTopic({ ...topic, TrangThai: 'Đã phê duyệt' });
+
+            const truongNhom = topic.ThanhVienDT.find((tv) => tv.VaiTroDT === 'Nhóm trưởng') || topic.ThanhVienDT[0];
+            if (truongNhom) {
+                await createNofitfications(
+                    truongNhom.TaiKhoan,
+                    'Đề tài của bạn đã được phê duyệt',
+                    `Đề tài "${topic.TenDT}" đã được phê duyệt.${approveNote ? ` Ghi chú: ${approveNote}` : ''}`
+                );
+            }
+
+            message.success('Đã phê duyệt đề tài thành công!');
+            setApproveModalOpen(false);
+            setApproveNote('');
+
+            setTimeout(() => {
+                scrollRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+        } catch (error) {
+            console.error(error);
+            message.error('Lỗi khi phê duyệt đề tài');
+        } finally {
+            setLoading(false);
+        }
     };
-    // Thêm hàm xử lý này
-    const handleBudgetSubmit = (values: any) => {
+
+    const handleBudgetSubmit = async (values: any) => {
         if (!topic) return;
-        const updatedTopic = { ...topic, ...values };
-        setTopic(updatedTopic);
-        setEditingBudget(false);
-        message.success('Cập nhật thông tin thành công!');
-        // TODO: Gọi API lưu xuống backend
+
+        try {
+            setLoading(true);
+            await updateProjectDate(topic.MaDT, values);
+            const updatedTopic = { ...topic, ...values };
+            setTopic(updatedTopic);
+            setEditingBudget(false);
+            message.success('Cập nhật thông tin thành công!');
+        } catch (error) {
+            console.error(error);
+            message.error('Lỗi khi cập nhật ngày đề tài');
+        } finally {
+            setLoading(false);
+        }
     };
-    // Xử lý từ chối
+
     const handleReject = async () => {
         if (!rejectReason.trim()) {
             message.warning('Vui lòng nhập lý do từ chối');
             return;
         }
 
+        if (!topic) {
+            message.error('Không có đề tài để xử lý');
+            return;
+        }
+
         try {
-            // Tìm trưởng nhóm từ danh sách thành viên
-            const truongNhom = topic!.ThanhVienDT.find(
-                (tv) => tv.VaiTroDT === 'Nhóm trưởng'
-            );
-            console.log('Trưởng nhóm:', truongNhom);
-            console.log('Danh sách thành viên:', topic!.ThanhVienDT);
+            setLoading(true);
+            const truongNhom = topic.ThanhVienDT.find((tv) => tv.VaiTroDT === 'Nhóm trưởng') || topic.ThanhVienDT[0];
 
-            if (!truongNhom) {
-                message.warning('Không tìm thấy trưởng nhóm của đề tài này');
-                return;
+            if (truongNhom) {
+                await createNofitfications(
+                    truongNhom.TaiKhoan,
+                    'Đề tài của bạn đã bị từ chối',
+                    `Đề tài "${topic.TenDT}" đã bị từ chối. Lý do: ${rejectReason}`
+                );
             }
-            // 1. Gọi API tạo thông báo đến người gửi đề tài
-            await ApiAxios.post('/notifications/createnotifi', {
-                TkNguoiNhan: truongNhom.TaiKhoan, // tài khoản người gửi đề tài
-                TieuDe: 'Đề tài của bạn đã bị từ chối',
-                NoiDung: `Đề tài "${topic?.TenDT}" đã bị từ chối. Lý do: ${rejectReason}`,
-            });
 
-            // 2. Gọi API xóa đề tài khỏi database
-            await ApiAxios.delete(`/api/detai/${topic?.MaDT}`);
+            await deleteProject(topic.MaDT);
             message.error('Đã từ chối và xóa đề tài');
             setRejectModalOpen(false);
             setRejectReason('');
-            fetchTopicDetail();
-
+            navigate('/mainhome');
         } catch (error) {
             console.error(error);
             message.error('Có lỗi xảy ra, vui lòng thử lại');
+        } finally {
+            setLoading(false);
         }
     };
 

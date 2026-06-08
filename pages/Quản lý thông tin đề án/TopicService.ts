@@ -54,3 +54,24 @@ export const getApprovedTopics = async (): Promise<TopicLoad[]> => {
     await new Promise(resolve => setTimeout(resolve, 1000));
     return res.data;
 };
+
+export const changeProjectState = async (id: string, state: string) => {
+    const response = await ApiAxios.patch(`/project/changestate/${id}`, {
+        state: state
+    });
+    return response.data;
+}
+
+export const deleteProject = async (id: string) => {
+    const res = await ApiAxios.delete(`/project/deleteproject/${id}`);
+    return res.data;
+}
+
+export const updateProjectDate = async (id: string, dates: {
+    NgayBatDau?: string;
+    NgayKetThuc?: string;
+    NgayXetDuyet?: string;
+}) => {
+    const response = await ApiAxios.patch(`/project/updatedate/${id}`, dates);
+    return response.data;
+};

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import {ControlOutlined,LockOutlined, BarChartOutlined } from '@ant-design/icons';
 
 const topics = [
     { id: 'DT001', name: 'Nghiên cứu giống lúa chịu hạn vùng đồng bằng sông Hồng', owner: 'Nguyễn Văn A', status: 'Đang thực hiện', percent: 72 },
@@ -139,7 +140,7 @@ const HomePage: React.FC = () => {
                             <div style={{ fontSize: 11, color: '#999', marginTop: 5 }}>{t.percent}% hoàn thành</div>
                         </div>
                     ))}
-                </div>
+                </div> 
             </div>
 
             {/* FEATURES */}
@@ -147,9 +148,9 @@ const HomePage: React.FC = () => {
                 <h2 style={{ fontSize: 16, fontWeight: 600, color: '#1a1a1a', marginBottom: 20 }}>Tính năng chính</h2>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
                     {[
-                        { icon: '✅', bg: '#e8f5e9', title: 'Quản lý đề tài', desc: 'Theo dõi tiến độ, trạng thái và thông tin chi tiết từng đề tài theo thời gian thực.' },
-                        { icon: '🔒', bg: '#e3f2fd', title: 'Phân quyền rõ ràng', desc: 'Cấp quyền theo vai trò, bảo mật dữ liệu, giới hạn truy cập theo phân cấp quản lý.' },
-                        { icon: '📊', bg: '#fff3e0', title: 'Báo cáo & thống kê', desc: 'Tổng hợp dữ liệu, xuất báo cáo nhanh chóng và chính xác phục vụ kiểm duyệt.' },
+                        { icon: <ControlOutlined />, bg: '#e8f5e9', title: 'Quản lý đề tài', desc: 'Theo dõi tiến độ, trạng thái và thông tin chi tiết từng đề tài theo thời gian thực.' },
+                        { icon: <LockOutlined />, bg: '#e3f2fd', title: 'Phân quyền rõ ràng', desc: 'Cấp quyền theo vai trò, bảo mật dữ liệu, giới hạn truy cập theo phân cấp quản lý.' },
+                        { icon: <BarChartOutlined />, bg: '#fff3e0', title: 'Báo cáo & thống kê', desc: 'Tổng hợp dữ liệu, xuất báo cáo nhanh chóng và chính xác phục vụ kiểm duyệt.' },
                     ].map(f => (
                         <div key={f.title} style={{ background: '#fff', border: '1px solid #e2eae2', borderRadius: 12, padding: '20px' }}>
                             <div style={{ width: 42, height: 42, borderRadius: 10, background: f.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, marginBottom: 12 }}>{f.icon}</div>

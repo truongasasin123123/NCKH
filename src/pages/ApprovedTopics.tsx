@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Table, Tag, Button, message, Spin } from 'antd';
 import { EyeOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { getApprovedTopics } from './Quản lý thông tin đề án/TopicService';
+import { getPendingTopics } from './Quản lý thông tin đề án/TopicService';
 import type { TopicLoad } from './Quản lý thông tin đề án/TopicService';
 import { useNavigate } from 'react-router-dom';
 
@@ -17,8 +17,9 @@ const ApprovedTopics: React.FC = () => {
 
     const fetchTopics = async () => {
         try {
+            var sate = "Đã phê duyệt";
             setLoading(true);
-            const data = await getApprovedTopics();
+            const data = await getPendingTopics(sate);
             setTopics(data);
         } catch (error) {
             message.error('Lỗi khi tải dữ liệu đề tài đã xét duyệt');
@@ -29,13 +30,12 @@ const ApprovedTopics: React.FC = () => {
     };
 
     const getApprovalSender = (record: TopicLoad) => {
-        const extra = record as any;
-        return extra.NguoiGui || extra.TaiKhoan || 'Không rõ';
+        return record.ThanhVienDT?.[0]?.TaiKhoan || 'Không rõ';
     };
 
     const getApprovalDate = (record: TopicLoad) => {
         const extra = record as any;
-        const dateValue = extra.NgayGui || record.NgayBatDau || record.NgayKetThuc;
+        const dateValue = extra.NgayXetDuyet;
         if (!dateValue) return '-';
         const dateObj = typeof dateValue === 'string' ? new Date(dateValue) : dateValue;
         return isNaN(dateObj.getTime()) ? String(dateValue) : dateObj.toLocaleDateString('vi-VN');

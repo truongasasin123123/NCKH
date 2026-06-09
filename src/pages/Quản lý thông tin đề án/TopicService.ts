@@ -12,6 +12,7 @@ export interface TopicLoad {
     NgayTao: Date
     MoTa: string
     TongKinhPhi: number
+    progress?: number
     
     ThanhVienDT: ThanhVienDT[];
 }

@@ -149,11 +149,6 @@ const ProgressManagement: React.FC = () => {
         key: 'TenMoc',
       },
       {
-        title: 'Mô tả',
-        dataIndex: 'MoTa',
-        key: 'MoTa',
-      },
-      {
         title: 'Thời gian',
         key: 'ThoiGian',
         render: (moc: MocTienDo) => `${dayjs(moc.NgayBatDau).format('DD/MM/YYYY')} - ${dayjs(moc.NgayKetThuc).format('DD/MM/YYYY')}`,

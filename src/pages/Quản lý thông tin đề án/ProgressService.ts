@@ -168,12 +168,14 @@ export const getTopicProgress = async (maDT: string): Promise<TopicProgress> => 
       .filter(c => c.MaMoc === moc.MaMoc)
       .sort((a, b) => new Date(b.NgayCapNhat).getTime() - new Date(a.NgayCapNhat).getTime())[0];
 
-    const percent = latestUpdate?.PhanTramHT || 0;
-    tongDiem += (percent * moc.TrongSo) / 100;
+    const isCompleted = latestUpdate?.PhanTramHT === 100 || moc.TrangThai === 'Hoàn thành';
+    if (isCompleted) {
+      tongDiem += moc.TrongSo;
+    }
     tongTrongSo += moc.TrongSo;
   }
 
-  const phanTramTongThe = tongTrongSo > 0 ? (tongDiem / tongTrongSo) * 100 : 0;
+  const phanTramTongThe = tongTrongSo > 0 ? Math.min((tongDiem / tongTrongSo) * 100, 100) : 0;
 
   return {
     MaDT: maDT,

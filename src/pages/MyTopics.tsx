@@ -5,6 +5,7 @@ import { EyeOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getMyTopics, getPendingTopics } from './Quản lý thông tin đề án/TopicService';
 import type { TopicLoad } from './Quản lý thông tin đề án/TopicService';
+import { getTopicProgress } from './Quản lý thông tin đề án/ProgressService';
 import { useNavigate } from 'react-router-dom';
 
 interface JwtPayload {
@@ -42,7 +43,18 @@ const MyTopics: React.FC = () => {
             }
             else data = await getMyTopics();
 
-            setTopics(data);
+            const topicsWithProgress = await Promise.all(
+                data.map(async (topic) => {
+                    try {
+                        const progressData = await getTopicProgress(topic.MaDT);
+                        return { ...topic, progress: progressData.PhanTramTongThe };
+                    } catch (error) {
+                        return { ...topic, progress: topic.progress ?? 0 };
+                    }
+                })
+            );
+
+            setTopics(topicsWithProgress);
         } catch (error) {
             message.error('Lỗi khi tải dữ liệu đề tài');
             console.error(error);
@@ -105,29 +117,15 @@ const MyTopics: React.FC = () => {
             key: 'progress',
             width: 100,
             render: (progress: number) => (
-                <div style={{ position: 'relative' }}>
-                    <div style={{ background: '#f0f0f0', borderRadius: 4, overflow: 'hidden', height: 20 }}>
-                        <div
-                            style={{
-                                background: progress >= 80 ? '#52c41a' : progress >= 50 ? '#1890ff' : '#ff4d4f',
-                                height: '100%',
-                                width: `${progress}%`,
-                                transition: 'width 0.3s',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: 'white',
-                                fontSize: 12,
-                            }}
-                        >
-                            {progress > 0 && `${progress}%`}
-                        </div>
-                    </div>
-                    {progress === 0 && (
-                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#666' }}>
-                            0%
-                        </div>
-                    )}
+                <div style={{ background: '#f0f0f0', borderRadius: 4, overflow: 'hidden', height: 20 }}>
+                    <div
+                        style={{
+                            background: progress >= 80 ? '#52c41a' : progress >= 50 ? '#1890ff' : '#ff4d4f',
+                            height: '100%',
+                            width: `${progress}%`,
+                            transition: 'width 0.3s',
+                        }}
+                    />
                 </div>
             ),
         },
@@ -242,29 +240,15 @@ const MyTopics: React.FC = () => {
             key: 'progress',
             width: 100,
             render: (progress: number) => (
-                <div style={{ position: 'relative' }}>
-                    <div style={{ background: '#f0f0f0', borderRadius: 4, overflow: 'hidden', height: 20 }}>
-                        <div
-                            style={{
-                                background: progress >= 80 ? '#52c41a' : progress >= 50 ? '#1890ff' : '#ff4d4f',
-                                height: '100%',
-                                width: `${progress}%`,
-                                transition: 'width 0.3s',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: 'white',
-                                fontSize: 12,
-                            }}
-                        >
-                            {progress > 0 && `${progress}%`}
-                        </div>
-                    </div>
-                    {progress === 0 && (
-                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#666' }}>
-                            0%
-                        </div>
-                    )}
+                <div style={{ background: '#f0f0f0', borderRadius: 4, overflow: 'hidden', height: 20 }}>
+                    <div
+                        style={{
+                            background: progress >= 80 ? '#52c41a' : progress >= 50 ? '#1890ff' : '#ff4d4f',
+                            height: '100%',
+                            width: `${progress}%`,
+                            transition: 'width 0.3s',
+                        }}
+                    />
                 </div>
             ),
         },

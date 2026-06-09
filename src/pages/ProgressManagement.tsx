@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Card, Timeline, Table, Progress, Button, Modal, Form, Input, DatePicker, InputNumber, Upload, message, Badge, Space, Tabs, Divider } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined, ClockCircleOutlined, CheckCircleOutlined, ExclamationCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined, EyeOutlined, ClockCircleOutlined, CheckCircleOutlined, ExclamationCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { useParams } from 'react-router-dom';
 import { getTopicProgress, createMocTienDo, updateMocTienDo, deleteMocTienDo, updateProgress } from './Quản lý thông tin đề án/ProgressService';
 import type { MocTienDo, CapNhatTienDo } from './Quản lý thông tin đề án/ProgressService';
@@ -26,6 +26,7 @@ const ProgressManagement: React.FC = () => {
   // Modal states
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [isViewModalVisible, setIsViewModalVisible] = useState(false);
   const [selectedMoc, setSelectedMoc] = useState<MocTienDo | null>(null);
 
   const [form] = Form.useForm();
@@ -186,16 +187,15 @@ const ProgressManagement: React.FC = () => {
         key: 'actions',
         render: (moc: MocTienDo) => (
           <Space>
-          
-              <Button size="small" icon={<EditOutlined />} onClick={() => handleEditMoc(moc)}>
-                Sửa 
-              </Button>
-            
-            
-              <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDeleteMoc(moc)}>
-                Xóa
-              </Button>
-            
+            <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewMoc(moc)}>
+              Xem
+            </Button>
+            <Button size="small" icon={<EditOutlined />} onClick={() => handleEditMoc(moc)}>
+              Sửa
+            </Button>
+            <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDeleteMoc(moc)}>
+              Xóa
+            </Button>
           </Space>
         ),
       },
@@ -233,6 +233,23 @@ const ProgressManagement: React.FC = () => {
       TepDinhKem: latestUpdate?.TepDinhKem,
     });
     setIsEditModalVisible(true);
+  };
+
+  const handleViewMoc = (moc: MocTienDo) => {
+    setSelectedMoc(moc);
+    const latestUpdate = progressData?.CapNhatTienDo
+      .filter((c: CapNhatTienDo) => c.MaMoc === moc.MaMoc)
+      .sort((a: CapNhatTienDo, b: CapNhatTienDo) => dayjs(b.NgayCapNhat).valueOf() - dayjs(a.NgayCapNhat).valueOf())[0];
+
+    form.setFieldsValue({
+      ...moc,
+      NgayBatDau: dayjs(moc.NgayBatDau),
+      NgayKetThuc: dayjs(moc.NgayKetThuc),
+      PhanTramHT: latestUpdate?.PhanTramHT,
+      GhiChu: latestUpdate?.GhiChu,
+      TepDinhKem: latestUpdate?.TepDinhKem,
+    });
+    setIsViewModalVisible(true);
   };
 
   const handleDeleteMoc = async (moc: MocTienDo) => {
@@ -389,9 +406,9 @@ const ProgressManagement: React.FC = () => {
           <Form.Item name="PhanTramHT" label="% Hoàn thành">
             <InputNumber min={0} max={100} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="GhiChu" label="Ghi chú">
-            <TextArea />
-          </Form.Item>
+            <Form.Item name="GhiChu" label="Ghi chú">
+              <TextArea />
+            </Form.Item>
           <Form.Item name="TepDinhKem" label="File minh chứng">
             <Upload>
               <Button icon={<UploadOutlined />}>Chọn file</Button>
@@ -399,6 +416,50 @@ const ProgressManagement: React.FC = () => {
           </Form.Item>
           <Form.Item>
             <Button type="primary" htmlType="submit">Lưu</Button>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Modal xem mốc */}
+      <Modal
+        title={`Thông tin mốc: ${selectedMoc?.TenMoc}`}
+        open={isViewModalVisible}
+        onCancel={() => setIsViewModalVisible(false)}
+        footer={null}
+      >
+        <Form form={form} layout="vertical">
+          <Form.Item name="TenMoc" label="Tên mốc">
+            <Input disabled />
+          </Form.Item>
+          <Form.Item name="MoTa" label="Mô tả">
+            <TextArea disabled rows={3} />
+          </Form.Item>
+          <Form.Item name="NgayBatDau" label="Ngày bắt đầu">
+            <DatePicker disabled />
+          </Form.Item>
+          <Form.Item name="NgayKetThuc" label="Ngày kết thúc">
+            <DatePicker disabled />
+          </Form.Item>
+          <Form.Item name="ThuTu" label="Thứ tự">
+            <InputNumber min={1} disabled style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="TrongSo" label="Trọng số (%)">
+            <InputNumber min={0} max={100} disabled style={{ width: '100%' }} />
+          </Form.Item>
+
+          <Divider />
+
+          <Form.Item name="PhanTramHT" label="% Hoàn thành">
+            <InputNumber min={0} max={100} disabled style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="GhiChu" label="Ghi chú">
+            <TextArea disabled rows={3} />
+          </Form.Item>
+          <Form.Item name="TepDinhKem" label="File minh chứng">
+            <Input disabled />
+          </Form.Item>
+          <Form.Item>
+            <Button type="default" onClick={() => setIsViewModalVisible(false)}>Đóng</Button>
           </Form.Item>
         </Form>
       </Modal>

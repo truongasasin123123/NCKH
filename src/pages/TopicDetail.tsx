@@ -87,7 +87,7 @@ const TopicDetail: React.FC = () => {
 
     const getStatusTag = (status: string) => {
         const statusMap: Record<string, { color: string; label: string }> = {
-            "Bắt đầu": { color: 'green', label: 'Bắt đầu' },
+            "Đã phê duyệt": { color: 'green', label: 'Bắt đầu' },
             "Sắp hạn": { color: 'orange', label: 'Sắp hạn' },
             "Khẩn cấp": { color: 'red', label: 'Khẩn cấp' },
             "Chờ phê duyệt": { color: 'blue', label: 'Chờ phê duyệt' },

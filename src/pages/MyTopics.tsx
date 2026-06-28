@@ -53,11 +53,7 @@ const MyTopics: React.FC = () => {
 
     const getStatusTag = (status: string) => {
         const statusMap: Record<string, { color: string; label: string }> = {
-<<<<<<< HEAD
-            "Đã phê duyệt": { color: 'green', label: 'Bắt đầu' },
-=======
             "Đã phê duyệt": { color: 'green', label: 'Đã phê duyệt' },
->>>>>>> f228ceffbc015c63869dafd2ad6eadc25d6a7eb4
             "Sắp hạn": { color: 'orange', label: 'Sắp hạn' },
             "Khẩn cấp": { color: 'red', label: 'Khẩn cấp' },
             "Chờ phê duyệt": { color: 'blue', label: 'Chờ phê duyệt' },

@@ -121,7 +121,6 @@ const TopicDetail: React.FC = () => {
             "Sắp hạn": { color: 'orange', label: 'Sắp hạn' },
             "Khẩn cấp": { color: 'red', label: 'Khẩn cấp' },
             "Chờ phê duyệt": { color: 'blue', label: 'Chờ phê duyệt' },
-            "Đã phê duyệt": { color: 'green', label: 'Đã phê duyệt' },
         };
         const statusInfo = statusMap[status] || { color: 'default', label: 'Không xác định' };
         return <Tag color={statusInfo.color}>{statusInfo.label}</Tag>;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Card, Timeline, Table, Button, Modal, Form, Input, DatePicker, InputNumber, Upload, message, Badge, Space, Tabs, Divider, Select } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined, EyeOutlined, ClockCircleOutlined, CheckCircleOutlined, ExclamationCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { CheckOutlined, PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined, EyeOutlined, ClockCircleOutlined, CheckCircleOutlined, ExclamationCircleOutlined, CloseCircleOutlined, DownloadOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getTopicProgress, createMocTienDo, updateMocTienDo, deleteMocTienDo, updateProgress, uploadMinhChung } from './Quản lý thông tin đề án/ProgressService';
 import type { MocTienDo, CapNhatTienDo } from './Quản lý thông tin đề án/ProgressService';
@@ -9,6 +9,7 @@ import type { ThanhVienDT, TopicLoad } from './Quản lý thông tin đề án/T
 import { createNofitfications } from './Quản lý thông tin đề án/NotificationService';
 import { jwtDecode } from 'jwt-decode';
 import dayjs from 'dayjs';
+
 
 const { Content } = Layout;
 const { TabPane } = Tabs;
@@ -37,8 +38,10 @@ const ProgressManagement: React.FC = () => {
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isViewModalVisible, setIsViewModalVisible] = useState(false);
   const [selectedMoc, setSelectedMoc] = useState<MocTienDo | null>(null);
-
   const [form] = Form.useForm();
+  const watchedTepDinhKem = Form.useWatch('TepDinhKem', form);
+  const [showTopicSearch, setShowTopicSearch] = useState(false);
+  const [searchText, setSearchText] = useState("");
 
   const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
   const user: JwtPayload | null = token ? jwtDecode<JwtPayload>(token) : null;
@@ -53,6 +56,27 @@ const ProgressManagement: React.FC = () => {
     if (selectedTopicId) {
       navigate(`/mainhome/progress/${selectedTopicId}`);
     }
+  };
+
+  const handleViewFile = (fileUrl?: string) => {
+    if (!fileUrl) {
+      message.warning('Chưa có file đính kèm');
+      return;
+    }
+    window.open(fileUrl, '_blank');
+  };
+
+  const handleDownloadFile = (fileUrl?: string) => {
+    if (!fileUrl) {
+      message.warning('Chưa có file đính kèm');
+      return;
+    }
+    const link = document.createElement('a');
+    link.href = fileUrl;
+    link.download = fileUrl.split('/').pop() || 'tep-dinh-kem';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // Kiểm tra quyền
@@ -152,15 +176,6 @@ const ProgressManagement: React.FC = () => {
                 extra={
                   <Space>
                     <Badge status={status === 'Hoàn thành' ? 'success' : status === 'Trễ hạn' ? 'error' : status === 'Sắp hạn' ? 'warning' : 'processing'} text={status} />
-                    {canManageMoc ? (
-                      <Button size="small" icon={<EditOutlined />} onClick={() => handleEditMoc(moc)}>
-                        Sửa
-                      </Button>
-                    ) : (
-                      <Button size="small" disabled={status === 'Hoàn thành' || status === 'Trễ hạn'} onClick={() => handleSubmitMoc(moc)}>
-                        Nộp sản phẩm
-                      </Button>
-                    )}
                   </Space>
                 }
               >
@@ -180,7 +195,10 @@ const ProgressManagement: React.FC = () => {
   // Render table view
   const renderTable = () => {
     if (!progressData?.MocTienDo) return <div>Không có dữ liệu</div>;
-
+    const dataSource =
+      progressData?.MocTienDo.filter((moc: MocTienDo) =>
+        moc.TenMoc.toLowerCase().includes(searchText.toLowerCase())
+      ) ?? [];
     const columns = [
       {
         title: 'Thứ tự',
@@ -204,34 +222,27 @@ const ProgressManagement: React.FC = () => {
         key: 'TrongSo',
         render: (value: number) => `${value}%`,
       },
-      {
-        title: 'Trạng thái',
-        key: 'TrangThai',
-        render: (moc: MocTienDo) => {
-          const status = calculateStatus(moc);
-          return <Badge status={status === 'Hoàn thành' ? 'success' : status === 'Trễ hạn' ? 'error' : status === 'Sắp hạn' ? 'warning' : 'processing'} text={status} />;
-        },
-      },
+      { title: 'Trạng thái', key: 'TrangThai', render: (moc: MocTienDo) => { const status = calculateStatus(moc); return <Badge status={status === 'Hoàn thành' ? 'success' : status === 'Trễ hạn' ? 'error' : status === 'Sắp hạn' ? 'warning' : 'processing'} text={status} />; }, },
       // Removed percent-complete column per new requirement
       {
         title: 'Thao tác',
         key: 'actions',
         render: (moc: MocTienDo) => (
           <Space>
-            <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewMoc(moc)}>
+            <Button size="small" type="primary" className="btn-see" icon={<EyeOutlined />} onClick={() => handleViewMoc(moc)}>
               Xem
             </Button>
             {canManageMoc ? (
               <>
-                <Button size="small" icon={<EditOutlined />} onClick={() => handleEditMoc(moc)}>
+                <Button size="small" type="primary" className="btn-edit" icon={<EditOutlined />} onClick={() => handleEditMoc(moc)}>
                   Sửa
                 </Button>
-                <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDeleteMoc(moc)}>
+                <Button size="small" type="primary" className="btn-delete" icon={<DeleteOutlined />} onClick={() => handleDeleteMoc(moc)}>
                   Xóa
                 </Button>
               </>
             ) : (
-              <Button size="small" disabled={calculateStatus(moc) === 'Hoàn thành' || calculateStatus(moc) === 'Trễ hạn'} onClick={() => handleSubmitMoc(moc)}>Nộp</Button>
+              <Button size="small" type="primary" className="btn-upload" icon={<UploadOutlined />} style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }} disabled={calculateStatus(moc) === 'Hoàn thành' || calculateStatus(moc) === 'Trễ hạn'} onClick={() => handleSubmitMoc(moc)}>Nộp</Button>
             )}
           </Space>
         ),
@@ -241,10 +252,11 @@ const ProgressManagement: React.FC = () => {
     return (
       <Table
         columns={columns}
-        dataSource={progressData.MocTienDo}
+        dataSource={dataSource}
         rowKey="MaMoc"
         loading={loading}
         pagination={false}
+
       />
     );
   };
@@ -419,47 +431,92 @@ const ProgressManagement: React.FC = () => {
   return (
     <Content style={{ padding: 24 }}>
       <Card
-        title={`Quản lý tiến độ đề tài: ${progressData?.TenDT || ''}`}
-        extra={
+        title={
           <Space>
-            <Select
-              showSearch
-              loading={topicLoading}
-              placeholder="Chọn đề tài..."
-              style={{ minWidth: 240 }}
-              optionFilterProp="children"
-              value={selectedTopicId || undefined}
-              onChange={handleTopicChange}
-              filterOption={(input, option) =>
-                String(option?.children).toLowerCase().includes(input.toLowerCase())
-              }
-            >
-              {topics.map((topic) => (
-                <Select.Option key={topic.MaDT} value={topic.MaDT}>
-                  {topic.TenDT}
-                </Select.Option>
-              ))}
-            </Select>
-            <Button onClick={handleGoToTopic}>Tìm kiếm</Button>
-            {canManageMoc && (
-              <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateMoc}>
-                Thêm mốc
-              </Button>
+            <span>
+              Quản lý tiến độ đề tài:
+              {!showTopicSearch && (
+                <>
+                  {" "}
+                  <strong>{progressData?.TenDT}</strong>
+                  <Button
+                    type="text"
+                    icon={<EditOutlined />}
+                    onClick={() => setShowTopicSearch(true)}
+                  />
+                </>
+              )}
+            </span>
+
+            {showTopicSearch && (
+              <>
+                <Select
+                  showSearch
+                  loading={topicLoading}
+                  placeholder="Chọn đề tài..."
+                  style={{ width: 300 }}
+                  optionFilterProp="children"
+                  value={selectedTopicId || undefined}
+                  onChange={handleTopicChange}
+                  filterOption={(input, option) =>
+                    String(option?.children)
+                      .toLowerCase()
+                      .includes(input.toLowerCase())
+                  }
+                >
+                  {topics.map((topic) => (
+                    <Select.Option key={topic.MaDT} value={topic.MaDT}>
+                      {topic.TenDT}
+                    </Select.Option>
+                  ))}
+                </Select>
+
+                <Button
+                  type="primary"
+                  icon={<CheckOutlined />}
+                  onClick={() => {
+                    handleGoToTopic();
+                    setShowTopicSearch(false);
+                  }}
+                >
+                  Tìm
+                </Button>
+
+              </>
             )}
-            {!canManageMoc && (
-              <span style={{ color: '#8c8c8c', fontSize: 13 }}>Chỉ xem và nộp sản phẩm</span>
-            )}
+
           </Space>
         }
+
       >
-        <Tabs activeKey={activeTab} onChange={setActiveTab}>
+
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          tabBarExtraContent={
+            activeTab === "table" && (
+              <Space>
+                <Input.Search
+                  allowClear
+                  placeholder="Tìm kiếm mốc..."
+                  style={{ width: 250 }}
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                />
+                {canManageMoc && (<Button type="primary" icon={<PlusOutlined />} onClick={handleCreateMoc}> Thêm mốc </Button>)}
+              </Space>
+            )
+
+          }
+        >
+
           <TabPane tab="Timeline" key="timeline">
             {renderTimeline()}
           </TabPane>
+
           <TabPane tab="Bảng" key="table">
             {renderTable()}
           </TabPane>
-          
         </Tabs>
       </Card>
 
@@ -525,9 +582,9 @@ const ProgressManagement: React.FC = () => {
           <Divider />
 
           {/* % Hoàn thành removed — milestones are completed when students submit */}
-            <Form.Item name="GhiChu" label="Ghi chú">
-              <TextArea />
-            </Form.Item>
+          <Form.Item name="GhiChu" label="Ghi chú">
+            <TextArea />
+          </Form.Item>
           <Form.Item name="TepDinhKem" label="File minh chứng">
             <Upload
               beforeUpload={(file) => { setSelectedFile(file); return false; }}
@@ -577,26 +634,36 @@ const ProgressManagement: React.FC = () => {
             <TextArea disabled rows={3} />
           </Form.Item>
           <Form.Item name="TepDinhKem" label="File minh chứng">
-            <Input disabled />
+            <Input disabled style={{ display: 'none' }} />
           </Form.Item>
+          {watchedTepDinhKem ? (
+            <Form.Item label="File minh chứng">
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Input value={watchedTepDinhKem} disabled />
+                <Space>
+                  <Button icon={<EyeOutlined />} onClick={() => handleViewFile(watchedTepDinhKem)}>
+                    Xem file
+                  </Button>
+                  <Button
+                    type="primary"
+                    icon={<DownloadOutlined />}
+                    onClick={() => handleDownloadFile(watchedTepDinhKem)}
+                  >
+                    Tải xuống
+                  </Button>
+                </Space>
+              </Space>
+            </Form.Item>
+          ) : (
+            <Form.Item label="File minh chứng">
+              <Input disabled placeholder="Chưa có file đính kèm" />
+            </Form.Item>
+          )}
           <Form.Item>
             <Button type="default" onClick={() => setIsViewModalVisible(false)}>Đóng</Button>
           </Form.Item>
         </Form>
-        {progressData && selectedMoc && (
-          <div style={{ marginTop: 12 }}>
-            <Divider />
-            <h4 style={{ marginBottom: 8 }}>Lịch sử cập nhật</h4>
-            {(progressData.CapNhatTienDo || [])
-              .filter((u: CapNhatTienDo) => u.MaMoc === selectedMoc.MaMoc)
-              .sort((a: CapNhatTienDo, b: CapNhatTienDo) => new Date(b.NgayCapNhat).getTime() - new Date(a.NgayCapNhat).getTime())
-              .map((u: CapNhatTienDo) => (
-                <div key={u.MaCapNhat} style={{ marginBottom: 6 }}>
-                  <small>{new Date(u.NgayCapNhat).toLocaleString()} — {u.TaiKhoan}: {u.GhiChu}{u.TepDinhKem ? ` (file: ${String(u.TepDinhKem).split('/').pop()})` : ''}</small>
-                </div>
-              ))}
-          </div>
-        )}
+
       </Modal>
     </Content>
   );

@@ -70,6 +70,38 @@
   color: #2f855a;
 }
 
+.btn-see {
+  background: #13c2c2 !important;
+  border-color: #13c2c2 !important;
+  align-items: center;
+}
+
+.btn-edit {
+  background: #52c41a !important;
+  border-color: #52c41a !important;
+  align-items: center;
+}
+
+.btn-delete {
+  background: #ff4d4f !important;
+  border-color: #ff4d4f !important;
+  align-items: center;
+}
+
+.btn-upload {
+  background: #fa8c16 !important;
+  border-color: #fa8c16 !important;
+  align-items: center;
+}
+.btn-see-upload {
+  background: #ffffff !important;
+  border-color: #0c0c0c !important;
+  color: #000000 !important; /* Chữ màu đen */
+
+  display: inline-flex;
+  align-items: center;
+}
+
 /* responsive */
 @media (max-width: 430px) {
   .auth-box {

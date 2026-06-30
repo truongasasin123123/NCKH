@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Card, Timeline, Table, Progress, Button, Modal, Form, Input, DatePicker, InputNumber, Upload, message, Badge, Space, Tabs, Divider } from 'antd';
+import { Layout, Card, Timeline, Table, Button, Modal, Form, Input, DatePicker, InputNumber, Upload, message, Badge, Space, Tabs, Divider, Select } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined, EyeOutlined, ClockCircleOutlined, CheckCircleOutlined, ExclamationCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
-import { useParams } from 'react-router-dom';
-import { getTopicProgress, createMocTienDo, updateMocTienDo, deleteMocTienDo, updateProgress } from './Quản lý thông tin đề án/ProgressService';
+import { useParams, useNavigate } from 'react-router-dom';
+import { getTopicProgress, createMocTienDo, updateMocTienDo, deleteMocTienDo, updateProgress, uploadMinhChung } from './Quản lý thông tin đề án/ProgressService';
 import type { MocTienDo, CapNhatTienDo } from './Quản lý thông tin đề án/ProgressService';
+import { getMemberByid, getMyTopics } from './Quản lý thông tin đề án/TopicService';
+import type { ThanhVienDT, TopicLoad } from './Quản lý thông tin đề án/TopicService';
+import { createNofitfications } from './Quản lý thông tin đề án/NotificationService';
 import { jwtDecode } from 'jwt-decode';
 import dayjs from 'dayjs';
 
@@ -18,10 +21,16 @@ interface JwtPayload {
 
 const ProgressManagement: React.FC = () => {
   const { maDT } = useParams<{ maDT: string }>();
-  const maDTToUse = maDT || 'DT001'; // Sử dụng mock ID nếu không có params
+  const navigate = useNavigate();
+  const [selectedTopicId, setSelectedTopicId] = useState<string>(maDT || '');
+  const [topics, setTopics] = useState<TopicLoad[]>([]);
+  const [topicLoading, setTopicLoading] = useState(false);
+  const maDTToUse = selectedTopicId || maDT || 'DT001'; // Sử dụng mock ID nếu không có params
   const [progressData, setProgressData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('timeline');
+  const [members, setMembers] = useState<ThanhVienDT[]>([]);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   // Modal states
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
@@ -36,11 +45,20 @@ const ProgressManagement: React.FC = () => {
   const userRole = user?.VaiTro || '';
   const userAccount = user?.TaiKhoan || '';
 
+  const handleTopicChange = (value: string) => {
+    setSelectedTopicId(value);
+  };
+
+  const handleGoToTopic = () => {
+    if (selectedTopicId) {
+      navigate(`/mainhome/progress/${selectedTopicId}`);
+    }
+  };
+
   // Kiểm tra quyền
   const isChuNhiem = userRole.toLowerCase().includes('chủ nhiệm') || userRole.toLowerCase().includes('chunhiem');
-  const isThanhVien = userRole.toLowerCase().includes('thành viên') || userRole.toLowerCase().includes('thanhvien');
-  const canEditMoc = isChuNhiem;
-  const canUpdateProgress = isChuNhiem || isThanhVien;
+  const isNhomTruong = isChuNhiem || userRole.toLowerCase().includes('nhóm trưởng') || userRole.toLowerCase().includes('nhomtruong');
+  const canManageMoc = isNhomTruong;
 
   useEffect(() => {
     if (maDTToUse) {
@@ -48,12 +66,40 @@ const ProgressManagement: React.FC = () => {
     }
   }, [maDTToUse]);
 
+  useEffect(() => {
+    if (maDT) {
+      setSelectedTopicId(maDT);
+    }
+  }, [maDT]);
+
+  useEffect(() => {
+    fetchTopicList();
+  }, []);
+
+  const fetchTopicList = async () => {
+    setTopicLoading(true);
+    try {
+      const data = await getMyTopics();
+      setTopics(data || []);
+    } catch (error) {
+      message.error('Lỗi khi tải danh sách đề tài');
+    } finally {
+      setTopicLoading(false);
+    }
+  };
+
   const fetchProgressData = async () => {
     if (!maDTToUse) return;
     setLoading(true);
     try {
       const data = await getTopicProgress(maDTToUse);
       setProgressData(data);
+      try {
+        const mem = await getMemberByid(maDTToUse);
+        setMembers(mem || []);
+      } catch (e) {
+        console.error('Không lấy được danh sách thành viên:', e);
+      }
     } catch (error) {
       message.error('Lỗi khi tải dữ liệu tiến độ');
     } finally {
@@ -82,7 +128,7 @@ const ProgressManagement: React.FC = () => {
             .sort((a: CapNhatTienDo, b: CapNhatTienDo) => dayjs(b.NgayCapNhat).valueOf() - dayjs(a.NgayCapNhat).valueOf())[0];
 
           const status = calculateStatus(moc);
-          const percent = latestUpdate?.PhanTramHT || 0;
+          // percent removed: milestones no longer track percentage in UI
 
           let color = 'gray';
           let icon = <ClockCircleOutlined />;
@@ -106,13 +152,13 @@ const ProgressManagement: React.FC = () => {
                 extra={
                   <Space>
                     <Badge status={status === 'Hoàn thành' ? 'success' : status === 'Trễ hạn' ? 'error' : status === 'Sắp hạn' ? 'warning' : 'processing'} text={status} />
-                    {(canEditMoc || canUpdateProgress) && (
-                      <Button
-                        size="small"
-                        icon={<EditOutlined />}
-                        onClick={() => handleEditMoc(moc)}
-                      >
-                        Sửa 
+                    {canManageMoc ? (
+                      <Button size="small" icon={<EditOutlined />} onClick={() => handleEditMoc(moc)}>
+                        Sửa
+                      </Button>
+                    ) : (
+                      <Button size="small" disabled={status === 'Hoàn thành' || status === 'Trễ hạn'} onClick={() => handleSubmitMoc(moc)}>
+                        Nộp sản phẩm
                       </Button>
                     )}
                   </Space>
@@ -120,7 +166,6 @@ const ProgressManagement: React.FC = () => {
               >
                 <p>{moc.MoTa}</p>
                 <p><strong>Trọng số:</strong> {moc.TrongSo}%</p>
-                <Progress percent={percent} status={status === 'Trễ hạn' ? 'exception' : status === 'Hoàn thành' ? 'success' : 'active'} />
                 {latestUpdate && (
                   <p><small>Cập nhật cuối: {dayjs(latestUpdate.NgayCapNhat).format('DD/MM/YYYY HH:mm')} - {latestUpdate.GhiChu}</small></p>
                 )}
@@ -167,16 +212,7 @@ const ProgressManagement: React.FC = () => {
           return <Badge status={status === 'Hoàn thành' ? 'success' : status === 'Trễ hạn' ? 'error' : status === 'Sắp hạn' ? 'warning' : 'processing'} text={status} />;
         },
       },
-      {
-        title: '% Hoàn thành',
-        key: 'PhanTram',
-        render: (moc: MocTienDo) => {
-          const latestUpdate = progressData.CapNhatTienDo
-            .filter((c: CapNhatTienDo) => c.MaMoc === moc.MaMoc)
-            .sort((a: CapNhatTienDo, b: CapNhatTienDo) => dayjs(b.NgayCapNhat).valueOf() - dayjs(a.NgayCapNhat).valueOf())[0];
-          return <Progress percent={latestUpdate?.PhanTramHT || 0} size="small" />;
-        },
-      },
+      // Removed percent-complete column per new requirement
       {
         title: 'Thao tác',
         key: 'actions',
@@ -185,12 +221,18 @@ const ProgressManagement: React.FC = () => {
             <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewMoc(moc)}>
               Xem
             </Button>
-            <Button size="small" icon={<EditOutlined />} onClick={() => handleEditMoc(moc)}>
-              Sửa
-            </Button>
-            <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDeleteMoc(moc)}>
-              Xóa
-            </Button>
+            {canManageMoc ? (
+              <>
+                <Button size="small" icon={<EditOutlined />} onClick={() => handleEditMoc(moc)}>
+                  Sửa
+                </Button>
+                <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDeleteMoc(moc)}>
+                  Xóa
+                </Button>
+              </>
+            ) : (
+              <Button size="small" disabled={calculateStatus(moc) === 'Hoàn thành' || calculateStatus(moc) === 'Trễ hạn'} onClick={() => handleSubmitMoc(moc)}>Nộp</Button>
+            )}
           </Space>
         ),
       },
@@ -223,7 +265,27 @@ const ProgressManagement: React.FC = () => {
       ...moc,
       NgayBatDau: dayjs(moc.NgayBatDau),
       NgayKetThuc: dayjs(moc.NgayKetThuc),
-      PhanTramHT: latestUpdate?.PhanTramHT,
+      GhiChu: latestUpdate?.GhiChu,
+      TepDinhKem: latestUpdate?.TepDinhKem,
+    });
+    setIsEditModalVisible(true);
+  };
+
+  const handleSubmitMoc = (moc: MocTienDo) => {
+    const status = calculateStatus(moc);
+    if (status === 'Hoàn thành' || status === 'Trễ hạn') {
+      message.warning('Mốc đã hoàn thành hoặc trễ hạn, không thể nộp minh chứng.');
+      return;
+    }
+    setSelectedMoc(moc);
+    const latestUpdate = progressData?.CapNhatTienDo
+      .filter((c: CapNhatTienDo) => c.MaMoc === moc.MaMoc)
+      .sort((a: CapNhatTienDo, b: CapNhatTienDo) => dayjs(b.NgayCapNhat).valueOf() - dayjs(a.NgayCapNhat).valueOf())[0];
+
+    form.setFieldsValue({
+      ...moc,
+      NgayBatDau: dayjs(moc.NgayBatDau),
+      NgayKetThuc: dayjs(moc.NgayKetThuc),
       GhiChu: latestUpdate?.GhiChu,
       TepDinhKem: latestUpdate?.TepDinhKem,
     });
@@ -240,7 +302,6 @@ const ProgressManagement: React.FC = () => {
       ...moc,
       NgayBatDau: dayjs(moc.NgayBatDau),
       NgayKetThuc: dayjs(moc.NgayKetThuc),
-      PhanTramHT: latestUpdate?.PhanTramHT,
       GhiChu: latestUpdate?.GhiChu,
       TepDinhKem: latestUpdate?.TepDinhKem,
     });
@@ -283,24 +344,67 @@ const ProgressManagement: React.FC = () => {
 
   const handleSaveSubmit = async (values: any) => {
     if (!selectedMoc) return;
+    const currentStatus = calculateStatus(selectedMoc);
+    if (!canManageMoc && currentStatus === 'Trễ hạn') {
+      message.warning('Mốc đã trễ hạn, không thể nộp minh chứng.');
+      return;
+    }
     try {
-      const updatedMoc = {
-        ...values,
-        NgayBatDau: values.NgayBatDau.toDate(),
-        NgayKetThuc: values.NgayKetThuc.toDate(),
-      };
-      await updateMocTienDo(selectedMoc.MaMoc, updatedMoc);
+      // Manager (nhóm trưởng / chủ nhiệm): full edit
+      if (canManageMoc) {
+        const updatedMoc = {
+          ...values,
+          NgayBatDau: values.NgayBatDau.toDate(),
+          NgayKetThuc: values.NgayKetThuc.toDate(),
+        };
+        await updateMocTienDo(selectedMoc.MaMoc, updatedMoc);
 
-      if (values.PhanTramHT !== undefined || values.GhiChu || values.TepDinhKem) {
+        if (values.GhiChu || selectedFile) {
+          let fileUrl = values.TepDinhKem;
+          if (selectedFile) fileUrl = await uploadMinhChung(selectedFile);
+          const capNhat = {
+            MaMoc: selectedMoc.MaMoc,
+            TaiKhoan: userAccount,
+            NgayCapNhat: new Date(),
+            GhiChu: values.GhiChu || '',
+            TepDinhKem: fileUrl,
+          } as any;
+          await updateProgress(capNhat);
+        }
+      } else {
+        // Member: only submit product / update progress and optionally resubmit file
+        let fileUrl: string | undefined = undefined;
+        if (selectedFile) {
+          fileUrl = await uploadMinhChung(selectedFile);
+        }
+
         const capNhat = {
           MaMoc: selectedMoc.MaMoc,
           TaiKhoan: userAccount,
           NgayCapNhat: new Date(),
-          PhanTramHT: values.PhanTramHT ?? 0,
-          GhiChu: values.GhiChu || '',
-          TepDinhKem: values.TepDinhKem,
-        };
+          GhiChu: values.GhiChu
+            ? `${values.GhiChu}\nĐã sửa file: ${selectedFile?.name || ''} vào ${new Date().toLocaleString()}`
+            : (selectedFile ? `Đã sửa file: ${selectedFile.name} vào ${new Date().toLocaleString()}` : ''),
+          TepDinhKem: fileUrl,
+        } as any;
         await updateProgress(capNhat);
+
+        // On member submit, mark milestone as completed
+        await updateMocTienDo(selectedMoc.MaMoc, { TrangThai: 'Hoàn thành' });
+
+        // Notify members and advisors
+        try {
+          const recipients = members.map(m => m.TaiKhoan).filter(Boolean) as string[];
+          for (const r of recipients) {
+            await createNofitfications(r, 'Mốc tiến độ được cập nhật', `Mốc "${selectedMoc.TenMoc}" đã được cập nhật bởi ${userAccount || 'Một thành viên'}.`);
+          }
+          const advisors = members.filter(m => m.VaiTroDT && (m.VaiTroDT.toLowerCase().includes('hướng dẫn') || m.VaiTroDT.toLowerCase().includes('huong dan') || m.VaiTroDT.toLowerCase().includes('người hướng')));
+          for (const a of advisors) {
+            await createNofitfications(a.TaiKhoan, 'Mốc tiến độ có file mới', `Thành viên đã nộp/tải lại file cho mốc "${selectedMoc.TenMoc}".`);
+          }
+        } catch (e) {
+          console.error('Không gửi được thông báo:', e);
+        }
       }
 
       message.success('Cập nhật mốc và tiến độ thành công');
@@ -318,11 +422,33 @@ const ProgressManagement: React.FC = () => {
         title={`Quản lý tiến độ đề tài: ${progressData?.TenDT || ''}`}
         extra={
           <Space>
-            
+            <Select
+              showSearch
+              loading={topicLoading}
+              placeholder="Chọn đề tài..."
+              style={{ minWidth: 240 }}
+              optionFilterProp="children"
+              value={selectedTopicId || undefined}
+              onChange={handleTopicChange}
+              filterOption={(input, option) =>
+                String(option?.children).toLowerCase().includes(input.toLowerCase())
+              }
+            >
+              {topics.map((topic) => (
+                <Select.Option key={topic.MaDT} value={topic.MaDT}>
+                  {topic.TenDT}
+                </Select.Option>
+              ))}
+            </Select>
+            <Button onClick={handleGoToTopic}>Tìm kiếm</Button>
+            {canManageMoc && (
               <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateMoc}>
                 Thêm mốc
               </Button>
-            
+            )}
+            {!canManageMoc && (
+              <span style={{ color: '#8c8c8c', fontSize: 13 }}>Chỉ xem và nộp sản phẩm</span>
+            )}
           </Space>
         }
       >
@@ -378,36 +504,38 @@ const ProgressManagement: React.FC = () => {
       >
         <Form form={form} layout="vertical" onFinish={handleSaveSubmit}>
           <Form.Item name="TenMoc" label="Tên mốc" rules={[{ required: true }]}>
-            <Input />
+            <Input disabled={!canManageMoc} />
           </Form.Item>
           <Form.Item name="MoTa" label="Mô tả">
-            <TextArea />
+            <TextArea disabled={!canManageMoc} />
           </Form.Item>
           <Form.Item name="NgayBatDau" label="Ngày bắt đầu" rules={[{ required: true }]}>
-            <DatePicker />
+            <DatePicker disabled={!canManageMoc} />
           </Form.Item>
           <Form.Item name="NgayKetThuc" label="Ngày kết thúc" rules={[{ required: true }]}>
-            <DatePicker />
+            <DatePicker disabled={!canManageMoc} />
           </Form.Item>
           <Form.Item name="ThuTu" label="Thứ tự" rules={[{ required: true }]}>
-            <InputNumber min={1} />
+            <InputNumber min={1} disabled={!canManageMoc} />
           </Form.Item>
           <Form.Item name="TrongSo" label="Trọng số (%)" rules={[{ required: true }]}>
-            <InputNumber min={0} max={100} />
+            <InputNumber min={0} max={100} disabled={!canManageMoc} />
           </Form.Item>
 
           <Divider />
 
-          <Form.Item name="PhanTramHT" label="% Hoàn thành">
-            <InputNumber min={0} max={100} style={{ width: '100%' }} />
-          </Form.Item>
+          {/* % Hoàn thành removed — milestones are completed when students submit */}
             <Form.Item name="GhiChu" label="Ghi chú">
               <TextArea />
             </Form.Item>
           <Form.Item name="TepDinhKem" label="File minh chứng">
-            <Upload>
+            <Upload
+              beforeUpload={(file) => { setSelectedFile(file); return false; }}
+              disabled={selectedMoc ? (calculateStatus(selectedMoc) === 'Hoàn thành' || calculateStatus(selectedMoc) === 'Trễ hạn') : false}
+            >
               <Button icon={<UploadOutlined />}>Chọn file</Button>
             </Upload>
+            {selectedFile && <div style={{ marginTop: 8, fontSize: 12 }}>Đã chọn: {selectedFile.name}</div>}
           </Form.Item>
           <Form.Item>
             <Button type="primary" htmlType="submit">Lưu</Button>
@@ -444,9 +572,7 @@ const ProgressManagement: React.FC = () => {
 
           <Divider />
 
-          <Form.Item name="PhanTramHT" label="% Hoàn thành">
-            <InputNumber min={0} max={100} disabled style={{ width: '100%' }} />
-          </Form.Item>
+          {/* % Hoàn thành removed from view */}
           <Form.Item name="GhiChu" label="Ghi chú">
             <TextArea disabled rows={3} />
           </Form.Item>
@@ -457,6 +583,20 @@ const ProgressManagement: React.FC = () => {
             <Button type="default" onClick={() => setIsViewModalVisible(false)}>Đóng</Button>
           </Form.Item>
         </Form>
+        {progressData && selectedMoc && (
+          <div style={{ marginTop: 12 }}>
+            <Divider />
+            <h4 style={{ marginBottom: 8 }}>Lịch sử cập nhật</h4>
+            {(progressData.CapNhatTienDo || [])
+              .filter((u: CapNhatTienDo) => u.MaMoc === selectedMoc.MaMoc)
+              .sort((a: CapNhatTienDo, b: CapNhatTienDo) => new Date(b.NgayCapNhat).getTime() - new Date(a.NgayCapNhat).getTime())
+              .map((u: CapNhatTienDo) => (
+                <div key={u.MaCapNhat} style={{ marginBottom: 6 }}>
+                  <small>{new Date(u.NgayCapNhat).toLocaleString()} — {u.TaiKhoan}: {u.GhiChu}{u.TepDinhKem ? ` (file: ${String(u.TepDinhKem).split('/').pop()})` : ''}</small>
+                </div>
+              ))}
+          </div>
+        )}
       </Modal>
     </Content>
   );

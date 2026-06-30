@@ -1,4 +1,7 @@
-// import ApiAxios from "../../axios.config";;
+// import ApiAxios from "../../axios.config
+
+import { jwtDecode } from "jwt-decode";
+import { createNofitfications } from "./NotificationService";
 
 /* Kiểu dữ liệu cho Mốc Tiến Độ */
 export interface MocTienDo {
@@ -33,6 +36,45 @@ export interface TopicProgress {
   CapNhatTienDo: CapNhatTienDo[];
 }
 
+const defaultTrangThai: MocTienDo['TrangThai'] = 'Đang thực hiện';
+const overdueNotifiedMocs = new Set<string>();
+
+const getCurrentUserAccount = (): string | undefined => {
+  const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
+  if (!token) return undefined;
+
+  try {
+    const payload = jwtDecode<{ TaiKhoan?: string }>(token);
+    return payload.TaiKhoan;
+  } catch {
+    return undefined;
+  }
+};
+
+const isMocOverdue = (moc: MocTienDo, now = new Date()): boolean => {
+  const ngayKetThuc = new Date(moc.NgayKetThuc);
+  return now > ngayKetThuc && moc.TrangThai !== 'Hoàn thành' && moc.TrangThai !== 'Trễ hạn';
+};
+
+const ensureMocStatusAndNotification = async (moc: MocTienDo) => {
+  if (!isMocOverdue(moc)) return;
+
+  moc.TrangThai = 'Trễ hạn';
+
+  if (overdueNotifiedMocs.has(moc.MaMoc)) return;
+  overdueNotifiedMocs.add(moc.MaMoc);
+
+  try {
+    await createNofitfications(
+      getCurrentUserAccount() || 'system',
+      'Mốc tiến độ quá hạn',
+      `Mốc "${moc.TenMoc}" của đề tài ${moc.MaDT} đã quá hạn vào ${new Date(moc.NgayKetThuc).toLocaleDateString('vi-VN')}. Vui lòng cập nhật tiến độ ngay.`
+    );
+  } catch (error) {
+    console.error('Không thể gửi thông báo quá hạn:', error);
+  }
+};
+
 /* API Functions */
 
 // Lấy danh sách mốc tiến độ của một đề tài
@@ -45,7 +87,7 @@ export const getMocTienDoByTopic = async (maDT: string): Promise<MocTienDo[]> =>
       TenMoc: "Khảo sát thực địa",
       MoTa: "Thu thập dữ liệu tại các điểm khảo sát",
       NgayBatDau: new Date("2026-01-01"),
-      NgayKetThuc: new Date("2026-01-31"),
+      NgayKetThuc: new Date("2026-08-31"),
       ThuTu: 1,
       TrongSo: 20,
       TrangThai: "Hoàn thành"
@@ -56,7 +98,7 @@ export const getMocTienDoByTopic = async (maDT: string): Promise<MocTienDo[]> =>
       TenMoc: "Phân tích dữ liệu",
       MoTa: "Xử lý và phân tích dữ liệu thu thập được",
       NgayBatDau: new Date("2026-02-01"),
-      NgayKetThuc: new Date("2026-02-28"),
+      NgayKetThuc: new Date("2026-09-28"),
       ThuTu: 2,
       TrongSo: 30,
       TrangThai: "Đang thực hiện"
@@ -67,7 +109,7 @@ export const getMocTienDoByTopic = async (maDT: string): Promise<MocTienDo[]> =>
       TenMoc: "Viết báo cáo giữa kỳ",
       MoTa: "Soạn thảo báo cáo tiến độ giữa kỳ",
       NgayBatDau: new Date("2026-03-01"),
-      NgayKetThuc: new Date("2026-03-15"),
+      NgayKetThuc: new Date("2026-10-15"),
       ThuTu: 3,
       TrongSo: 25,
       TrangThai: "Sắp hạn"
@@ -77,8 +119,8 @@ export const getMocTienDoByTopic = async (maDT: string): Promise<MocTienDo[]> =>
       MaDT: maDT,
       TenMoc: "Báo cáo cuối kỳ",
       MoTa: "Hoàn thiện báo cáo cuối cùng",
-      NgayBatDau: new Date("2026-04-01"),
-      NgayKetThuc: new Date("2026-04-30"),
+      NgayBatDau: new Date("2026-09-01"),
+      NgayKetThuc: new Date("2026-10-30"),
       ThuTu: 4,
       TrongSo: 25,
       TrangThai: "Chưa bắt đầu"
@@ -153,6 +195,10 @@ export const getTopicProgress = async (maDT: string): Promise<TopicProgress> => 
   const mocTienDo = await getMocTienDoByTopic(maDT);
   const capNhatTienDo: CapNhatTienDo[] = [];
 
+  for (const moc of mocTienDo) {
+    await ensureMocStatusAndNotification(moc);
+  }
+
   // Thu thập tất cả cập nhật từ các mốc
   for (const moc of mocTienDo) {
     const updates = await getCapNhatTienDoByMoc(moc.MaMoc);
@@ -192,6 +238,7 @@ export const createMocTienDo = async (moc: Omit<MocTienDo, 'MaMoc'>): Promise<Mo
   const newMoc: MocTienDo = {
     ...moc,
     MaMoc: `MOC${Date.now()}`, // Generate mock ID
+    TrangThai: moc.TrangThai || defaultTrangThai,
   };
   console.log('Mock created:', newMoc);
   return newMoc;
@@ -210,7 +257,7 @@ export const updateMocTienDo = async (maMoc: string, moc: Partial<MocTienDo>): P
     NgayKetThuc: moc.NgayKetThuc || new Date(),
     ThuTu: moc.ThuTu || 0,
     TrongSo: moc.TrongSo || 0,
-    TrangThai: moc.TrangThai || 'Chưa bắt đầu'
+    TrangThai: moc.TrangThai || defaultTrangThai
   };
 };
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Spin, Button, Tag, Card, Row, Col, List, message, Modal, Input, Divider, Form, Upload, Select, Radio } from 'antd';
-import { ArrowLeftOutlined, EditOutlined, SaveOutlined, CloseOutlined, SendOutlined, UploadOutlined, BarChartOutlined } from '@ant-design/icons';
+import {DownloadOutlined, ArrowLeftOutlined, EditOutlined, SaveOutlined, CloseOutlined, SendOutlined, UploadOutlined, BarChartOutlined, EyeOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { getTopicById, getMemberByid, getUsersByRole } from './Quản lý thông tin đề án/TopicService';
 import { getTopicProgress } from './Quản lý thông tin đề án/ProgressService';
@@ -35,6 +35,7 @@ const TopicDetail: React.FC = () => {
     const [committeeOptions, setCommitteeOptions] = useState<NguoiNhanOption[]>([]);
     const [advisorOptions, setAdvisorOptions] = useState<NguoiNhanOption[]>([]);
     const [approvalStatus, setApprovalStatus] = useState<ReviewerApproval[]>([]);
+    
 
     const reviewerOptions = targetGroup === 'hoidong' ? committeeOptions : targetGroup === 'huongdan' ? advisorOptions : [];
     const approvedCount = approvalStatus.filter((r) => r.approved).length;
@@ -44,7 +45,20 @@ const TopicDetail: React.FC = () => {
         fetchTopicDetail();
         fetchUsers();
     }, [MaDT]);
-    
+
+    const handleDownloadFile = (fileUrl?: string) => {
+        if (!fileUrl) {
+          message.warning('Chưa có file đính kèm');
+          return;
+        }
+        const link = document.createElement('a');
+        link.href = fileUrl;
+        link.download = fileUrl.split('/').pop() || 'tep-dinh-kem';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      };
+
     const fetchTopicDetail = async () => {
         if (!MaDT) {
             message.error('Mã đề tài không hợp lệ');
@@ -348,9 +362,23 @@ const TopicDetail: React.FC = () => {
                                                             <strong>{doc.name}</strong>
                                                             <div style={{ color: '#666', fontSize: 12 }}>{doc.source}{doc.date ? ` · ${doc.date}` : ''}</div>
                                                         </div>
-                                                        <a href={doc.url} target="_blank" rel="noreferrer">
+                                                        <div style={{gap: 8, display: 'flex'}}>
+                                                        <Button
+                                                            type="primary"
+                                                            icon={<EyeOutlined />}
+                                                            className="btn-see-upload"
+                                                        >
                                                             Xem
-                                                        </a>
+                                                        </Button>
+                                                        <Button
+                                                            type="primary"
+                                                            icon={<DownloadOutlined />}
+                                                            className="btn-see-upload"
+                                                            
+                                                        >
+                                                            Tải xuống
+                                                        </Button>
+                                                        </div>
                                                     </div>
                                                 </List.Item>
                                             )}

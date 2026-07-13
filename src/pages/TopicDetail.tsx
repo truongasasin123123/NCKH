@@ -73,7 +73,7 @@ const TopicDetail: React.FC = () => {
             if (data) {
                 setTopic(data);
                 setMembers(memData);
-                await fetchProjectDocuments(MaDT);
+                //await fetchProjectDocuments(MaDT);
                 form.setFieldsValue({
                     TenDT: data.TenDT,
                     PhanLoai: data.PhanLoai,
@@ -94,25 +94,25 @@ const TopicDetail: React.FC = () => {
         }
     };
 
-    const fetchProjectDocuments = async (maDT: string) => {
-        try {
-            setProgressDocsLoading(true);
-            const progressData = await getTopicProgress(maDT);
-            const documents = progressData.CapNhatTienDo
-                .filter((update) => update.TepDinhKem)
-                .map((update) => ({
-                    name: update.TepDinhKem?.split('/').pop() || update.MaCapNhat,
-                    url: update.TepDinhKem as string,
-                    source: 'Tiến độ',
-                    date: update.NgayCapNhat ? new Date(update.NgayCapNhat).toLocaleDateString('vi-VN') : undefined,
-                }));
-            setProjectDocuments(documents);
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setProgressDocsLoading(false);
-        }
-    };
+    // const fetchProjectDocuments = async (maDT: string) => {
+    //     try {
+    //         setProgressDocsLoading(true);
+    //         const progressData = await getTopicProgress(maDT);
+    //         const documents = progressData.CapNhatTienDo
+    //             .filter((update) => update.TepDinhKem)
+    //             .map((update) => ({
+    //                 name: update.TepDinhKem?.split('/').pop() || update.MaCapNhat,
+    //                 url: update.TepDinhKem as string,
+    //                 source: 'Tiến độ',
+    //                 date: update.NgayCapNhat ? new Date(update.NgayCapNhat).toLocaleDateString('vi-VN') : undefined,
+    //             }));
+    //         setProjectDocuments(documents);
+    //     } catch (error) {
+    //         console.error(error);
+    //     } finally {
+    //         setProgressDocsLoading(false);
+    //     }
+    // };
 
     const fetchUsers = async () => {
         try {

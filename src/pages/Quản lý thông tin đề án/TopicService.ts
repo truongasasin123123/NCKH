@@ -13,13 +13,21 @@ export interface TopicLoad {
     MoTa: string
     TongKinhPhi: number
     progress?: number
-    
+
     ThanhVienDT: ThanhVienDT[];
 }
 
 export interface ThanhVienDT {
+    idTV: number
     TaiKhoan: string
     VaiTroDT: string
+
+    NguoiDung: NguoiDung;
+}
+
+export interface NguoiDung{
+    TenDayDu: string
+    VaiTro: string
 }
 
 /* Connect API */
@@ -36,6 +44,11 @@ export const getTopicById = async (id: String): Promise<TopicLoad> => {
 
 export const getMemberByid = async (id: string): Promise<ThanhVienDT[]> => {
     const res = await ApiAxios.get(`/project/member/${id}`);
+    return res.data;
+}
+
+export const getLeaderByid = async (id: string): Promise<ThanhVienDT> => {
+    const res = await ApiAxios.get(`/project/leader/${id}`);
     return res.data;
 }
 

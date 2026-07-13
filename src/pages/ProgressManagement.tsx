@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Layout, Card, Timeline, Table, Button, Modal, Form, Input, DatePicker, InputNumber, Upload, message, Badge, Space, Tabs, Divider, Select, Row, Col, Tag } from 'antd';
 import { CheckOutlined, PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined, EyeOutlined, ClockCircleOutlined, CheckCircleOutlined, ExclamationCircleOutlined, CloseCircleOutlined, DownloadOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getTopicProgress, createMocTienDo, updateMocTienDo, deleteMocTienDo, uploadMinhChung, getMemberById } from './Quản lý thông tin đề án/ProgressService';
+import { getTopicProgress, createMocTienDo, updateMocTienDo, deleteMocTienDo, getMemberById } from './Quản lý thông tin đề án/ProgressService';
 import type { MocTienDo, CapNhatTienDo, ThanhVienMocDT } from './Quản lý thông tin đề án/ProgressService';
-import { getLeaderByid, getMemberByid, getMyTopics } from './Quản lý thông tin đề án/TopicService';
+import { getMemberByid, getMyTopics } from './Quản lý thông tin đề án/TopicService';
 import type { ThanhVienDT, TopicLoad } from './Quản lý thông tin đề án/TopicService';
+import { downloadDocument, getDocumentsByMilestone, previewDocument, uploadDocument } from './Quản lý thông tin đề án/DocumentsService';
+import type { TaiLieu } from './Quản lý thông tin đề án/DocumentsService';
 import { jwtDecode } from 'jwt-decode';
 import dayjs from 'dayjs';
 import { debounce } from 'lodash';
@@ -33,7 +35,6 @@ const ProgressManagement: React.FC = () => {
   const [editOptions, setEditOptions] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('timeline');
   const [members, setMembers] = useState<ThanhVienDT[]>([]);
-  const [leader, setLeader] = useState<ThanhVienDT>();
   const [fetching, setFetching] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [thanhViens, setThanhViens] = useState<ThanhVienMocDT[]>([]);
@@ -47,13 +48,13 @@ const ProgressManagement: React.FC = () => {
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
   const [viewForm] = Form.useForm();
-  const watchedTepDinhKem = Form.useWatch('TepDinhKem', editForm);
+  const [mocDocuments, setMocDocuments] = useState<TaiLieu[]>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
   const [showTopicSearch, setShowTopicSearch] = useState(false);
   const [searchText, setSearchText] = useState("");
 
   const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
   const user: JwtPayload | null = token ? jwtDecode<JwtPayload>(token) : null;
-  const userRole = user?.VaiTro || '';
 
   const handleTopicChange = (value: string) => {
     setSelectedTopicId(value);
@@ -63,27 +64,6 @@ const ProgressManagement: React.FC = () => {
     if (selectedTopicId) {
       navigate(`/mainhome/progress/${selectedTopicId}`);
     }
-  };
-
-  const handleViewFile = (fileUrl?: string) => {
-    if (!fileUrl) {
-      message.warning('Chưa có file đính kèm');
-      return;
-    }
-    window.open(fileUrl, '_blank');
-  };
-
-  const handleDownloadFile = (fileUrl?: string) => {
-    if (!fileUrl) {
-      message.warning('Chưa có file đính kèm');
-      return;
-    }
-    const link = document.createElement('a');
-    link.href = fileUrl;
-    link.download = fileUrl.split('/').pop() || 'tep-dinh-kem';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   useEffect(() => {
@@ -145,6 +125,27 @@ const ProgressManagement: React.FC = () => {
     }
   }, [isViewModalVisible, selectedMoc]);
 
+  useEffect(() => {
+    if (!isViewModalVisible || !selectedMoc) {
+      setMocDocuments([]);
+      return;
+    }
+
+    const fetchDocuments = async () => {
+      try {
+        setDocumentsLoading(true);
+        setMocDocuments(await getDocumentsByMilestone(selectedMoc.MaMoc));
+      } catch (error) {
+        console.error('Lỗi khi tải tài liệu mốc:', error);
+        message.error('Không thể tải tài liệu minh chứng');
+      } finally {
+        setDocumentsLoading(false);
+      }
+    };
+
+    fetchDocuments();
+  }, [isViewModalVisible, selectedMoc]);
+
   const fetchTopicList = async () => {
     setTopicLoading(true);
     try {
@@ -165,9 +166,7 @@ const ProgressManagement: React.FC = () => {
       setProgressData(data);
       try {
         const mem = await getMemberByid(maDTToUse);
-        const lead = await getLeaderByid(maDTToUse);
         setMembers(mem);
-        setLeader(lead);
       } catch (e) {
         console.error('Không lấy được danh sách thành viên:', e);
       }
@@ -179,10 +178,18 @@ const ProgressManagement: React.FC = () => {
   };
 
   // Kiểm tra quyền
-  const isChuNhiem = userRole.includes('Người hướng dẫn') || userRole.includes('nguoihuongdan');
-  const currentMember: ThanhVienDT | undefined = members.find(m => m.idTV == currentMember?.idTV);
-  const isNhomTruong = isChuNhiem || currentMember?.VaiTroDT.includes('Nhóm trưởng') || currentMember?.VaiTroDT.includes('nhomtruong');
-  const canManageMoc = isNhomTruong;
+  // Chỉ nhóm trưởng của đề tài hiện tại được sửa/xóa mốc.
+  // Vai trò tài khoản (sinh viên, người hướng dẫn, ...) không quyết định quyền này.
+  const normalizeRole = (role?: string) =>
+    (role || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+  const currentMember = members.find(
+    (member) => member.TaiKhoan === user?.TaiKhoan,
+  );
+  const canManageMoc = normalizeRole(currentMember?.VaiTroDT).includes('nhom truong');
 
 
   // Render timeline view
@@ -480,14 +487,6 @@ const ProgressManagement: React.FC = () => {
     if (!selectedMoc) return;
 
     try {
-      // Upload file nếu có chọn
-      let fileUrl: string | undefined = undefined;
-
-      if (selectedFile) {
-        fileUrl = await uploadMinhChung(selectedFile);
-        console.log("File đã upload:", fileUrl);
-      }
-
       const updatedMoc: CapNhatTienDo = {
         TenMoc: values.TenMoc,
         MoTa: values.MoTa,
@@ -500,6 +499,15 @@ const ProgressManagement: React.FC = () => {
       };
 
       await updateMocTienDo(selectedMoc.MaMoc, updatedMoc);
+
+      if (selectedFile) {
+        await uploadDocument({
+          file: selectedFile,
+          maDT: selectedMoc.MaDT || maDTToUse,
+          maMoc: selectedMoc.MaMoc,
+          loaiTaiLieu: 'Minh chứng tiến độ',
+        });
+      }
 
       message.success("Cập nhật mốc tiến độ thành công");
 
@@ -891,29 +899,34 @@ const ProgressManagement: React.FC = () => {
           </Form.Item>
           <Divider />
           {/* % Hoàn thành removed from view */}
-          {watchedTepDinhKem ? (
-            <Form.Item label="File minh chứng">
+          <Form.Item label="File minh chứng">
+            {documentsLoading ? (
+              <span>Đang tải tài liệu...</span>
+            ) : mocDocuments.length > 0 ? (
               <Space direction="vertical" style={{ width: '100%' }}>
-                <Input value={watchedTepDinhKem} disabled />
-                <Space>
-                  <Button icon={<EyeOutlined />} onClick={() => handleViewFile(watchedTepDinhKem)}>
-                    Xem file
-                  </Button>
-                  <Button
-                    type="primary"
-                    icon={<DownloadOutlined />}
-                    onClick={() => handleDownloadFile(watchedTepDinhKem)}
-                  >
-                    Tải xuống
-                  </Button>
-                </Space>
+                {mocDocuments.map((document) => (
+                  <Space key={document.MaTL} wrap>
+                    <span>{document.TenFile}</span>
+                    <Button
+                      icon={<EyeOutlined />}
+                      onClick={() => previewDocument(document.MaTL)}
+                    >
+                      Xem file
+                    </Button>
+                    <Button
+                      type="primary"
+                      icon={<DownloadOutlined />}
+                      onClick={() => downloadDocument(document.MaTL, document.TenFile)}
+                    >
+                      Tải xuống
+                    </Button>
+                  </Space>
+                ))}
               </Space>
-            </Form.Item>
-          ) : (
-            <Form.Item label="File minh chứng">
+            ) : (
               <Input disabled placeholder="Chưa có file đính kèm" />
-            </Form.Item>
-          )}
+            )}
+          </Form.Item>
           <Form.Item>
             <Button type="default" onClick={() => setIsViewModalVisible(false)}>Đóng</Button>
           </Form.Item>

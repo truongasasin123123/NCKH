@@ -104,7 +104,7 @@ export const createMocTienDo = async (moc: TaoTienDo): Promise<MocTienDo> => {
 
 // Cập nhật mốc tiến độ (chỉ Chủ nhiệm)
 export const updateMocTienDo = async (id: number, moc: CapNhatTienDo): Promise<MocTienDo> => {
-  const res = await ApiAxios.put(`/progress/updateprogress/${id}`, moc);
+  const res = await ApiAxios.patch(`/progress/updateprogress/${id}`, moc);
   return res.data;
 };
 
@@ -116,11 +116,4 @@ export const deleteMocTienDo = async (id: number): Promise<void> => {
 export const getMemberById = async (maMoc: number): Promise<ThanhVienMocDT[]> => {
   const res = await ApiAxios.get(`/progress/member/${maMoc}`);
   return res.data;
-}
-
-// Upload file minh chứng
-export const uploadMinhChung = async (file: File): Promise<string> => {
-  // Mock response
-  console.log('Mock file uploaded:', file.name);
-  return `/files/mock_${file.name}`;
 };

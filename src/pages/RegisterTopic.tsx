@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from 'jwt-decode';
 import ApiAxios from "../axios.config";
+import type { UploadFile } from 'antd/es/upload/interface';
+import { uploadDocument } from './Quản lý thông tin đề án/DocumentsService';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -32,8 +34,9 @@ export interface RegisterTopic {
   Khoa: string;
   PhanLoai: string;
   idNguoiHD: string;
-  ThanhVien: string[];
+  ThanhVienIds: string[];
   MoTa?: string;
+  taiLieu?: UploadFile[];
 }
 
 const RegisterTopic = () => {
@@ -68,11 +71,22 @@ const RegisterTopic = () => {
   const onFinish = async (values: RegisterTopic) => {
     try {
 
-      const payload: RegisterTopic = {
-        ...values
-      };
+      const { taiLieu = [], ...payload } = values;
 
       const res = await ApiAxios.post("/project/registerproject", payload);
+
+      await Promise.all(
+        taiLieu.map((uploadFile) => {
+          if (!uploadFile.originFileObj) {
+            throw new Error(`Không đọc được file ${uploadFile.name}`);
+          }
+          return uploadDocument({
+            file: uploadFile.originFileObj,
+            maDT: values.MaDT,
+            loaiTaiLieu: 'Tài liệu đăng ký đề tài',
+          });
+        }),
+      );
 
       message.success(res.data.message);
       form.resetFields();
@@ -277,7 +291,7 @@ const RegisterTopic = () => {
           getValueFromEvent={(e) => e?.fileList}
         >
           <Upload
-            accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+            accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xlsx,.pptx"
             maxCount={5}
             beforeUpload={() => false}
           >

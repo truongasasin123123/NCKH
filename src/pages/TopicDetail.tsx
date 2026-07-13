@@ -4,8 +4,8 @@ import { Spin, Button, Tag, Card, Row, Col, List, message, Modal, Input, Divider
 import {DownloadOutlined, ArrowLeftOutlined, EditOutlined, SaveOutlined, CloseOutlined, SendOutlined, UploadOutlined, BarChartOutlined, EyeOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { getTopicById, getMemberByid, getUsersByRole } from './Quản lý thông tin đề án/TopicService';
-import { getTopicProgress } from './Quản lý thông tin đề án/ProgressService';
 import type { TopicLoad, ThanhVienDT } from './Quản lý thông tin đề án/TopicService';
+import { downloadDocument, getDocumentsByTopic, previewDocument, uploadDocument } from './Quản lý thông tin đề án/DocumentsService';
 
 interface NguoiNhanOption {
     value: string
@@ -27,7 +27,7 @@ const TopicDetail: React.FC = () => {
     const [submitModalOpen, setSubmitModalOpen] = useState(false);
     const [submitNotes, setSubmitNotes] = useState('');
     const [attachedFiles, setAttachedFiles] = useState<UploadFile[]>([]);
-    const [projectDocuments, setProjectDocuments] = useState<Array<{ name: string; url: string; source: string; date?: string }>>([]);
+    const [projectDocuments, setProjectDocuments] = useState<Array<{ id: number; name: string; source: string; date?: string }>>([]);
     const [progressDocsLoading, setProgressDocsLoading] = useState(false);
     const [editing, setEditing] = useState(false);
     const [targetGroup, setTargetGroup] = useState<'hoidong' | 'huongdan' | null>(null);
@@ -46,19 +46,6 @@ const TopicDetail: React.FC = () => {
         fetchUsers();
     }, [MaDT]);
 
-    const handleDownloadFile = (fileUrl?: string) => {
-        if (!fileUrl) {
-          message.warning('Chưa có file đính kèm');
-          return;
-        }
-        const link = document.createElement('a');
-        link.href = fileUrl;
-        link.download = fileUrl.split('/').pop() || 'tep-dinh-kem';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      };
-
     const fetchTopicDetail = async () => {
         if (!MaDT) {
             message.error('Mã đề tài không hợp lệ');
@@ -73,7 +60,7 @@ const TopicDetail: React.FC = () => {
             if (data) {
                 setTopic(data);
                 setMembers(memData);
-                //await fetchProjectDocuments(MaDT);
+                await fetchProjectDocuments(MaDT);
                 form.setFieldsValue({
                     TenDT: data.TenDT,
                     PhanLoai: data.PhanLoai,
@@ -94,25 +81,68 @@ const TopicDetail: React.FC = () => {
         }
     };
 
-    // const fetchProjectDocuments = async (maDT: string) => {
-    //     try {
-    //         setProgressDocsLoading(true);
-    //         const progressData = await getTopicProgress(maDT);
-    //         const documents = progressData.CapNhatTienDo
-    //             .filter((update) => update.TepDinhKem)
-    //             .map((update) => ({
-    //                 name: update.TepDinhKem?.split('/').pop() || update.MaCapNhat,
-    //                 url: update.TepDinhKem as string,
-    //                 source: 'Tiến độ',
-    //                 date: update.NgayCapNhat ? new Date(update.NgayCapNhat).toLocaleDateString('vi-VN') : undefined,
-    //             }));
-    //         setProjectDocuments(documents);
-    //     } catch (error) {
-    //         console.error(error);
-    //     } finally {
-    //         setProgressDocsLoading(false);
-    //     }
-    // };
+    const fetchProjectDocuments = async (maDT: string) => {
+        try {
+            setProgressDocsLoading(true);
+            const documents = await getDocumentsByTopic(maDT);
+            setProjectDocuments(documents.map((document) => ({
+                id: document.MaTL,
+                name: document.TenFile,
+                source: document.LoaiTaiLieu || 'Tài liệu đề tài',
+                date: document.NgayTaiLen
+                    ? new Date(document.NgayTaiLen).toLocaleDateString('vi-VN')
+                    : undefined,
+            })));
+        } catch (error) {
+            console.error('Lỗi khi tải tài liệu đề tài:', error);
+            message.error('Không thể tải tài liệu đề tài');
+        } finally {
+            setProgressDocsLoading(false);
+        }
+    };
+
+    const handleSubmitTopic = async () => {
+        if (!targetGroup) {
+            message.warning('Vui lòng chọn loại nhận (Hội đồng hoặc Người hướng dẫn)');
+            return;
+        }
+        if (!selectedReviewer || selectedReviewer.length === 0) {
+            message.warning('Vui lòng chọn hội đồng hoặc người hướng dẫn trước khi gửi');
+            return;
+        }
+        if (!MaDT) {
+            message.error('Không xác định được mã đề tài');
+            return;
+        }
+
+        try {
+            await Promise.all(attachedFiles.map((uploadFile) => {
+                if (!uploadFile.originFileObj) {
+                    throw new Error(`Không đọc được file ${uploadFile.name}`);
+                }
+                return uploadDocument({
+                    file: uploadFile.originFileObj,
+                    maDT: MaDT,
+                    loaiTaiLieu: 'Tài liệu gửi đánh giá',
+                });
+            }));
+
+            const chosenReviewers = reviewerOptions.filter((r) => selectedReviewer.includes(r.value));
+            const chosenLabels = chosenReviewers.map((r) => r.label).join(', ');
+            setTopic((prev) => prev ? { ...prev, TrangThai: 'Chờ phê duyệt' } : prev);
+            setApprovalStatus(chosenReviewers.map((r) => ({ name: r.label, approved: false })));
+            await fetchProjectDocuments(MaDT);
+
+            message.success(`Đã gửi đề tài cho: ${chosenLabels}`);
+            setSubmitModalOpen(false);
+            setSubmitNotes('');
+            setAttachedFiles([]);
+            setTargetGroup(null);
+            setSelectedReviewer([]);
+        } catch (error: any) {
+            message.error(error?.response?.data?.message || error.message || 'Không thể upload tài liệu');
+        }
+    };
 
     const fetchUsers = async () => {
         try {
@@ -367,6 +397,7 @@ const TopicDetail: React.FC = () => {
                                                             type="primary"
                                                             icon={<EyeOutlined />}
                                                             className="btn-see-upload"
+                                                            onClick={() => previewDocument(doc.id)}
                                                         >
                                                             Xem
                                                         </Button>
@@ -374,7 +405,7 @@ const TopicDetail: React.FC = () => {
                                                             type="primary"
                                                             icon={<DownloadOutlined />}
                                                             className="btn-see-upload"
-                                                            
+                                                            onClick={() => downloadDocument(doc.id, doc.name)}
                                                         >
                                                             Tải xuống
                                                         </Button>
@@ -439,29 +470,7 @@ const TopicDetail: React.FC = () => {
                                 <Button
                                     key="submit"
                                     type="primary"
-                                    onClick={() => {
-                                        if (!targetGroup) {
-                                            message.warning('Vui lòng chọn loại nhận (Hội đồng hoặc Người hướng dẫn)');
-                                            return;
-                                        }
-                                        if (!selectedReviewer || selectedReviewer.length === 0) {
-                                            message.warning('Vui lòng chọn hội đồng hoặc người hướng dẫn trước khi gửi');
-                                            return;
-                                        }
-
-                                        const chosenReviewers = reviewerOptions.filter((r) => selectedReviewer.includes(r.value));
-                                        const chosenLabels = chosenReviewers.map((r) => r.label).join(', ');
-
-                                        setTopic((prev) => prev ? { ...prev, TrangThai: 'Chờ phê duyệt' } : prev);
-                                        setApprovalStatus(chosenReviewers.map((r) => ({ name: r.label, approved: false })));
-
-                                        message.success(`Đã gửi đề tài cho: ${chosenLabels}`);
-                                        setSubmitModalOpen(false);
-                                        setSubmitNotes('');
-                                        setAttachedFiles([]);
-                                        setTargetGroup(null);
-                                        setSelectedReviewer([]);
-                                    }}
+                                    onClick={handleSubmitTopic}
                                 >
                                     Gửi
                                 </Button>,
@@ -558,6 +567,7 @@ const TopicDetail: React.FC = () => {
                                         <Upload
                                             listType="picture"
                                             multiple
+                                            accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xlsx,.pptx"
                                             onChange={(info: any) => setAttachedFiles(info.fileList)}
                                             beforeUpload={() => false}
                                         >

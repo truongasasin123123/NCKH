@@ -42,7 +42,7 @@ export const getTopicById = async (id: String): Promise<TopicLoad> => {
     return res.data;
 }
 
-export const getMemberByid = async (id: string): Promise<ThanhVienDT[]> => {
+export const getMemberByTopic = async (id: string): Promise<ThanhVienDT[]> => {
     const res = await ApiAxios.get(`/project/member/${id}`);
     return res.data;
 }
@@ -75,6 +75,24 @@ export const changeProjectState = async (id: string, state: string) => {
     });
     return response.data;
 }
+
+export const submitProjectForApproval = async (
+    id: string,
+    reviewerIds: string[],
+    note?: string,
+) => {
+    const response = await ApiAxios.post(`/project/${id}/submit-for-approval`, { reviewerIds, note });
+    return response.data;
+};
+
+export const reviewProject = async (
+    id: string,
+    decision: 'approved' | 'rejected',
+    note?: string,
+) => {
+    const response = await ApiAxios.post(`/project/${id}/review`, { decision, note });
+    return response.data;
+};
 
 export const deleteProject = async (id: string) => {
     const res = await ApiAxios.delete(`/project/deleteproject/${id}`);

@@ -33,10 +33,30 @@ export const uploadDocument = async ({
   return response.data.data;
 };
 
+export const submitMilestone = async ({
+  file,
+  maDT,
+  maMoc,
+  loaiTaiLieu,
+}: UploadDocumentParams): Promise<TaiLieu> => {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("MaDT", maDT);
+  if (maMoc !== undefined) formData.append("MaMoc", String(maMoc));
+  if (loaiTaiLieu) formData.append("LoaiTaiLieu", loaiTaiLieu);
+
+  const response = await ApiAxios.post("/progress/submit", formData);
+  return response.data.data;
+};
+
 export const getDocumentsByTopic = async (maDT: string): Promise<TaiLieu[]> => {
   const response = await ApiAxios.get(`/documents/detai/${maDT}`);
   return response.data;
 };
+
+export const deleteDocument = async (id: number) => {
+  await ApiAxios.delete(`/documents/${id}`);
+}
 
 export const getDocumentsByMilestone = async (
   maMoc: number,

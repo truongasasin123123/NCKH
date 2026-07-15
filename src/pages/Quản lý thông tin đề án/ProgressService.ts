@@ -66,7 +66,7 @@ export interface ThanhVienDT {
 
 // Đây là interface đại diện cho từng phần tử trong mảng trả về từ API /progress/member/:maMoc
 export interface ThanhVienMocDT {
-  id: number;
+  Id: number;
   thanhVien: ThanhVienDT;
 }
 

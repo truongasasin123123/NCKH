@@ -9,13 +9,11 @@ import {
 } from '@ant-design/icons';
 import {
     getTopicById,
-    getMemberByid,
-    changeProjectState,
-    deleteProject,
+    getMemberByTopic,
     updateProjectDate,
+    reviewProject,
 } from './Quản lý thông tin đề án/TopicService';
 import type { TopicLoad, ThanhVienDT } from './Quản lý thông tin đề án/TopicService';
-import { createNofitfications } from './Quản lý thông tin đề án/NotificationService';
 
 const TopicDetailCommittee: React.FC = () => {
     const { MaDT } = useParams<{ MaDT: string }>();
@@ -61,7 +59,7 @@ const TopicDetailCommittee: React.FC = () => {
         try {
             setLoading(true);
             const data = await getTopicById(MaDT);
-            const memData = await getMemberByid(MaDT);
+            const memData = await getMemberByTopic(MaDT);
             if (data) {
                 setTopic(data);
                 setMembers(memData);
@@ -94,19 +92,13 @@ const TopicDetailCommittee: React.FC = () => {
 
         try {
             setLoading(true);
-            await changeProjectState(topic.MaDT, 'Đã phê duyệt');
-            setTopic({ ...topic, TrangThai: 'Đã phê duyệt' });
-
-            const truongNhom = topic.ThanhVienDT.find((tv) => tv.VaiTroDT === 'Nhóm trưởng') || topic.ThanhVienDT[0];
-            if (truongNhom) {
-                await createNofitfications(
-                    truongNhom.TaiKhoan,
-                    'Đề tài của bạn đã được phê duyệt',
-                    `Đề tài "${topic.TenDT}" đã được phê duyệt.${approveNote ? ` Ghi chú: ${approveNote}` : ''}`
-                );
-            }
-
-            message.success('Đã phê duyệt đề tài thành công!');
+            const result = await reviewProject(topic.MaDT, 'approved', approveNote);
+            setTopic({ ...topic, TrangThai: result.projectStatus });
+            message.success(
+                result.allApproved
+                    ? 'Tất cả hội đồng đã phê duyệt. Đề tài được bắt đầu.'
+                    : `Đã ghi nhận phê duyệt (${result.approvedReviewers}/${result.totalReviewers}).`,
+            );
             setApproveModalOpen(false);
             setApproveNote('');
 
@@ -152,21 +144,11 @@ const TopicDetailCommittee: React.FC = () => {
 
         try {
             setLoading(true);
-            const truongNhom = topic.ThanhVienDT.find((tv) => tv.VaiTroDT === 'Nhóm trưởng') || topic.ThanhVienDT[0];
-
-            if (truongNhom) {
-                await createNofitfications(
-                    truongNhom.TaiKhoan,
-                    'Đề tài của bạn đã bị từ chối',
-                    `Đề tài "${topic.TenDT}" đã bị từ chối. Lý do: ${rejectReason}`
-                );
-            }
-
-            await deleteProject(topic.MaDT);
-            message.error('Đã từ chối và xóa đề tài');
+            await reviewProject(topic.MaDT, 'rejected', rejectReason);
+            setTopic({ ...topic, TrangThai: 'Từ chối' });
+            message.error('Đã từ chối đề tài');
             setRejectModalOpen(false);
             setRejectReason('');
-            navigate('/mainhome');
         } catch (error) {
             console.error(error);
             message.error('Có lỗi xảy ra, vui lòng thử lại');

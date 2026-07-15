@@ -1,16 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Layout, Card, Timeline, Table, Button, Modal, Form, Input, DatePicker, InputNumber, Upload, message, Badge, Space, Tabs, Divider, Select, Row, Col, Tag } from 'antd';
 import { CheckOutlined, PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined, EyeOutlined, ClockCircleOutlined, CheckCircleOutlined, ExclamationCircleOutlined, CloseCircleOutlined, DownloadOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getTopicProgress, createMocTienDo, updateMocTienDo, deleteMocTienDo, getMemberById } from './Quản lý thông tin đề án/ProgressService';
+import { getTopicProgress, createMocTienDo, updateMocTienDo, deleteMocTienDo, getMemberById, } from './Quản lý thông tin đề án/ProgressService';
 import type { MocTienDo, CapNhatTienDo, ThanhVienMocDT } from './Quản lý thông tin đề án/ProgressService';
-import { getMemberByid, getMyTopics } from './Quản lý thông tin đề án/TopicService';
+import { getMemberByTopic, getMyTopics } from './Quản lý thông tin đề án/TopicService';
 import type { ThanhVienDT, TopicLoad } from './Quản lý thông tin đề án/TopicService';
-import { downloadDocument, getDocumentsByMilestone, previewDocument, uploadDocument } from './Quản lý thông tin đề án/DocumentsService';
+import { downloadDocument, getDocumentsByMilestone, previewDocument, submitMilestone } from './Quản lý thông tin đề án/DocumentsService';
 import type { TaiLieu } from './Quản lý thông tin đề án/DocumentsService';
 import { jwtDecode } from 'jwt-decode';
 import dayjs from 'dayjs';
-import { debounce } from 'lodash';
 
 
 const { Content } = Layout;
@@ -31,11 +30,9 @@ const ProgressManagement: React.FC = () => {
   const maDTToUse = selectedTopicId || maDT || 'DT01'; // Sử dụng mock ID nếu không có params
   const [progressData, setProgressData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [createOptions, setCreateOptions] = useState<any[]>([]);
-  const [editOptions, setEditOptions] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('timeline');
   const [members, setMembers] = useState<ThanhVienDT[]>([]);
-  const [fetching, setFetching] = useState(false);
+  const [milestoneMembers, setMilestoneMembers] = useState<ThanhVienMocDT[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [thanhViens, setThanhViens] = useState<ThanhVienMocDT[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
@@ -44,6 +41,7 @@ const ProgressManagement: React.FC = () => {
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isViewModalVisible, setIsViewModalVisible] = useState(false);
+  const [isUploadModalVisible, setIsUploadModalVisible] = useState(false);
   const [selectedMoc, setSelectedMoc] = useState<MocTienDo | null>(null);
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
@@ -56,8 +54,25 @@ const ProgressManagement: React.FC = () => {
   const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
   const user: JwtPayload | null = token ? jwtDecode<JwtPayload>(token) : null;
 
-  const handleTopicChange = (value: string) => {
-    setSelectedTopicId(value);
+  const handleTopicChange = async (maDT: string) => {
+    // Lưu đề tài đang chọn
+    setSelectedTopicId(maDT);
+
+    // Reset dữ liệu modal sửa
+    setMilestoneMembers([]);
+    editForm.resetFields(["ThanhVienIds"]);
+
+    try {
+      // Lấy toàn bộ thành viên của đề tài
+      const data = await getMemberByTopic(maDT);
+
+      // Lưu danh sách thành viên của đề tài
+      setMembers(data);
+
+    } catch (err) {
+      console.error("Lỗi lấy thành viên đề tài:", err);
+      setMembers([]);
+    }
   };
 
   const handleGoToTopic = () => {
@@ -81,49 +96,6 @@ const ProgressManagement: React.FC = () => {
   useEffect(() => {
     fetchTopicList();
   }, []);
-
-  useEffect(() => {
-    if (selectedMoc?.MaMoc) {
-      const fetchMembers = async () => {
-        try {
-          setLoadingMembers(true);
-          // Gọi API bằng MaMoc lấy từ mốc đang được chọn
-          const data = await getMemberById(selectedMoc.MaMoc);
-          setThanhViens(data);
-
-          const memberOptions = data.map((item: any) => ({
-            value: item.thanhVien.idTV,
-            label: item.thanhVien.NguoiDung.TenDayDu,
-          }));
-
-          setEditOptions((prev: any[]) => {
-            const merged = [...prev];
-
-            memberOptions.forEach((option) => {
-              if (!merged.some((x) => x.value === option.value)) {
-                merged.push(option);
-              }
-            });
-
-            return merged;
-          });
-
-          // Hiển thị sẵn các thành viên đã được chọn
-          editForm.setFieldsValue({
-            ThanhVienIds: data.map((item: any) => item.thanhVien.idTV),
-          });
-        } catch (error) {
-          console.error("Lỗi khi lấy danh sách thành viên:", error);
-        } finally {
-          setLoadingMembers(false);
-        }
-      };
-
-      fetchMembers();
-    } else {
-      setThanhViens([]);
-    }
-  }, [isViewModalVisible, selectedMoc]);
 
   useEffect(() => {
     if (!isViewModalVisible || !selectedMoc) {
@@ -165,7 +137,7 @@ const ProgressManagement: React.FC = () => {
       const data = await getTopicProgress(maDTToUse);
       setProgressData(data);
       try {
-        const mem = await getMemberByid(maDTToUse);
+        const mem = await getMemberByTopic(maDTToUse);
         setMembers(mem);
       } catch (e) {
         console.error('Không lấy được danh sách thành viên:', e);
@@ -177,9 +149,6 @@ const ProgressManagement: React.FC = () => {
     }
   };
 
-  // Kiểm tra quyền
-  // Chỉ nhóm trưởng của đề tài hiện tại được sửa/xóa mốc.
-  // Vai trò tài khoản (sinh viên, người hướng dẫn, ...) không quyết định quyền này.
   const normalizeRole = (role?: string) =>
     (role || '')
       .normalize('NFD')
@@ -190,6 +159,36 @@ const ProgressManagement: React.FC = () => {
     (member) => member.TaiKhoan === user?.TaiKhoan,
   );
   const canManageMoc = normalizeRole(currentMember?.VaiTroDT).includes('nhom truong');
+  const memberOptions = useMemo(
+    () => members.map((member) => ({
+      label: `${member.NguoiDung.TenDayDu} (${member.VaiTroDT})`,
+      value: member.idTV,
+    })),
+    [members],
+  );
+
+  const loadMilestoneMembers = async (maMoc: number, setEditSelection = false) => {
+    try {
+      setLoadingMembers(true);
+      const data = await getMemberById(maMoc);
+      setMilestoneMembers(data);
+      setThanhViens(data);
+
+      if (setEditSelection) {
+        editForm.setFieldValue(
+          'ThanhVienIds',
+          data.map((item) => item.thanhVien.idTV),
+        );
+      }
+    } catch (error) {
+      console.error('Lỗi lấy thành viên của mốc:', error);
+      message.error('Không thể tải thành viên của mốc');
+      setMilestoneMembers([]);
+      setThanhViens([]);
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
 
 
   // Render timeline view
@@ -368,14 +367,13 @@ const ProgressManagement: React.FC = () => {
                 className="btn-upload"
                 icon={<UploadOutlined />}
                 style={{
-                  backgroundColor: '#52c41a',
-                  borderColor: '#52c41a',
+                  backgroundColor: "#52c41a",
+                  borderColor: "#52c41a",
                 }}
                 disabled={
-                  moc.TrangThai === 'Hoàn thành' ||
-                  moc.TrangThai === 'Trễ hạn'
+                  moc.TrangThai === "Trễ hạn"
                 }
-                onClick={() => handleSubmitMoc(moc)}
+                onClick={() => handleOpenUploadModal(moc)}
               >
                 Nộp
               </Button>
@@ -400,11 +398,13 @@ const ProgressManagement: React.FC = () => {
 
   // Handlers
   const handleCreateMoc = () => {
+    createForm.resetFields();
     setIsCreateModalVisible(true);
   };
 
   const handleEditMoc = (moc: MocTienDo) => {
     setSelectedMoc(moc);
+    setSelectedFile(null);
 
     editForm.setFieldsValue({
       ...moc,
@@ -414,26 +414,60 @@ const ProgressManagement: React.FC = () => {
     });
 
     setIsEditModalVisible(true);
+    void loadMilestoneMembers(moc.MaMoc, true);
   };
 
-  const handleSubmitMoc = (moc: MocTienDo) => {
-    if (
-      moc.TrangThai === "Hoàn thành"
-    ) {
-      message.warning("Mốc đã hoàn thành hoặc trễ hạn, không thể nộp.");
+  const handleOpenUploadModal = (moc: MocTienDo) => {
+    // Kiểm tra lại để tránh trường hợp disabled bị bỏ qua
+    if (moc.TrangThai === "Trễ hạn") {
+      message.warning("Mốc này không thể nộp tài liệu, hãy liên hệ trưởng nhóm để có thể nộp file.");
       return;
     }
 
     setSelectedMoc(moc);
+    setSelectedFile(null);
+    setIsUploadModalVisible(true);
+  };
 
-    editForm.setFieldsValue({
-      ...moc,
-      NgayBatDau: dayjs(moc.NgayBatDau),
-      NgayKetThuc: dayjs(moc.NgayKetThuc),
-      GhiChu: moc.GhiChu,
-    });
+  const handleSubmitFile = async () => {
+    if (!selectedFile) {
+      message.warning("Vui lòng chọn file!");
+      return;
+    }
 
-    setIsEditModalVisible(true);
+    if (!selectedMoc) {
+      message.warning("Không tìm thấy mốc tiến độ!");
+      return;
+    }
+
+    try {
+      setLoading(true); // nếu bạn có loading
+
+      const result = await submitMilestone({
+        file: selectedFile,
+        maDT: String(maDTToUse), // hoặc maDT hiện tại của bạn
+        maMoc: selectedMoc.MaMoc,
+        loaiTaiLieu: "MINH_CHUNG", // hoặc giá trị BE yêu cầu
+      });
+
+      message.success("Nộp tài liệu thành công!");
+
+      console.log(result);
+
+
+      // Reset
+      setSelectedFile(null);
+      createForm.resetFields(); // nếu Upload nằm trong Form này
+
+      // Đóng modal
+      setIsUploadModalVisible(false);
+      fetchProgressData();
+    } catch (error) {
+      console.error(error);
+      message.error("Nộp tài liệu thất bại!");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleViewMoc = (moc: MocTienDo) => {
@@ -446,6 +480,7 @@ const ProgressManagement: React.FC = () => {
       GhiChu: moc.GhiChu,
     });
     setIsViewModalVisible(true);
+    void loadMilestoneMembers(moc.MaMoc);
   };
 
   const handleDeleteMoc = async (moc: MocTienDo) => {
@@ -478,8 +513,17 @@ const ProgressManagement: React.FC = () => {
       setIsCreateModalVisible(false);
       await handleReset();
       fetchProgressData();
-    } catch (error) {
-      message.error('Lỗi khi tạo mốc');
+    } catch (error: any) {
+      console.error(error);
+
+      // 2. Trích xuất message từ lỗi (Cấu trúc phổ biến của Axios và NestJS)
+      const errorMessage = error.response?.data?.message || error.message || 'Lỗi khi tạo mốc';
+
+      if (Array.isArray(errorMessage)) {
+        message.error(errorMessage.join(', '));
+      } else {
+        message.error(errorMessage);
+      }
     }
   };
 
@@ -495,13 +539,14 @@ const ProgressManagement: React.FC = () => {
         GhiChu: values.GhiChu,
         NgayBatDau: values.NgayBatDau.toDate(),
         NgayKetThuc: values.NgayKetThuc.toDate(),
-        NgayCapNhat: values.NgayCapNhat.toDate(),
+        NgayCapNhat: new Date(),
+        ThanhVienIds: values.ThanhVienIds,
       };
 
       await updateMocTienDo(selectedMoc.MaMoc, updatedMoc);
 
       if (selectedFile) {
-        await uploadDocument({
+        await submitMilestone({
           file: selectedFile,
           maDT: selectedMoc.MaDT || maDTToUse,
           maMoc: selectedMoc.MaMoc,
@@ -512,7 +557,7 @@ const ProgressManagement: React.FC = () => {
       message.success("Cập nhật mốc tiến độ thành công");
 
       setIsEditModalVisible(false);
-      createForm.resetFields();
+      editForm.resetFields();
       setSelectedFile(null);
 
       fetchProgressData();
@@ -520,32 +565,6 @@ const ProgressManagement: React.FC = () => {
       console.error(error);
       message.error("Lỗi khi cập nhật mốc tiến độ");
     }
-  };
-
-  //Ham tim thanh vien
-  const searchMember = debounce((value: string) => {
-    if (!value) {
-      setCreateOptions([]);
-      return;
-    }
-    setFetching(true);
-
-    const filtered = members.filter((member) =>
-      member.NguoiDung.TenDayDu
-        .toLowerCase()
-        .includes(value.toLowerCase())
-    );
-
-    setCreateOptions(
-      filtered.map((member) => ({
-        label: member.NguoiDung.TenDayDu,
-        value: member.idTV,
-      }))
-    );
-  }, 300);
-
-  const handleSearch = (value: string) => {
-    searchMember(value);
   };
 
   const handleReset = () => {
@@ -672,10 +691,10 @@ const ProgressManagement: React.FC = () => {
               showSearch
               allowClear // Thêm nút xóa nhanh danh sách đã chọn
               placeholder="Nhập tên tài khoản để thêm thành viên"
-              onSearch={handleSearch}
-              filterOption={false}
-              notFoundContent={fetching ? "Đang tìm..." : "Không có kết quả"}
-              options={createOptions}
+              filterOption={(input, option) =>
+                String(option?.label).toLowerCase().includes(input.toLowerCase())
+              }
+              options={memberOptions}
               optionFilterProp="label"
             />
           </Form.Item>
@@ -753,13 +772,25 @@ const ProgressManagement: React.FC = () => {
               showSearch
               allowClear // Thêm nút xóa nhanh danh sách đã chọn
               placeholder="Nhập tên tài khoản để thêm thành viên"
-              onSearch={handleSearch}
-              filterOption={false}
-              notFoundContent={fetching ? "Đang tìm..." : "Không có kết quả"}
-              options={editOptions}
+              disabled={!canManageMoc || loadingMembers}
+              filterOption={(input, option) =>
+                String(option?.label).toLowerCase().includes(input.toLowerCase())
+              }
+              options={memberOptions}
               optionFilterProp="label"
             />
           </Form.Item>
+          {milestoneMembers.length > 0 && (
+            <Form.Item label="Thành viên đang được phân công">
+              <Space wrap>
+                {milestoneMembers.map((item) => (
+                  <Tag key={item.Id}>
+                    {item.thanhVien.NguoiDung.TenDayDu} — {item.thanhVien.VaiTroDT}
+                  </Tag>
+                ))}
+              </Space>
+            </Form.Item>
+          )}
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item name="NgayBatDau" label="Ngày bắt đầu" rules={[{ required: true }]}>
@@ -793,12 +824,6 @@ const ProgressManagement: React.FC = () => {
           <Form.Item name="TepDinhKem" label="File minh chứng">
             <Upload
               beforeUpload={(file) => { setSelectedFile(file); return false; }}
-              disabled={
-                selectedMoc
-                  ? selectedMoc.TrangThai === "Hoàn thành" ||
-                  selectedMoc.TrangThai === "Trễ hạn"
-                  : false
-              }
             >
               <Button icon={<UploadOutlined />}>Chọn file</Button>
             </Upload>
@@ -929,6 +954,61 @@ const ProgressManagement: React.FC = () => {
           </Form.Item>
           <Form.Item>
             <Button type="default" onClick={() => setIsViewModalVisible(false)}>Đóng</Button>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/*Modal Nộp mốc*/}
+      <Modal
+        title="Nộp file minh chứng"
+        open={isUploadModalVisible}
+        centered
+        onCancel={() => {
+          setIsUploadModalVisible(false);
+          setSelectedFile(null);
+        }}
+        footer={null}
+      >
+        <Form layout="vertical" onFinish={handleSubmitFile}>
+          <Form.Item name="TepDinhKem" label="File minh chứng">
+            <Upload
+              beforeUpload={(file) => {
+                setSelectedFile(file);
+                return false; // Không upload ngay
+              }}
+              maxCount={1}
+              disabled={
+                selectedMoc ? selectedMoc.TrangThai === "Trễ hạn" : false
+              }
+            >
+              <Button icon={<UploadOutlined />}>Chọn file</Button>
+            </Upload>
+
+            {selectedFile && (
+              <div style={{ marginTop: 8, fontSize: 12 }}>
+                <strong>Đã chọn:</strong> {selectedFile.name}
+              </div>
+            )}
+
+            <div
+              style={{
+                marginTop: 10,
+                fontSize: 13,
+                color: "#666",
+              }}
+            >
+              Nếu có nhiều file gộp thành 1 file zip và gửi.
+            </div>
+          </Form.Item>
+
+          <Form.Item style={{ textAlign: "center", marginBottom: 0 }}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              disabled={!selectedFile}
+            >
+              Nộp
+            </Button>
           </Form.Item>
         </Form>
       </Modal>

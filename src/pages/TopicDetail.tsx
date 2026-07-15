@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Spin, Button, Tag, Card, Row, Col, List, message, Modal, Input, Divider, Form, Upload, Select, Radio } from 'antd';
 import {DownloadOutlined, ArrowLeftOutlined, EditOutlined, SaveOutlined, CloseOutlined, SendOutlined, UploadOutlined, BarChartOutlined, EyeOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
-import { getTopicById, getMemberByid, getUsersByRole } from './Quản lý thông tin đề án/TopicService';
+import { getTopicById, getMemberByTopic, getUsersByRole, submitProjectForApproval } from './Quản lý thông tin đề án/TopicService';
 import type { TopicLoad, ThanhVienDT } from './Quản lý thông tin đề án/TopicService';
 import { downloadDocument, getDocumentsByTopic, previewDocument, uploadDocument } from './Quản lý thông tin đề án/DocumentsService';
 
@@ -56,7 +56,7 @@ const TopicDetail: React.FC = () => {
         try {
             setLoading(true);
             const data = await getTopicById(MaDT);
-            const memData = await getMemberByid(MaDT); // Lấy members
+            const memData = await getMemberByTopic(MaDT); // Lấy members
             if (data) {
                 setTopic(data);
                 setMembers(memData);
@@ -126,6 +126,8 @@ const TopicDetail: React.FC = () => {
                     loaiTaiLieu: 'Tài liệu gửi đánh giá',
                 });
             }));
+
+            await submitProjectForApproval(MaDT, selectedReviewer, submitNotes);
 
             const chosenReviewers = reviewerOptions.filter((r) => selectedReviewer.includes(r.value));
             const chosenLabels = chosenReviewers.map((r) => r.label).join(', ');

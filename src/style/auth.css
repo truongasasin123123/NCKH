@@ -44,8 +44,23 @@
 
 /* input */
 .custom-input .ant-input,
-.custom-input .ant-input-password {
+.custom-input .ant-input-affix-wrapper {
   height: 36px;
+  border-radius: 8px;
+  background-color: #e6f4ff;
+  box-sizing: border-box;
+}
+
+.custom-input .ant-input-affix-wrapper {
+  display: flex;
+  align-items: center;
+  padding: 0 11px; 
+}
+
+.custom-input .ant-input-affix-wrapper .ant-input {
+  height: 100%;      
+  background-color: transparent;
+  padding: 0;          
 }
 
 /* button */

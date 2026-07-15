@@ -305,19 +305,20 @@ const RegisterTopic = () => {
         <Form.Item style={{ textAlign: "center" }}>
           <Space size="large">
             <Button
+              type="primary"
+              htmlType="submit"
+              style={{ width: "120px", height: "40px", fontSize: "16px" }}
+            >
+              Gửi
+            </Button>
+            <Button
               danger
               onClick={() => form.resetFields()}
               style={{ width: "120px", height: "40px", fontSize: "16px" }}
             >
               Hủy
             </Button>
-            <Button
-              type="primary"
-              htmlType="submit"
-              style={{ width: "120px", height: "40px", fontSize: "16px" }}
-            >
-              Lưu
-            </Button>
+            
           </Space>
         </Form.Item>
       </Form>

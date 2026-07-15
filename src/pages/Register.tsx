@@ -5,6 +5,7 @@ import ApiAxios from "../axios.config";
 
 
 interface FormType {
+    TenDayDu: string;
     Gmail: string;
     TaiKhoan: string;
     MatKhau: string;
@@ -15,7 +16,7 @@ function Register() {
 
     const onFinish = async (values: FormType) => {
 
-        const { Gmail, TaiKhoan, MatKhau } = values;
+        const {TenDayDu, Gmail, TaiKhoan, MatKhau } = values;
         if (!TaiKhoan || !MatKhau || !Gmail) {
             message.error('Không được để trống!');
             console.log(TaiKhoan, MatKhau, Gmail);
@@ -24,7 +25,7 @@ function Register() {
 
         //tuong tac be
         try {
-            const res = await ApiAxios.post("/auth/register", { Gmail, TaiKhoan, MatKhau });
+            const res = await ApiAxios.post("/auth/register", {TenDayDu, Gmail, TaiKhoan, MatKhau });
             message.success(`Đăng kí tài khoản ${res.data.TaiKhoan} thành công!`);
             navigate("/login");
         }
@@ -49,6 +50,15 @@ function Register() {
                         autoComplete="off"
                     >
                         <Form.Item
+                            label="Tên đầy đủ"
+                            name="TenDayDu"
+                            className="auth-input"
+                            rules={[{ required: true, message: "Vui lòng nhập tên đầy đủ!" }]}
+                        >
+                            <Input />
+                        </Form.Item>
+
+                        <Form.Item
                             label="Gmail:"
                             name="Gmail"
                             className="auth-input"
@@ -69,16 +79,16 @@ function Register() {
                         <Form.Item
                             label="Mật khẩu:"
                             name="MatKhau"
-                            className="auth-input"
+                            className="custom-input"
                             rules={[{ required: true, message: "Vui lòng nhập mật khẩu!" }]}
                         >
-                            <Input.Password />
+                            <Input.Password/>
                         </Form.Item>
 
                         <Form.Item
                             label="Xác nhận mật khẩu:"
                             name="confirmPassword"
-                            className="auth-input"
+                            className="custom-input"
                             dependencies={["MatKhau"]}
                             rules={[
                                 { required: true, message: "Vui lòng xác nhận mật khẩu!" },
@@ -103,7 +113,7 @@ function Register() {
 
                         <div className="register-login-link">
                             <span>Đã có tài khoản?
-                                <a href="/login">Đăng nhập
+                                <a href="/login"> Đăng nhập
                                 </a>
                             </span>
                         </div>

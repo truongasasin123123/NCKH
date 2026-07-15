@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Spin, Button, Tag, Card, Row, Col, List, message, Modal, Input, Divider, Form, Upload, Select, Radio } from 'antd';
-import {DownloadOutlined, ArrowLeftOutlined, EditOutlined, SaveOutlined, CloseOutlined, SendOutlined, UploadOutlined, BarChartOutlined, EyeOutlined } from '@ant-design/icons';
+import { DownloadOutlined, ArrowLeftOutlined, EditOutlined, SaveOutlined, CloseOutlined, SendOutlined, UploadOutlined, BarChartOutlined, EyeOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { getTopicById, getMemberByTopic, getUsersByRole, submitProjectForApproval } from './Quản lý thông tin đề án/TopicService';
 import type { TopicLoad, ThanhVienDT } from './Quản lý thông tin đề án/TopicService';
@@ -35,7 +35,7 @@ const TopicDetail: React.FC = () => {
     const [committeeOptions, setCommitteeOptions] = useState<NguoiNhanOption[]>([]);
     const [advisorOptions, setAdvisorOptions] = useState<NguoiNhanOption[]>([]);
     const [approvalStatus, setApprovalStatus] = useState<ReviewerApproval[]>([]);
-    
+
 
     const reviewerOptions = targetGroup === 'hoidong' ? committeeOptions : targetGroup === 'huongdan' ? advisorOptions : [];
     const approvedCount = approvalStatus.filter((r) => r.approved).length;
@@ -316,7 +316,6 @@ const TopicDetail: React.FC = () => {
                                 </Card>
 
 
-
                                 <Row gutter={16} style={{ marginTop: 16 }}>
                                     <Col>
                                         <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>
@@ -380,7 +379,7 @@ const TopicDetail: React.FC = () => {
                                 <Card title="Mô tả" style={{ marginTop: 16 }}>
                                     <p>{topic.MoTa || 'Chưa có mô tả'}</p>
                                 </Card>
-
+                                
                                 <Card title="Tổng hợp tài liệu dự án" style={{ marginTop: 16 }}>
                                     {progressDocsLoading ? (
                                         <p>Đang tải tài liệu...</p>
@@ -394,23 +393,23 @@ const TopicDetail: React.FC = () => {
                                                             <strong>{doc.name}</strong>
                                                             <div style={{ color: '#666', fontSize: 12 }}>{doc.source}{doc.date ? ` · ${doc.date}` : ''}</div>
                                                         </div>
-                                                        <div style={{gap: 8, display: 'flex'}}>
-                                                        <Button
-                                                            type="primary"
-                                                            icon={<EyeOutlined />}
-                                                            className="btn-see-upload"
-                                                            onClick={() => previewDocument(doc.id)}
-                                                        >
-                                                            Xem
-                                                        </Button>
-                                                        <Button
-                                                            type="primary"
-                                                            icon={<DownloadOutlined />}
-                                                            className="btn-see-upload"
-                                                            onClick={() => downloadDocument(doc.id, doc.name)}
-                                                        >
-                                                            Tải xuống
-                                                        </Button>
+                                                        <div style={{ gap: 8, display: 'flex' }}>
+                                                            <Button
+                                                                type="primary"
+                                                                icon={<EyeOutlined />}
+                                                                className="btn-see-upload"
+                                                                onClick={() => previewDocument(doc.id)}
+                                                            >
+                                                                Xem
+                                                            </Button>
+                                                            <Button
+                                                                type="primary"
+                                                                icon={<DownloadOutlined />}
+                                                                className="btn-see-upload"
+                                                                onClick={() => downloadDocument(doc.id, doc.name)}
+                                                            >
+                                                                Tải xuống
+                                                            </Button>
                                                         </div>
                                                     </div>
                                                 </List.Item>
@@ -442,9 +441,38 @@ const TopicDetail: React.FC = () => {
                                         <p>Chưa có thành viên</p>
                                     )}
                                 </Card>
+                                
                             </>
                         )}
 
+                        <Card title="Nhận xét" style={{ marginTop: 16, marginBottom: 24 }}>
+                                    <Input.TextArea
+                                        rows={5}
+                                        placeholder="Nhập nhận xét..."
+                                        value={submitNotes}
+                                        onChange={(e) => setSubmitNotes(e.target.value)}
+                                        style={{ borderRadius: 4 }}
+                                    />
+
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            justifyContent: "flex-end",
+                                            marginTop: "12px",
+                                        }}
+                                    >
+                                        <Button
+                                            type="primary"
+                                            style={{
+                                                width: "120px",
+                                                height: "40px",
+                                                fontSize: "16px",
+                                            }}
+                                        >
+                                            Gửi nhận xét
+                                        </Button>
+                                    </div>
+                                </Card>
 
                         <Modal
                             title="GỬI ĐỀ TÀI LÊN HỘI ĐỒNG ĐÁNH GIÁ"

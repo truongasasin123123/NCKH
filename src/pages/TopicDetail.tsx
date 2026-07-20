@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import type { CollapseProps } from 'antd';
+import { Collapse, Spin, Button, Tag, Card, Row, Col, List, message, Modal, Input, Divider, Form, Upload, Select, Radio } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Spin, Button, Tag, Card, Row, Col, List, message, Modal, Input, Divider, Form, Upload, Select, Radio } from 'antd';
+import { jwtDecode } from 'jwt-decode';
 import { DownloadOutlined, ArrowLeftOutlined, EditOutlined, SaveOutlined, CloseOutlined, SendOutlined, UploadOutlined, BarChartOutlined, EyeOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { getTopicById, getMemberByTopic, getUsersByRole, submitProjectForApproval } from './Quản lý thông tin đề án/TopicService';
@@ -15,6 +17,11 @@ interface NguoiNhanOption {
 interface ReviewerApproval {
     name: string
     approved: boolean
+}
+
+interface JwtPayload {
+    VaiTro?: string;
+    role?: string;
 }
 
 const TopicDetail: React.FC = () => {
@@ -36,6 +43,10 @@ const TopicDetail: React.FC = () => {
     const [advisorOptions, setAdvisorOptions] = useState<NguoiNhanOption[]>([]);
     const [approvalStatus, setApprovalStatus] = useState<ReviewerApproval[]>([]);
 
+    const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
+    const user: JwtPayload | null = token ? jwtDecode<JwtPayload>(token) : null;
+    const displayRole = user?.VaiTro || user?.role || '';
+    const isCommitteeRole = displayRole.toLowerCase().includes('hội đồng') || displayRole.toLowerCase().includes('hoidong');
 
     const reviewerOptions = targetGroup === 'hoidong' ? committeeOptions : targetGroup === 'huongdan' ? advisorOptions : [];
     const approvedCount = approvalStatus.filter((r) => r.approved).length;
@@ -80,6 +91,91 @@ const TopicDetail: React.FC = () => {
             setLoading(false);
         }
     };
+
+    const itemsNest1: CollapseProps['items'] = [
+        {
+            key: '1',
+            label: 'Ths Nguyễn Văn A',
+            children: (
+                <div>
+                    <p> </p>
+                    
+                </div>
+            ),
+        },
+        {
+            key: '2',
+            label: 'Ths Trần Thị B',
+            children: (
+                <div>
+                    <p> </p>
+                    
+                </div>
+            ),
+        },
+    ];
+    const itemsNest2: CollapseProps['items'] = [
+        {
+            key: '3',
+            label: 'Ths Lê Văn C',
+            children: (
+                <div>
+                    <p> </p>
+                    
+                </div>
+            ),
+        },
+        {
+            key: '4',
+            label: 'Ths Phạm Thị D',
+            children: (
+                <div>
+                    <p> </p>
+                    
+                </div>
+            ),
+        },
+    ];
+    const itemsNest3: CollapseProps['items'] = [
+        {
+            key: '5',
+            label: 'Ths Đỗ Thị E',
+            children: (
+                <div>
+                    <p> </p>
+                    
+                </div>
+            ),
+        },
+        {
+            key: '6',
+            label: 'Ths Hoàng Văn F',
+            children: (
+                <div>
+                    <p> </p>
+                    
+                </div>
+            ),
+        },
+    ];
+
+    const collapseItems: CollapseProps['items'] = [
+        {
+            key: 'hoidong-cham',
+            label: 'Hội đồng chấm',
+            children: <Collapse defaultActiveKey="1" items={itemsNest1} />,
+        },
+        {
+            key: 'hoidong-nghiem-thu',
+            label: 'Hội đồng nghiệm thu',
+            children: <Collapse defaultActiveKey="1" items={itemsNest2}/>,
+        },
+        {
+            key: 'ghi-chu',
+            label: 'Ghi chú',
+            children: <Collapse defaultActiveKey="1" items={itemsNest3}/>,
+        },
+    ];
 
     const fetchProjectDocuments = async (maDT: string) => {
         try {
@@ -219,47 +315,49 @@ const TopicDetail: React.FC = () => {
                                         </div>
                                     </div>
                                 </Col>
-                                <Col xs={24} md={6}>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                        {!editing ? (
+                                {!isCommitteeRole && (
+                                    <Col xs={24} md={6}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                            {!editing ? (
+                                                <Button
+                                                    type="primary"
+                                                    icon={<EditOutlined />}
+                                                    block
+                                                    onClick={() => setEditing(true)}
+                                                >
+                                                    Chỉnh sửa đề tài
+                                                </Button>
+                                            ) : (
+                                                <Button
+                                                    type="default"
+                                                    icon={<CloseOutlined />}
+                                                    block
+                                                    onClick={handleCancelEdit}
+                                                >
+                                                    Hủy chỉnh sửa
+                                                </Button>
+                                            )}
                                             <Button
-                                                type="primary"
-                                                icon={<EditOutlined />}
+                                                type="dashed"
+                                                icon={<SendOutlined />}
                                                 block
-                                                onClick={() => setEditing(true)}
+                                                onClick={() => setSubmitModalOpen(true)}
                                             >
-                                                Chỉnh sửa đề tài
+                                                Gửi hội đồng
                                             </Button>
-                                        ) : (
-                                            <Button
-                                                type="default"
-                                                icon={<CloseOutlined />}
-                                                block
-                                                onClick={handleCancelEdit}
-                                            >
-                                                Hủy chỉnh sửa
-                                            </Button>
-                                        )}
-                                        <Button
-                                            type="dashed"
-                                            icon={<SendOutlined />}
-                                            block
-                                            onClick={() => setSubmitModalOpen(true)}
-                                        >
-                                            Gửi hội đồng
-                                        </Button>
-                                        {topic?.TrangThai === 'Đã phê duyệt' && (
-                                            <Button
-                                                type="default"
-                                                icon={<BarChartOutlined />}
-                                                block
-                                                onClick={() => navigate(`/mainhome/progress/${MaDT}`)}
-                                            >
-                                                Quản lý tiến độ
-                                            </Button>
-                                        )}
-                                    </div>
-                                </Col>
+                                            {topic?.TrangThai === 'Đã phê duyệt' && (
+                                                <Button
+                                                    type="default"
+                                                    icon={<BarChartOutlined />}
+                                                    block
+                                                    onClick={() => navigate(`/mainhome/progress/${MaDT}`)}
+                                                >
+                                                    Quản lý tiến độ
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </Col>
+                                )}
                             </Row>
                         </Card>
 
@@ -347,6 +445,7 @@ const TopicDetail: React.FC = () => {
                                                 <strong>Hạn chót:</strong> {topic.NgayKetThuc ? new Date(topic.NgayKetThuc).toLocaleDateString('vi-VN') : '-'}
                                             </p>
                                         </Card>
+
                                     </Col>
                                     <Col xs={24} md={12}>
                                         <Card title="Trạng thái">
@@ -379,7 +478,7 @@ const TopicDetail: React.FC = () => {
                                 <Card title="Mô tả" style={{ marginTop: 16 }}>
                                     <p>{topic.MoTa || 'Chưa có mô tả'}</p>
                                 </Card>
-                                
+
                                 <Card title="Tổng hợp tài liệu dự án" style={{ marginTop: 16 }}>
                                     {progressDocsLoading ? (
                                         <p>Đang tải tài liệu...</p>
@@ -441,38 +540,40 @@ const TopicDetail: React.FC = () => {
                                         <p>Chưa có thành viên</p>
                                     )}
                                 </Card>
-                                
+
                             </>
                         )}
-
+                        <Card title="Tổng hợp điểm" style={{ marginTop: 16 }}>
+                            <Collapse items={collapseItems} defaultActiveKey={['hoidong-cham']} />
+                        </Card>
                         <Card title="Nhận xét" style={{ marginTop: 16, marginBottom: 24 }}>
-                                    <Input.TextArea
-                                        rows={5}
-                                        placeholder="Nhập nhận xét..."
-                                        value={submitNotes}
-                                        onChange={(e) => setSubmitNotes(e.target.value)}
-                                        style={{ borderRadius: 4 }}
-                                    />
+                            <Input.TextArea
+                                rows={5}
+                                placeholder="Nhập nhận xét..."
+                                value={submitNotes}
+                                onChange={(e) => setSubmitNotes(e.target.value)}
+                                style={{ borderRadius: 4 }}
+                            />
 
-                                    <div
-                                        style={{
-                                            display: "flex",
-                                            justifyContent: "flex-end",
-                                            marginTop: "12px",
-                                        }}
-                                    >
-                                        <Button
-                                            type="primary"
-                                            style={{
-                                                width: "120px",
-                                                height: "40px",
-                                                fontSize: "16px",
-                                            }}
-                                        >
-                                            Gửi nhận xét
-                                        </Button>
-                                    </div>
-                                </Card>
+                            <div
+                                style={{
+                                    display: "flex",
+                                    justifyContent: "flex-end",
+                                    marginTop: "12px",
+                                }}
+                            >
+                                <Button
+                                    type="primary"
+                                    style={{
+                                        width: "120px",
+                                        height: "40px",
+                                        fontSize: "16px",
+                                    }}
+                                >
+                                    Gửi nhận xét
+                                </Button>
+                            </div>
+                        </Card>
 
                         <Modal
                             title="GỬI ĐỀ TÀI LÊN HỘI ĐỒNG ĐÁNH GIÁ"

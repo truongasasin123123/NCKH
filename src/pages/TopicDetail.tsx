@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import type { CollapseProps } from 'antd';
-import { Collapse, Spin, Button, Tag, Card, Row, Col, List, message, Modal, Input, Divider, Form, Upload, Radio } from 'antd';
+import { Collapse, Spin, Button, Tag, Card, Row, Col, List, message, Modal, Input, Divider, Form, Upload, Radio, Space, Popconfirm } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
-import { DownloadOutlined, ArrowLeftOutlined, EditOutlined, SaveOutlined, CloseOutlined, SendOutlined, UploadOutlined, BarChartOutlined, EyeOutlined } from '@ant-design/icons';
+import { DownloadOutlined, ArrowLeftOutlined, EditOutlined, SaveOutlined, CloseOutlined, SendOutlined, UploadOutlined, BarChartOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { getTopicById, getMemberByTopic, getProjectApprovals, submitProjectForApproval, updateProject } from './Quản lý thông tin đề án/TopicService';
 import type { TopicLoad, ThanhVienDT } from './Quản lý thông tin đề án/TopicService';
-import { downloadDocument, getDocumentsByTopic, previewDocument, uploadDocument } from './Quản lý thông tin đề án/DocumentsService';
+import { downloadDocument, getDocumentsByTopic, uploadDocument } from './Quản lý thông tin đề án/DocumentsService';
+import { createProjectComment, deleteProjectComment, getProjectComments, updateProjectComment } from './Quản lý thông tin đề án/CommentsService';
+import type { ProjectComment } from './Quản lý thông tin đề án/CommentsService';
 
 interface ReviewerApproval {
     account: string
@@ -38,11 +40,21 @@ const TopicDetail: React.FC = () => {
     const [approvalStatus, setApprovalStatus] = useState<ReviewerApproval[]>([]);
     const [submittedCouncilTypes, setSubmittedCouncilTypes] = useState<Array<'Xét duyệt' | 'Chấm điểm'>>([]);
     const [councilType, setCouncilType] = useState<'approval' | 'scoring'>('approval');
+    const [projectComments, setProjectComments] = useState<ProjectComment[]>([]);
+    const [commentInput, setCommentInput] = useState('');
+    const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+    const [editingCommentContent, setEditingCommentContent] = useState('');
 
     const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
     const user: JwtPayload | null = token ? jwtDecode<JwtPayload>(token) : null;
     const displayRole = user?.VaiTro || user?.role || '';
     const isCommitteeRole = displayRole.toLowerCase().includes('hội đồng') || displayRole.toLowerCase().includes('hoidong');
+    const normalizedRole = displayRole
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/đ/g, 'd');
+    const canComment = normalizedRole.includes('hoi dong') || normalizedRole.includes('nguoi huong dan');
 
     const approvalReviewers = approvalStatus.filter((reviewer) => reviewer.councilType === 'Xét duyệt');
     const approvedCount = approvalReviewers.filter((reviewer) => reviewer.status === 'Đã phê duyệt').length;
@@ -68,6 +80,7 @@ const TopicDetail: React.FC = () => {
                 const [latestTopic] = await Promise.all([
                     getTopicById(MaDT),
                     fetchApprovalStatus(MaDT),
+                    fetchComments(MaDT),
                 ]);
                 setTopic(latestTopic);
             } catch (error) {
@@ -93,6 +106,7 @@ const TopicDetail: React.FC = () => {
                 setTopic(data);
                 setMembers(memData);
                 await fetchApprovalStatus(MaDT);
+                await fetchComments(MaDT);
                 await fetchProjectDocuments(MaDT);
                 form.setFieldsValue({
                     TenDT: data.TenDT,
@@ -305,6 +319,55 @@ const TopicDetail: React.FC = () => {
         }
     };
 
+    const fetchComments = async (maDT: string) => {
+        try {
+            setProjectComments(await getProjectComments(maDT));
+        } catch (error) {
+            console.error('Lỗi khi tải nhận xét:', error);
+        }
+    };
+
+    const handleCreateComment = async () => {
+        if (!MaDT || !commentInput.trim()) {
+            message.warning('Vui lòng nhập nội dung nhận xét');
+            return;
+        }
+        try {
+            const created = await createProjectComment(MaDT, commentInput);
+            setProjectComments((current) => [created, ...current]);
+            setCommentInput('');
+            message.success('Đã thêm nhận xét');
+        } catch (error: any) {
+            message.error(error?.response?.data?.message || 'Không thể thêm nhận xét');
+        }
+    };
+
+    const handleUpdateComment = async (id: number) => {
+        if (!editingCommentContent.trim()) {
+            message.warning('Nội dung nhận xét không được để trống');
+            return;
+        }
+        try {
+            const updated = await updateProjectComment(id, editingCommentContent);
+            setProjectComments((current) => current.map((comment) => comment.Id === id ? updated : comment));
+            setEditingCommentId(null);
+            setEditingCommentContent('');
+            message.success('Đã sửa nhận xét');
+        } catch (error: any) {
+            message.error(error?.response?.data?.message || 'Không thể sửa nhận xét');
+        }
+    };
+
+    const handleDeleteComment = async (id: number) => {
+        try {
+            await deleteProjectComment(id);
+            setProjectComments((current) => current.filter((comment) => comment.Id !== id));
+            message.success('Đã xóa nhận xét');
+        } catch (error: any) {
+            message.error(error?.response?.data?.message || 'Không thể xóa nhận xét');
+        }
+    };
+
     const getStatusTag = (status: string) => {
         const statusMap: Record<string, { color: string; label: string }> = {
             "Nháp": { color: 'default', label: 'Nháp' },
@@ -366,7 +429,11 @@ const TopicDetail: React.FC = () => {
                             <Button
                                 type="text"
                                 icon={<ArrowLeftOutlined />}
-                                onClick={() => navigate('/mainhome')}
+                                onClick={() => navigate(
+                                    isCommitteeRole && topic.TrangThai === 'Đã phê duyệt'
+                                        ? '/mainhome/approvedtopics'
+                                        : '/mainhome',
+                                )}
                                 style={{ marginBottom: 16 }}
                             >
                                 Quay lại
@@ -577,14 +644,6 @@ const TopicDetail: React.FC = () => {
                                                         <div style={{ gap: 8, display: 'flex' }}>
                                                             <Button
                                                                 type="primary"
-                                                                icon={<EyeOutlined />}
-                                                                className="btn-see-upload"
-                                                                onClick={() => previewDocument(doc.id)}
-                                                            >
-                                                                Xem
-                                                            </Button>
-                                                            <Button
-                                                                type="primary"
                                                                 icon={<DownloadOutlined />}
                                                                 className="btn-see-upload"
                                                                 onClick={() => downloadDocument(doc.id, doc.name)}
@@ -629,32 +688,59 @@ const TopicDetail: React.FC = () => {
                             <Collapse items={collapseItems} defaultActiveKey={['hoidong-cham']} />
                         </Card>
                         <Card title="Nhận xét" style={{ marginTop: 16, marginBottom: 24 }}>
-                            <Input.TextArea
-                                rows={5}
-                                placeholder="Nhập nhận xét..."
-                                value={submitNotes}
-                                onChange={(e) => setSubmitNotes(e.target.value)}
-                                style={{ borderRadius: 4 }}
-                            />
-
-                            <div
-                                style={{
-                                    display: "flex",
-                                    justifyContent: "flex-end",
-                                    marginTop: "12px",
+                            {canComment && (
+                                <div style={{ marginBottom: 16 }}>
+                                    <Input.TextArea
+                                        rows={4}
+                                        placeholder="Nhập nhận xét..."
+                                        value={commentInput}
+                                        onChange={(e) => setCommentInput(e.target.value)}
+                                    />
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+                                        <Button type="primary" onClick={handleCreateComment}>Thêm nhận xét</Button>
+                                    </div>
+                                </div>
+                            )}
+                            <List
+                                locale={{ emptyText: 'Chưa có nhận xét' }}
+                                dataSource={projectComments}
+                                renderItem={(comment) => {
+                                    const isAuthor = comment.TaiKhoan === user?.TaiKhoan;
+                                    const isEditingComment = editingCommentId === comment.Id;
+                                    return (
+                                        <List.Item
+                                            actions={isAuthor && canComment ? [
+                                                <Button key="edit" type="link" onClick={() => { setEditingCommentId(comment.Id); setEditingCommentContent(comment.NoiDung); }}>Sửa</Button>,
+                                                <Popconfirm
+                                                    key="delete"
+                                                    title="Xóa nhận xét"
+                                                    description="Bạn có chắc muốn xóa nhận xét này?"
+                                                    okText="Xóa"
+                                                    cancelText="Hủy"
+                                                    okButtonProps={{ danger: true }}
+                                                    onConfirm={() => handleDeleteComment(comment.Id)}
+                                                >
+                                                    <Button type="link" danger>Xóa</Button>
+                                                </Popconfirm>,
+                                            ] : undefined}
+                                        >
+                                            <div style={{ width: '100%' }}>
+                                                <strong>{comment.NguoiDung?.TenDayDu || comment.TaiKhoan}</strong>
+                                                <span style={{ color: '#8c8c8c' }}> · {comment.NguoiDung?.VaiTro || ''} · {new Date(comment.NgayTao).toLocaleString('vi-VN')}</span>
+                                                {isEditingComment ? (
+                                                    <div style={{ marginTop: 8 }}>
+                                                        <Input.TextArea value={editingCommentContent} onChange={(event) => setEditingCommentContent(event.target.value)} rows={3} />
+                                                        <Space style={{ marginTop: 8 }}>
+                                                            <Button type="primary" size="small" onClick={() => handleUpdateComment(comment.Id)}>Lưu</Button>
+                                                            <Button size="small" onClick={() => setEditingCommentId(null)}>Hủy</Button>
+                                                        </Space>
+                                                    </div>
+                                                ) : <p style={{ margin: '8px 0 0' }}>{comment.NoiDung}</p>}
+                                            </div>
+                                        </List.Item>
+                                    );
                                 }}
-                            >
-                                <Button
-                                    type="primary"
-                                    style={{
-                                        width: "120px",
-                                        height: "40px",
-                                        fontSize: "16px",
-                                    }}
-                                >
-                                    Gửi nhận xét
-                                </Button>
-                            </div>
+                            />
                         </Card>
 
                         <Modal

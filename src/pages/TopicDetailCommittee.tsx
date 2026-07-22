@@ -1,19 +1,26 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { jwtDecode } from 'jwt-decode';
 import {
     Spin, Button, Tag, Card, Row, Col, List,
-    message, Modal, Input, Divider, Form
+    message, Modal, Input, Divider, Form, Space, Popconfirm
 } from 'antd';
 import {
-    ArrowLeftOutlined, CheckCircleOutlined, CloseCircleOutlined, EditOutlined, SaveOutlined, CloseOutlined,
+    ArrowLeftOutlined, CheckCircleOutlined, CloseCircleOutlined, DownloadOutlined,
 } from '@ant-design/icons';
 import {
     getTopicById,
     getMemberByTopic,
-    updateProjectDate,
     reviewProject,
 } from './Quản lý thông tin đề án/TopicService';
 import type { TopicLoad, ThanhVienDT } from './Quản lý thông tin đề án/TopicService';
+import { downloadDocument, getDocumentsByTopic } from './Quản lý thông tin đề án/DocumentsService';
+import { createProjectComment, deleteProjectComment, getProjectComments, updateProjectComment } from './Quản lý thông tin đề án/CommentsService';
+import type { ProjectComment } from './Quản lý thông tin đề án/CommentsService';
+
+interface JwtPayload {
+    TaiKhoan?: string;
+}
 
 const TopicDetailCommittee: React.FC = () => {
     const { MaDT } = useParams<{ MaDT: string }>();
@@ -30,20 +37,30 @@ const TopicDetailCommittee: React.FC = () => {
     const [rejectModalOpen, setRejectModalOpen] = useState(false);
     const [rejectReason, setRejectReason] = useState('');
 
-    const [editingBudget, setEditingBudget] = useState(false);
-    const [budgetForm] = Form.useForm();
     const [commentText, setCommentText] = useState('');
-    const [comments, setComments] = useState<string[]>([]);
+    const [projectComments, setProjectComments] = useState<ProjectComment[]>([]);
+    const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+    const [editingCommentContent, setEditingCommentContent] = useState('');
+    const [projectDocuments, setProjectDocuments] = useState<Array<{ id: number; name: string; source: string; date?: string }>>([]);
+    const [documentsLoading, setDocumentsLoading] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
+    const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
+    const user: JwtPayload | null = token ? jwtDecode<JwtPayload>(token) : null;
 
-    const handleCommentSubmit = () => {
+    const handleCommentSubmit = async () => {
         if (!commentText.trim()) {
             message.warning('Vui lòng nhập nhận xét');
             return;
         }
-        setComments((prev) => [commentText.trim(), ...prev]);
-        setCommentText('');
-        message.success('Đã thêm nhận xét');
+        if (!MaDT) return;
+        try {
+            const comment = await createProjectComment(MaDT, commentText);
+            setProjectComments((current) => [comment, ...current]);
+            setCommentText('');
+            message.success('Đã thêm nhận xét');
+        } catch (error: any) {
+            message.error(error?.response?.data?.message || 'Không thể thêm nhận xét');
+        }
     };
 
     useEffect(() => {
@@ -63,6 +80,8 @@ const TopicDetailCommittee: React.FC = () => {
             if (data) {
                 setTopic(data);
                 setMembers(memData);
+                await fetchProjectDocuments(MaDT);
+                await fetchComments(MaDT);
             } else {
                 message.error('Không tìm thấy đề tài');
                 navigate('/mainhome');
@@ -72,6 +91,58 @@ const TopicDetailCommittee: React.FC = () => {
             console.error(error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchProjectDocuments = async (maDT: string) => {
+        try {
+            setDocumentsLoading(true);
+            const documents = await getDocumentsByTopic(maDT);
+            setProjectDocuments(documents.map((document) => ({
+                id: document.MaTL,
+                name: document.TenFile,
+                source: document.LoaiTaiLieu || 'Tài liệu đề tài',
+                date: document.NgayTaiLen ? new Date(document.NgayTaiLen).toLocaleDateString('vi-VN') : undefined,
+            })));
+        } catch (error) {
+            console.error('Lỗi khi tải tài liệu đề tài:', error);
+            message.error('Không thể tải tài liệu đề tài');
+        } finally {
+            setDocumentsLoading(false);
+        }
+    };
+
+    const fetchComments = async (maDT: string) => {
+        try {
+            setProjectComments(await getProjectComments(maDT));
+        } catch (error) {
+            console.error('Lỗi khi tải nhận xét:', error);
+        }
+    };
+
+    const handleUpdateComment = async (id: number) => {
+        if (!editingCommentContent.trim()) {
+            message.warning('Nội dung nhận xét không được để trống');
+            return;
+        }
+        try {
+            const updated = await updateProjectComment(id, editingCommentContent);
+            setProjectComments((current) => current.map((comment) => comment.Id === id ? updated : comment));
+            setEditingCommentId(null);
+            setEditingCommentContent('');
+            message.success('Đã sửa nhận xét');
+        } catch (error: any) {
+            message.error(error?.response?.data?.message || 'Không thể sửa nhận xét');
+        }
+    };
+
+    const handleDeleteComment = async (id: number) => {
+        try {
+            await deleteProjectComment(id);
+            setProjectComments((current) => current.filter((comment) => comment.Id !== id));
+            message.success('Đã xóa nhận xét');
+        } catch (error: any) {
+            message.error(error?.response?.data?.message || 'Không thể xóa nhận xét');
         }
     };
 
@@ -113,24 +184,6 @@ const TopicDetailCommittee: React.FC = () => {
         }
     };
 
-    const handleBudgetSubmit = async (values: any) => {
-        if (!topic) return;
-
-        try {
-            setLoading(true);
-            await updateProjectDate(topic.MaDT, values);
-            const updatedTopic = { ...topic, ...values };
-            setTopic(updatedTopic);
-            setEditingBudget(false);
-            message.success('Cập nhật thông tin thành công!');
-        } catch (error) {
-            console.error(error);
-            message.error('Lỗi khi cập nhật ngày đề tài');
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const handleReject = async () => {
         if (!rejectReason.trim()) {
             message.warning('Vui lòng nhập lý do từ chối');
@@ -167,7 +220,7 @@ const TopicDetailCommittee: React.FC = () => {
                             <Button
                                 type="text"
                                 icon={<ArrowLeftOutlined />}
-                                onClick={() => navigate('/mainhome')}
+                                onClick={() => navigate(topic.TrangThai === 'Đã phê duyệt' ? '/mainhome/approvedtopics' : '/mainhome')}
                                 style={{ marginBottom: 16 }}
                             >
                                 Quay lại
@@ -183,6 +236,7 @@ const TopicDetailCommittee: React.FC = () => {
                                         {getStatusTag(topic.TrangThai)}
                                     </div>
                                 </Col>
+                                {topic.TrangThai === 'Chờ phê duyệt' && (
                                 <Col xs={24} md={6}>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
 
@@ -206,6 +260,7 @@ const TopicDetailCommittee: React.FC = () => {
                                         </Button>
                                     </div>
                                 </Col>
+                                )}
                             </Row>
                         </Card>
 
@@ -242,130 +297,98 @@ const TopicDetailCommittee: React.FC = () => {
                             )}
                         </Card>
 
+                        <Card title="Tài liệu đề tài" style={{ marginTop: 16 }}>
+                            {documentsLoading ? (
+                                <p>Đang tải tài liệu...</p>
+                            ) : projectDocuments.length > 0 ? (
+                                <List
+                                    dataSource={projectDocuments}
+                                    renderItem={(document) => (
+                                        <List.Item>
+                                            <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+                                                <div>
+                                                    <strong>{document.name}</strong>
+                                                    <div style={{ color: '#666', fontSize: 12 }}>{document.source}{document.date ? ` · ${document.date}` : ''}</div>
+                                                </div>
+                                                <Space>
+                                                    <Button type="primary" icon={<DownloadOutlined />} onClick={() => downloadDocument(document.id, document.name)}>Tải xuống</Button>
+                                                </Space>
+                                            </div>
+                                        </List.Item>
+                                    )}
+                                />
+                            ) : (
+                                <p>Chưa có tài liệu.</p>
+                            )}
+                        </Card>
+
 
                         <div ref={scrollRef}>
                             <Card
                                 title="Thời gian"
                                 style={{ marginTop: 16 }}
-                                extra={
-                                    topic.TrangThai === 'Đã phê duyệt' && (
-                                        !editingBudget ? (
-                                            <Button
-                                                type="primary"
-                                                size="small"
-                                                icon={<EditOutlined />}
-                                                onClick={() => {
-                                                    budgetForm.setFieldsValue({
-                                                        
-                                                        NgayBatDau: topic.NgayBatDau
-                                                            ? new Date(topic.NgayBatDau).toISOString().split('T')[0]
-                                                            : '',
-                                                        NgayKetThuc: topic.NgayKetThuc
-                                                            ? new Date(topic.NgayKetThuc).toISOString().split('T')[0]
-                                                            : '',
-                                                    });
-                                                    setEditingBudget(true);
-                                                }}
-                                            >
-                                                Chỉnh sửa
-                                            </Button>
-                                        ) : (
-                                            <Button
-                                                size="small"
-                                                icon={<CloseOutlined />}
-                                                onClick={() => setEditingBudget(false)}
-                                            >
-                                                Hủy
-                                            </Button>
-                                        )
-                                    )
-                                }
                             >
-                                {!editingBudget ? (
-                                    // Chế độ xem
-                                    <Row gutter={[16, 0]}>
-                                        
-                                        <Col xs={24} md={8}>
-                                            <p>
-                                                <strong>Ngày bắt đầu:</strong>{' '}
-                                                {topic.NgayBatDau
-                                                    ? new Date(topic.NgayBatDau).toLocaleDateString('vi-VN')
-                                                    : '-'}
-                                            </p>
-                                        </Col>
-                                        <Col xs={24} md={8}>
-                                            <p>
-                                                <strong>Ngày kết thúc:</strong>{' '}
-                                                {topic.NgayKetThuc
-                                                    ? new Date(topic.NgayKetThuc).toLocaleDateString('vi-VN')
-                                                    : '-'}
-                                            </p>
-                                        </Col>
-                                    </Row>
-                                ) : (
-                                    // Chế độ chỉnh sửa
-                                    <Form form={budgetForm} onFinish={handleBudgetSubmit} layout="vertical">
-                                        <Row gutter={[16, 0]}>
-                                            <Col xs={24} md={8}>
-                                                <Form.Item
-                                                    label="Ngày bắt đầu"
-                                                    name="NgayBatDau"
-                                                    rules={[{ required: true, message: 'Vui lòng chọn ngày bắt đầu' }]}
-                                                >
-                                                    <Input type="date" />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col xs={24} md={8}>
-                                                <Form.Item
-                                                    label="Ngày kết thúc"
-                                                    name="NgayKetThuc"
-                                                    rules={[{ required: true, message: 'Vui lòng chọn ngày kết thúc' }]}
-                                                >
-                                                    <Input type="date" />
-                                                </Form.Item>
-                                            </Col>
-                                        </Row>
-                                        <Row gutter={16}>
-                                            <Col>
-                                                <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>
-                                                    Lưu thay đổi
-                                                </Button>
-                                            </Col>
-                                            <Col>
-                                                <Button danger icon={<CloseOutlined />} onClick={() => setEditingBudget(false)}>
-                                                    Hủy
-                                                </Button>
-                                            </Col>
-                                        </Row>
-                                    </Form>
-                                )}
+                                <Row gutter={[16, 0]}>
+                                    <Col xs={24} md={8}>
+                                        <p>
+                                            <strong>Ngày bắt đầu:</strong>{' '}
+                                            {topic.NgayBatDau ? new Date(topic.NgayBatDau).toLocaleDateString('vi-VN') : '-'}
+                                        </p>
+                                    </Col>
+                                    <Col xs={24} md={8}>
+                                        <p>
+                                            <strong>Ngày kết thúc:</strong>{' '}
+                                            {topic.NgayKetThuc ? new Date(topic.NgayKetThuc).toLocaleDateString('vi-VN') : '-'}
+                                        </p>
+                                    </Col>
+                                </Row>
                             </Card>
                         </div>
 
                         <Card title="Nhận xét" style={{ marginTop: 16 }}>
-                            <Form layout="vertical" onFinish={handleCommentSubmit}>
-                                <Form.Item label="Ý kiến của hội đồng">
-                                    <Input.TextArea
-                                        rows={4}
-                                        value={commentText}
-                                        onChange={(e) => setCommentText(e.target.value)}
-                                        placeholder="Nhập nhận xét về đề tài..."
-                                    />
-                                </Form.Item>
-                                <Form.Item>
-                                    <Button type="primary" htmlType="submit">
-                                        Gửi nhận xét
-                                    </Button>
-                                </Form.Item>
-                            </Form>
-
-                            <Divider />
-                            {comments.length > 0 && comments.map((comment, index) => (
-                                <Card type="inner" size="small" key={index} style={{ marginBottom: 12 }}>
-                                    <p style={{ marginBottom: 8 }}><strong>Nhận xét {comments.length - index}:</strong></p>
-                                    <p style={{ margin: 0 }}>{comment}</p>
-                                </Card>
-                            ))}
+                            {topic.TrangThai === 'Chờ phê duyệt' && (
+                                <Form layout="vertical" onFinish={handleCommentSubmit}>
+                                    <Form.Item label="Ý kiến của hội đồng">
+                                        <Input.TextArea rows={4} value={commentText} onChange={(e) => setCommentText(e.target.value)} placeholder="Nhập nhận xét về đề tài..." />
+                                    </Form.Item>
+                                    <Form.Item><Button type="primary" htmlType="submit">Thêm nhận xét</Button></Form.Item>
+                                </Form>
+                            )}
+                            <List
+                                locale={{ emptyText: 'Chưa có nhận xét' }}
+                                dataSource={projectComments}
+                                renderItem={(comment) => {
+                                    const isAuthor = comment.TaiKhoan === user?.TaiKhoan;
+                                    const isEditingComment = editingCommentId === comment.Id;
+                                    return (
+                                        <List.Item actions={isAuthor ? [
+                                            <Button key="edit" type="link" onClick={() => { setEditingCommentId(comment.Id); setEditingCommentContent(comment.NoiDung); }}>Sửa</Button>,
+                                            <Popconfirm
+                                                key="delete"
+                                                title="Xóa nhận xét"
+                                                description="Bạn có chắc muốn xóa nhận xét này?"
+                                                okText="Xóa"
+                                                cancelText="Hủy"
+                                                okButtonProps={{ danger: true }}
+                                                onConfirm={() => handleDeleteComment(comment.Id)}
+                                            >
+                                                <Button type="link" danger>Xóa</Button>
+                                            </Popconfirm>,
+                                        ] : undefined}>
+                                            <div style={{ width: '100%' }}>
+                                                <strong>{comment.NguoiDung?.TenDayDu || comment.TaiKhoan}</strong>
+                                                <span style={{ color: '#8c8c8c' }}> · {comment.NguoiDung?.VaiTro || ''} · {new Date(comment.NgayTao).toLocaleString('vi-VN')}</span>
+                                                {isEditingComment ? (
+                                                    <div style={{ marginTop: 8 }}>
+                                                        <Input.TextArea rows={3} value={editingCommentContent} onChange={(event) => setEditingCommentContent(event.target.value)} />
+                                                        <Space style={{ marginTop: 8 }}><Button type="primary" size="small" onClick={() => handleUpdateComment(comment.Id)}>Lưu</Button><Button size="small" onClick={() => setEditingCommentId(null)}>Hủy</Button></Space>
+                                                    </div>
+                                                ) : <p style={{ margin: '8px 0 0' }}>{comment.NoiDung}</p>}
+                                            </div>
+                                        </List.Item>
+                                    );
+                                }}
+                            />
                         </Card>
 
                         {/* Modal Phê duyệt */}

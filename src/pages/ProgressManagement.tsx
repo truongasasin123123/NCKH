@@ -4,9 +4,9 @@ import { CheckOutlined, PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlin
 import { useParams, useNavigate } from 'react-router-dom';
 import { getTopicProgress, createMocTienDo, updateMocTienDo, deleteMocTienDo, getMemberById, } from './Quản lý thông tin đề án/ProgressService';
 import type { MocTienDo, CapNhatTienDo, ThanhVienMocDT } from './Quản lý thông tin đề án/ProgressService';
-import { getMemberByTopic, getMyTopics } from './Quản lý thông tin đề án/TopicService';
+import { getMemberByTopic, getMyTopics, getPendingTopics } from './Quản lý thông tin đề án/TopicService';
 import type { ThanhVienDT, TopicLoad } from './Quản lý thông tin đề án/TopicService';
-import { downloadDocument, getDocumentsByMilestone, previewDocument, submitMilestone } from './Quản lý thông tin đề án/DocumentsService';
+import { downloadDocument, getDocumentsByMilestone, submitMilestone } from './Quản lý thông tin đề án/DocumentsService';
 import type { TaiLieu } from './Quản lý thông tin đề án/DocumentsService';
 import { jwtDecode } from 'jwt-decode';
 import dayjs from 'dayjs';
@@ -27,7 +27,7 @@ const ProgressManagement: React.FC = () => {
   const [selectedTopicId, setSelectedTopicId] = useState<string>(maDT || '');
   const [topics, setTopics] = useState<TopicLoad[]>([]);
   const [topicLoading, setTopicLoading] = useState(false);
-  const maDTToUse = selectedTopicId || maDT || 'DT01'; // Sử dụng mock ID nếu không có params
+  const maDTToUse = selectedTopicId || maDT;
   const [progressData, setProgressData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('timeline');
@@ -48,11 +48,13 @@ const ProgressManagement: React.FC = () => {
   const [viewForm] = Form.useForm();
   const [mocDocuments, setMocDocuments] = useState<TaiLieu[]>([]);
   const [documentsLoading, setDocumentsLoading] = useState(false);
-  const [showTopicSearch, setShowTopicSearch] = useState(false);
+  const [showTopicSearch, setShowTopicSearch] = useState(!maDT);
   const [searchText, setSearchText] = useState("");
 
   const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
   const user: JwtPayload | null = token ? jwtDecode<JwtPayload>(token) : null;
+  const isCommitteeRole = (user?.VaiTro || '').toLowerCase().includes('hội đồng')
+    || (user?.VaiTro || '').toLowerCase().includes('hoidong');
 
   const handleTopicChange = async (maDT: string) => {
     // Lưu đề tài đang chọn
@@ -121,7 +123,9 @@ const ProgressManagement: React.FC = () => {
   const fetchTopicList = async () => {
     setTopicLoading(true);
     try {
-      const data = await getMyTopics();
+      const data = isCommitteeRole
+        ? await getPendingTopics('Đã phê duyệt')
+        : await getMyTopics();
       setTopics(data || []);
     } catch (error) {
       message.error('Lỗi khi tải danh sách đề tài');
@@ -360,7 +364,7 @@ const ProgressManagement: React.FC = () => {
                   Xóa
                 </Button>
               </>
-            ) : (
+            ) : !isCommitteeRole ? (
               <Button
                 size="small"
                 type="primary"
@@ -377,7 +381,7 @@ const ProgressManagement: React.FC = () => {
               >
                 Nộp
               </Button>
-            )}
+            ) : null}
           </Space>
         ),
       },
@@ -548,7 +552,7 @@ const ProgressManagement: React.FC = () => {
       if (selectedFile) {
         await submitMilestone({
           file: selectedFile,
-          maDT: selectedMoc.MaDT || maDTToUse,
+          maDT: selectedMoc.MaDT || maDTToUse || '',
           maMoc: selectedMoc.MaMoc,
           loaiTaiLieu: 'Minh chứng tiến độ',
         });
@@ -577,7 +581,7 @@ const ProgressManagement: React.FC = () => {
         title={
           <Space>
             <span>
-              Quản lý tiến độ đề tài:
+              {isCommitteeRole ? 'Xem tiến độ đề tài:' : 'Quản lý tiến độ đề tài:'}
               {!showTopicSearch && (
                 <>
                   {" "}
@@ -932,12 +936,6 @@ const ProgressManagement: React.FC = () => {
                 {mocDocuments.map((document) => (
                   <Space key={document.MaTL} wrap>
                     <span>{document.TenFile}</span>
-                    <Button
-                      icon={<EyeOutlined />}
-                      onClick={() => previewDocument(document.MaTL)}
-                    >
-                      Xem file
-                    </Button>
                     <Button
                       type="primary"
                       icon={<DownloadOutlined />}

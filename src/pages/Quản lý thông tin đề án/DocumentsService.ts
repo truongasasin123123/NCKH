@@ -71,13 +71,29 @@ const getFileName = (contentDisposition?: string, fallback = 'tai-lieu') => {
   return contentDisposition?.match(/filename="?([^";]+)"?/i)?.[1] || fallback;
 };
 
-const getDocumentBlob = async (id: number) => {
-  const response = await ApiAxios.get(`/documents/${id}/download`, {
+const getMimeTypeFromFileName = (fileName: string) => {
+  const extension = fileName.split('.').pop()?.toLowerCase();
+  const mimeTypes: Record<string, string> = {
+    pdf: 'application/pdf',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+  };
+  return mimeTypes[extension || ''] || 'application/octet-stream';
+};
+
+const getDocumentBlob = async (id: number, mode: 'download' | 'preview' = 'download') => {
+  const response = await ApiAxios.get(`/documents/${id}/${mode}`, {
     responseType: 'blob',
   });
+  const fileName = getFileName(response.headers['content-disposition']);
+  const responseContentType = response.headers['content-type']?.split(';')[0];
+  const contentType = !responseContentType || responseContentType === 'application/octet-stream'
+    ? getMimeTypeFromFileName(fileName)
+    : responseContentType;
   return {
-    blob: response.data as Blob,
-    fileName: getFileName(response.headers['content-disposition']),
+    blob: new Blob([response.data], { type: contentType }),
+    fileName,
   };
 };
 
@@ -95,13 +111,27 @@ export const downloadDocument = async (id: number, fallbackName?: string) => {
 
 export const previewDocument = async (id: number) => {
   const previewWindow = window.open('', '_blank');
-  const { blob } = await getDocumentBlob(id);
-  const url = URL.createObjectURL(blob);
+  try {
+    const { blob, fileName } = await getDocumentBlob(id, 'preview');
+    const url = URL.createObjectURL(blob);
 
-  if (previewWindow) {
-    previewWindow.location.href = url;
-  } else {
-    window.open(url, '_blank');
+    if (previewWindow) {
+      const previewContent = blob.type.startsWith('image/')
+        ? `<img src="${url}" alt="${fileName}" style="max-width:100%;height:auto" />`
+        : blob.type === 'application/pdf'
+          ? `<iframe src="${url}" title="${fileName}" style="width:100%;height:100vh;border:0"></iframe>`
+          : '<p style="padding:16px">Trình duyệt không hỗ trợ xem trực tiếp định dạng này. Hãy dùng nút “Tải xuống”.</p>';
+
+      previewWindow.document.open();
+      previewWindow.document.write(`<!doctype html><html><head><title>Xem tài liệu</title></head><body style="margin:0;font-family:Arial">${previewContent}</body></html>`);
+      previewWindow.document.close();
+    } else {
+      window.open(url, '_blank');
+    }
+
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (error) {
+    previewWindow?.close();
+    throw error;
   }
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 };

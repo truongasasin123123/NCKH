@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
-import { Table, Tag, Space, Button, message, Spin } from 'antd';
-import { EyeOutlined } from '@ant-design/icons';
+import { Table, Tag, Space, Button, message, Spin, Popconfirm } from 'antd';
+import { EyeOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { getMyTopics, getPendingTopics } from './Quản lý thông tin đề án/TopicService';
+import { deleteProject, getMyTopics, getPendingTopics } from './Quản lý thông tin đề án/TopicService';
 import type { TopicLoad } from './Quản lý thông tin đề án/TopicService';
 import { useNavigate } from 'react-router-dom';
 import { getTopicProgress } from './Quản lý thông tin đề án/ProgressService';
@@ -65,6 +65,7 @@ const MyTopics: React.FC = () => {
 
     const getStatusTag = (status: string) => {
         const statusMap: Record<string, { color: string; label: string }> = {
+            "Nháp": { color: 'default', label: 'Nháp' },
             "Đã phê duyệt": { color: 'green', label: 'Đã phê duyệt' },
             "Sắp hạn": { color: 'orange', label: 'Sắp hạn' },
             "Khẩn cấp": { color: 'red', label: 'Khẩn cấp' },
@@ -89,6 +90,25 @@ const MyTopics: React.FC = () => {
     const getStudentName = (record: TopicLoad) => {
         const extra = record as any;
         return extra.TenSinhVien || extra.TaiKhoan || 'Không rõ';
+    };
+
+    const canDeleteTopic = (record: TopicLoad) => {
+        const memberRecord = record as TopicLoad & {
+            DeTai?: TopicLoad;
+            VaiTroDT?: string;
+        };
+        return memberRecord.VaiTroDT === 'Nhóm trưởng'
+            && memberRecord.DeTai?.TrangThai === 'Nháp';
+    };
+
+    const handleDeleteProject = async (maDT: string) => {
+        try {
+            await deleteProject(maDT);
+            message.success('Đã xóa đề tài');
+            await fetchTopics();
+        } catch (error: any) {
+            message.error(error?.response?.data?.message || 'Không thể xóa đề tài');
+        }
     };
 
 
@@ -155,6 +175,18 @@ const MyTopics: React.FC = () => {
                         title={`Xem`}
                         onClick={() => navigate(`/mainhome/topic/${record.MaDT}`)}
                     />
+                    {canDeleteTopic(record) && (
+                        <Popconfirm
+                            title="Xóa đề tài"
+                            description="Bạn có chắc muốn xóa đề tài này? Thao tác không thể hoàn tác."
+                            okText="Xóa"
+                            cancelText="Hủy"
+                            okButtonProps={{ danger: true }}
+                            onConfirm={() => handleDeleteProject(record.MaDT)}
+                        >
+                            <Button danger size="small" icon={<DeleteOutlined />} title="Xóa đề tài" />
+                        </Popconfirm>
+                    )}
 
                 </Space>
             ),

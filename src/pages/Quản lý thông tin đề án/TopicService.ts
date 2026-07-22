@@ -78,10 +78,15 @@ export const changeProjectState = async (id: string, state: string) => {
 
 export const submitProjectForApproval = async (
     id: string,
-    reviewerIds: string[],
+    councilType: 'approval' | 'scoring',
     note?: string,
 ) => {
-    const response = await ApiAxios.post(`/project/${id}/submit-for-approval`, { reviewerIds, note });
+    const response = await ApiAxios.post(`/project/${id}/submit-for-approval`, { councilType, note });
+    return response.data;
+};
+
+export const getProjectApprovals = async (id: string) => {
+    const response = await ApiAxios.get(`/project/${id}/approvals`);
     return response.data;
 };
 
@@ -98,6 +103,18 @@ export const deleteProject = async (id: string) => {
     const res = await ApiAxios.delete(`/project/deleteproject/${id}`);
     return res.data;
 }
+
+export const updateProject = async (id: string, project: {
+    TenDT?: string;
+    ChuyenNganh?: string;
+    Khoa?: string;
+    PhanLoai?: string;
+    idNguoiHD?: string;
+    MoTa?: string;
+}) => {
+    const response = await ApiAxios.patch(`/project/updateproject/${id}`, project);
+    return response.data;
+};
 
 export const updateProjectDate = async (id: string, dates: {
     NgayBatDau?: string;

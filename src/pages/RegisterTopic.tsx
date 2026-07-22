@@ -73,7 +73,7 @@ const RegisterTopic = () => {
 
       const { taiLieu = [], ...payload } = values;
 
-      const res = await ApiAxios.post("/project/registerproject", payload);
+      await ApiAxios.post("/project/registerproject", payload);
 
       await Promise.all(
         taiLieu.map((uploadFile) => {
@@ -88,7 +88,7 @@ const RegisterTopic = () => {
         }),
       );
 
-      message.success(res.data.message);
+      message.success('Đã tạo đề tài ở trạng thái Nháp. Bạn có thể sửa hoặc xóa trước khi gửi Hội đồng xét duyệt.');
       form.resetFields();
 
     } catch (error: any) {

@@ -1,25 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import type { CollapseProps } from 'antd';
-import { Collapse, Spin, Button, Tag, Card, Row, Col, List, message, Modal, Input, Divider, Form, Upload, Select, Radio } from 'antd';
+import { Collapse, Spin, Button, Tag, Card, Row, Col, List, message, Modal, Input, Divider, Form, Upload, Radio } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import { DownloadOutlined, ArrowLeftOutlined, EditOutlined, SaveOutlined, CloseOutlined, SendOutlined, UploadOutlined, BarChartOutlined, EyeOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
-import { getTopicById, getMemberByTopic, getUsersByRole, submitProjectForApproval } from './Quản lý thông tin đề án/TopicService';
+import { getTopicById, getMemberByTopic, getProjectApprovals, submitProjectForApproval, updateProject } from './Quản lý thông tin đề án/TopicService';
 import type { TopicLoad, ThanhVienDT } from './Quản lý thông tin đề án/TopicService';
 import { downloadDocument, getDocumentsByTopic, previewDocument, uploadDocument } from './Quản lý thông tin đề án/DocumentsService';
 
-interface NguoiNhanOption {
-    value: string
-    label: string
-}
-
 interface ReviewerApproval {
+    account: string
     name: string
-    approved: boolean
+    status: string
+    responseDate?: string
+    councilType: 'Xét duyệt' | 'Chấm điểm'
 }
 
 interface JwtPayload {
+    TaiKhoan?: string;
     VaiTro?: string;
     role?: string;
 }
@@ -27,7 +26,6 @@ interface JwtPayload {
 const TopicDetail: React.FC = () => {
     const { MaDT } = useParams<{ MaDT: string }>(); // Sử dụng MaDT thay vì id
     const navigate = useNavigate();
-    const [fetching, setFetching] = useState(false);
     const [topic, setTopic] = useState<TopicLoad | null>(null);
     const [members, setMembers] = useState<ThanhVienDT[]>([]); // Thêm state cho members
     const [loading, setLoading] = useState(true);
@@ -37,24 +35,47 @@ const TopicDetail: React.FC = () => {
     const [projectDocuments, setProjectDocuments] = useState<Array<{ id: number; name: string; source: string; date?: string }>>([]);
     const [progressDocsLoading, setProgressDocsLoading] = useState(false);
     const [editing, setEditing] = useState(false);
-    const [targetGroup, setTargetGroup] = useState<'hoidong' | 'huongdan' | null>(null);
-    const [selectedReviewer, setSelectedReviewer] = useState<string[]>([]);
-    const [committeeOptions, setCommitteeOptions] = useState<NguoiNhanOption[]>([]);
-    const [advisorOptions, setAdvisorOptions] = useState<NguoiNhanOption[]>([]);
     const [approvalStatus, setApprovalStatus] = useState<ReviewerApproval[]>([]);
+    const [submittedCouncilTypes, setSubmittedCouncilTypes] = useState<Array<'Xét duyệt' | 'Chấm điểm'>>([]);
+    const [councilType, setCouncilType] = useState<'approval' | 'scoring'>('approval');
 
     const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
     const user: JwtPayload | null = token ? jwtDecode<JwtPayload>(token) : null;
     const displayRole = user?.VaiTro || user?.role || '';
     const isCommitteeRole = displayRole.toLowerCase().includes('hội đồng') || displayRole.toLowerCase().includes('hoidong');
 
-    const reviewerOptions = targetGroup === 'hoidong' ? committeeOptions : targetGroup === 'huongdan' ? advisorOptions : [];
-    const approvedCount = approvalStatus.filter((r) => r.approved).length;
+    const approvalReviewers = approvalStatus.filter((reviewer) => reviewer.councilType === 'Xét duyệt');
+    const approvedCount = approvalReviewers.filter((reviewer) => reviewer.status === 'Đã phê duyệt').length;
+    const hasSubmittedForApproval = submittedCouncilTypes.includes('Xét duyệt');
+    const hasSubmittedForScoring = submittedCouncilTypes.includes('Chấm điểm');
+    const canSendToCouncil = !hasSubmittedForApproval
+        || (topic?.TrangThai === 'Đã phê duyệt' && !hasSubmittedForScoring);
+    const isTopicLeader = members.some((member) =>
+        member.TaiKhoan === user?.TaiKhoan && member.VaiTroDT === 'Nhóm trưởng',
+    );
+    const canEditProject = topic?.TrangThai === 'Nháp' && isTopicLeader;
     const [form] = Form.useForm();
 
     useEffect(() => {
         fetchTopicDetail();
-        fetchUsers();
+    }, [MaDT]);
+
+    useEffect(() => {
+        if (!MaDT) return;
+
+        const refreshInterval = window.setInterval(async () => {
+            try {
+                const [latestTopic] = await Promise.all([
+                    getTopicById(MaDT),
+                    fetchApprovalStatus(MaDT),
+                ]);
+                setTopic(latestTopic);
+            } catch (error) {
+                console.error('Lỗi khi tự cập nhật trạng thái xét duyệt:', error);
+            }
+        }, 5000);
+
+        return () => window.clearInterval(refreshInterval);
     }, [MaDT]);
 
     const fetchTopicDetail = async () => {
@@ -71,6 +92,7 @@ const TopicDetail: React.FC = () => {
             if (data) {
                 setTopic(data);
                 setMembers(memData);
+                await fetchApprovalStatus(MaDT);
                 await fetchProjectDocuments(MaDT);
                 form.setFieldsValue({
                     TenDT: data.TenDT,
@@ -198,12 +220,13 @@ const TopicDetail: React.FC = () => {
     };
 
     const handleSubmitTopic = async () => {
-        if (!targetGroup) {
-            message.warning('Vui lòng chọn loại nhận (Hội đồng hoặc Người hướng dẫn)');
+        const isScoringCouncil = councilType === 'scoring';
+        if ((!isScoringCouncil && hasSubmittedForApproval) || (isScoringCouncil && hasSubmittedForScoring)) {
+            message.warning(`Đề tài đã được gửi Hội đồng ${isScoringCouncil ? 'chấm điểm' : 'xét duyệt'}, không thể gửi lại`);
             return;
         }
-        if (!selectedReviewer || selectedReviewer.length === 0) {
-            message.warning('Vui lòng chọn hội đồng hoặc người hướng dẫn trước khi gửi');
+        if (isScoringCouncil && topic?.TrangThai !== 'Đã phê duyệt') {
+            message.warning('Chỉ được gửi Hội đồng chấm điểm sau khi đề tài đã được phê duyệt');
             return;
         }
         if (!MaDT) {
@@ -223,42 +246,68 @@ const TopicDetail: React.FC = () => {
                 });
             }));
 
-            await submitProjectForApproval(MaDT, selectedReviewer, submitNotes);
-
-            const chosenReviewers = reviewerOptions.filter((r) => selectedReviewer.includes(r.value));
-            const chosenLabels = chosenReviewers.map((r) => r.label).join(', ');
-            setTopic((prev) => prev ? { ...prev, TrangThai: 'Chờ phê duyệt' } : prev);
-            setApprovalStatus(chosenReviewers.map((r) => ({ name: r.label, approved: false })));
+            const result = await submitProjectForApproval(MaDT, councilType, submitNotes);
+            if (!isScoringCouncil) {
+                setTopic((prev) => prev ? { ...prev, TrangThai: 'Chờ phê duyệt' } : prev);
+            }
+            const newReviewers = (result.reviewers || []).map((reviewer: {
+                account: string;
+                name?: string;
+                status: string;
+                NguoiDung?: { TenDayDu?: string };
+                LoaiHoiDong?: 'Xét duyệt' | 'Chấm điểm';
+            }) => ({
+                account: reviewer.account,
+                name: reviewer.name || reviewer.NguoiDung?.TenDayDu || reviewer.account,
+                status: reviewer.status,
+                councilType: reviewer.LoaiHoiDong || (isScoringCouncil ? 'Chấm điểm' : 'Xét duyệt'),
+            }));
+            setApprovalStatus((current) => [
+                ...current.filter((reviewer) => reviewer.councilType !== (isScoringCouncil ? 'Chấm điểm' : 'Xét duyệt')),
+                ...newReviewers,
+            ]);
+            setSubmittedCouncilTypes((current) => Array.from(new Set([
+                ...current,
+                isScoringCouncil ? 'Chấm điểm' : 'Xét duyệt',
+            ])) as Array<'Xét duyệt' | 'Chấm điểm'>);
             await fetchProjectDocuments(MaDT);
 
-            message.success(`Đã gửi đề tài cho: ${chosenLabels}`);
+            message.success(`Đã gửi đề tài đến ${newReviewers.length} thành viên Hội đồng ${isScoringCouncil ? 'chấm điểm' : 'xét duyệt'}`);
             setSubmitModalOpen(false);
             setSubmitNotes('');
             setAttachedFiles([]);
-            setTargetGroup(null);
-            setSelectedReviewer([]);
         } catch (error: any) {
             message.error(error?.response?.data?.message || error.message || 'Không thể upload tài liệu');
         }
     };
 
-    const fetchUsers = async () => {
+    const fetchApprovalStatus = async (maDT: string) => {
         try {
-            setFetching(true);
-            const hoidong = await getUsersByRole("Hội đồng");
-            const huongdan = await getUsersByRole("Người hướng dẫn");
-            setCommitteeOptions(hoidong);
-            setAdvisorOptions(huongdan);
+            const approvals = await getProjectApprovals(maDT);
+            setSubmittedCouncilTypes(Array.from(new Set(approvals.map((approval: {
+                LoaiHoiDong?: 'Xét duyệt' | 'Chấm điểm';
+            }) => approval.LoaiHoiDong || 'Xét duyệt'))) as Array<'Xét duyệt' | 'Chấm điểm'>);
+            setApprovalStatus(approvals.map((approval: {
+                TaiKhoanHoiDong: string;
+                TrangThai: string;
+                NgayPhanHoi?: string;
+                NguoiDung?: { TenDayDu?: string };
+                LoaiHoiDong?: 'Xét duyệt' | 'Chấm điểm';
+            }) => ({
+                account: approval.TaiKhoanHoiDong,
+                name: approval.NguoiDung?.TenDayDu || approval.TaiKhoanHoiDong,
+                status: approval.TrangThai,
+                responseDate: approval.NgayPhanHoi,
+                councilType: approval.LoaiHoiDong || 'Xét duyệt',
+            })));
         } catch (error) {
-            message.error("Lỗi khi tải danh sách người nhận");
-            console.error(error);
-        } finally {
-            setFetching(false);
+            console.error('Lỗi khi tải trạng thái xét duyệt:', error);
         }
     };
 
     const getStatusTag = (status: string) => {
         const statusMap: Record<string, { color: string; label: string }> = {
+            "Nháp": { color: 'default', label: 'Nháp' },
             "Đã phê duyệt": { color: 'green', label: 'Bắt đầu' },
             "Sắp hạn": { color: 'orange', label: 'Sắp hạn' },
             "Khẩn cấp": { color: 'red', label: 'Khẩn cấp' },
@@ -268,12 +317,31 @@ const TopicDetail: React.FC = () => {
         return <Tag color={statusInfo.color}>{statusInfo.label}</Tag>;
     };
 
-    const handleEditSubmit = (values: any) => {
+    const getApprovalStatusTag = (status: string) => {
+        const statusMap: Record<string, { color: string; label: string }> = {
+            'Đã phê duyệt': { color: 'green', label: 'Đã phê duyệt' },
+            'Từ chối': { color: 'red', label: 'Từ chối' },
+            'Chờ phê duyệt': { color: 'blue', label: 'Chờ phê duyệt' },
+        };
+        const statusInfo = statusMap[status] || { color: 'default', label: status };
+        return <Tag color={statusInfo.color}>{statusInfo.label}</Tag>;
+    };
+
+    const handleEditSubmit = async (values: any) => {
         if (!topic) return;
-        const updatedTopic = { ...topic, ...values };
-        setTopic(updatedTopic);
-        setEditing(false);
-        message.success('Cập nhật đề tài thành công!');
+
+        try {
+            const updatedTopic = await updateProject(topic.MaDT, {
+                TenDT: values.TenDT,
+                PhanLoai: values.PhanLoai,
+                MoTa: values.MoTa,
+            });
+            setTopic(updatedTopic);
+            setEditing(false);
+            message.success('Cập nhật đề tài thành công!');
+        } catch (error: any) {
+            message.error(error?.response?.data?.message || 'Không thể cập nhật đề tài');
+        }
     };
 
     const handleCancelEdit = () => {
@@ -318,7 +386,7 @@ const TopicDetail: React.FC = () => {
                                 {!isCommitteeRole && (
                                     <Col xs={24} md={6}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                            {!editing ? (
+                                            {!editing && canEditProject ? (
                                                 <Button
                                                     type="primary"
                                                     icon={<EditOutlined />}
@@ -327,7 +395,7 @@ const TopicDetail: React.FC = () => {
                                                 >
                                                     Chỉnh sửa đề tài
                                                 </Button>
-                                            ) : (
+                                            ) : editing ? (
                                                 <Button
                                                     type="default"
                                                     icon={<CloseOutlined />}
@@ -336,14 +404,18 @@ const TopicDetail: React.FC = () => {
                                                 >
                                                     Hủy chỉnh sửa
                                                 </Button>
-                                            )}
+                                            ) : null}
                                             <Button
                                                 type="dashed"
                                                 icon={<SendOutlined />}
                                                 block
-                                                onClick={() => setSubmitModalOpen(true)}
+                                                disabled={!canSendToCouncil}
+                                                onClick={() => {
+                                                    setCouncilType(hasSubmittedForApproval ? 'scoring' : 'approval');
+                                                    setSubmitModalOpen(true);
+                                                }}
                                             >
-                                                Gửi hội đồng
+                                                {canSendToCouncil ? 'Gửi hội đồng' : 'Đã gửi đủ hội đồng'}
                                             </Button>
                                             {topic?.TrangThai === 'Đã phê duyệt' && (
                                                 <Button
@@ -389,7 +461,6 @@ const TopicDetail: React.FC = () => {
                                             <Form.Item
                                                 label="Hạn chót"
                                                 name="NgayKetThuc"
-                                                rules={[{ required: true, message: 'Vui lòng nhập hạn chót' }]}
                                             >
                                                 <Input type="date" disabled />
                                             </Form.Item>
@@ -452,17 +523,28 @@ const TopicDetail: React.FC = () => {
                                             {approvalStatus.length > 0 ? (
                                                 <>
                                                     <p>
-                                                        <strong>Đã phê duyệt:</strong> {approvedCount}/{approvalStatus.length}
+                                                        <strong>Hội đồng xét duyệt đã đồng ý:</strong> {approvedCount}/{approvalReviewers.length}
                                                     </p>
                                                     <List
                                                         dataSource={approvalStatus}
                                                         renderItem={(reviewer, index) => (
                                                             <List.Item>
                                                                 <span style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                                                                    <span>{index + 1}. {reviewer.name}</span>
-                                                                    <Tag color={reviewer.approved ? 'green' : 'blue'}>
-                                                                        {reviewer.approved ? 'Đã phê duyệt' : 'Chưa phê duyệt'}
-                                                                    </Tag>
+                                                                    <span>
+                                                                        {index + 1}. {reviewer.name}
+                                                                        <Tag style={{ marginLeft: 8 }} color={reviewer.councilType === 'Xét duyệt' ? 'purple' : 'cyan'}>
+                                                                            Hội đồng {reviewer.councilType.toLowerCase()}
+                                                                        </Tag>
+                                                                        {reviewer.name !== reviewer.account && (
+                                                                            <span style={{ color: '#8c8c8c' }}> ({reviewer.account})</span>
+                                                                        )}
+                                                                        {reviewer.responseDate && (
+                                                                            <span style={{ color: '#8c8c8c', display: 'block', fontSize: 12 }}>
+                                                                                Phản hồi: {new Date(reviewer.responseDate).toLocaleString('vi-VN')}
+                                                                            </span>
+                                                                        )}
+                                                                    </span>
+                                                                    {getApprovalStatusTag(reviewer.status)}
                                                                 </span>
                                                             </List.Item>
                                                         )}
@@ -582,8 +664,6 @@ const TopicDetail: React.FC = () => {
                                 setSubmitModalOpen(false);
                                 setSubmitNotes('');
                                 setAttachedFiles([]);
-                                setTargetGroup(null);
-                                setSelectedReviewer([]);
                             }}
                             footer={[
                                 <Button
@@ -593,7 +673,6 @@ const TopicDetail: React.FC = () => {
                                         setSubmitModalOpen(false);
                                         setSubmitNotes('');
                                         setAttachedFiles([]);
-                                        setSelectedReviewer([]);
                                     }}
                                 >
                                     Đóng
@@ -648,37 +727,34 @@ const TopicDetail: React.FC = () => {
                                     <Divider />
 
                                     <div style={{ marginBottom: 24 }}>
-                                        <p style={{ marginBottom: 12, fontWeight: 'bold' }}>Gửi tới</p>
+                                        <p style={{ marginBottom: 12, fontWeight: 'bold' }}>Loại hội đồng</p>
                                         <Radio.Group
-                                            onChange={(e) => {
-                                                setTargetGroup(e.target.value);
-                                                setSelectedReviewer([]);
-                                            }}
-                                            value={targetGroup}
-                                            options={[
-                                                { label: 'Hội đồng', value: 'hoidong' },
-                                                { label: 'Người hướng dẫn', value: 'huongdan' },
-                                            ]}
+                                            value={councilType}
+                                            onChange={(event) => setCouncilType(event.target.value as 'approval' | 'scoring')}
                                             optionType="button"
                                             buttonStyle="solid"
+                                            options={[
+                                                {
+                                                    label: 'Hội đồng xét duyệt',
+                                                    value: 'approval',
+                                                    disabled: hasSubmittedForApproval,
+                                                },
+                                                {
+                                                    label: 'Hội đồng chấm điểm',
+                                                    value: 'scoring',
+                                                    disabled: topic.TrangThai !== 'Đã phê duyệt' || hasSubmittedForScoring,
+                                                },
+                                            ]}
                                         />
+                                        <p style={{ marginTop: 12, marginBottom: 0 }}>
+                                            Hệ thống sẽ tự động gửi đến toàn bộ tài khoản thuộc hội đồng đã chọn.
+                                        </p>
+                                        {topic.TrangThai !== 'Đã phê duyệt' && (
+                                            <p style={{ color: '#d46b08', marginTop: 8, marginBottom: 0 }}>
+                                                Hội đồng chấm điểm chỉ nhận đề tài sau khi đề tài được phê duyệt.
+                                            </p>
+                                        )}
                                     </div>
-                                    {/* loc nguoi gui */}
-                                    {targetGroup && (
-                                        <div style={{ marginBottom: 24 }}>
-                                            <p style={{ marginBottom: 12, fontWeight: 'bold' }}>Chọn {targetGroup === 'hoidong' ? 'hội đồng' : 'người hướng dẫn'}</p>
-                                            <Select
-                                                mode='multiple'
-                                                showSearch
-                                                placeholder={targetGroup === 'hoidong' ? 'Chọn hội đồng' : 'Chọn người hướng dẫn'}
-                                                options={reviewerOptions}
-                                                value={selectedReviewer}
-                                                onChange={(value: string[]) => setSelectedReviewer(value)}
-                                                notFoundContent={fetching ? "Đang tìm..." : "Không có kết quả"}
-                                                style={{ width: '100%' }}
-                                            />
-                                        </div>
-                                    )}
 
                                     <div style={{ marginBottom: 24 }}>
                                         <p style={{ marginBottom: 12, fontWeight: 'bold' }}>Ghi chú (Tùy chọn):</p>

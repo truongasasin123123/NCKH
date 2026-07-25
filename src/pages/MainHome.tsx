@@ -1,6 +1,6 @@
 import { Layout, Row, Col, Badge } from "antd";
 import { Outlet, NavLink } from "react-router-dom";
-import { UserOutlined, EditOutlined, BellOutlined,ProfileOutlined, FileOutlined, BarChartOutlined } from "@ant-design/icons";
+import { UserOutlined, EditOutlined, BellOutlined,ProfileOutlined, FileOutlined, BarChartOutlined, TeamOutlined } from "@ant-design/icons";
 import { useState, useEffect } from "react";
 import { jwtDecode } from 'jwt-decode';
 import { getNotifications } from "./Quản lý thông tin đề án/NotificationService";
@@ -19,6 +19,7 @@ const MainHome: React.FC = () => {
   const user: JwtPayload | null = token ? jwtDecode<JwtPayload>(token) : null;
   const displayRole = user?.VaiTro || null;
   const isCommitteeRole = displayRole?.toLowerCase().includes('hội đồng') || displayRole?.toLowerCase().includes('hoidong');
+  const isAdmin = displayRole?.toLowerCase() === 'admin' || displayRole?.toLowerCase() === 'quản trị';
 
   const fetchUnreadCount = async () => {
     try {
@@ -96,6 +97,14 @@ const MainHome: React.FC = () => {
                   >
                     <FileOutlined style={{ fontSize: 18, marginRight: 5 }} />
                     <span>Đề tài đã phê duyệt</span>
+                  </NavLink>
+                </li>
+              )}
+              {isAdmin && (
+                <li>
+                  <NavLink to="/mainhome/admin/users" className="li-link">
+                    <TeamOutlined style={{ fontSize: 18, marginRight: 5 }} />
+                    <span>Quản lý tài khoản</span>
                   </NavLink>
                 </li>
               )}

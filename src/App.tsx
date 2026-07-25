@@ -19,6 +19,7 @@ import Profile from "./pages/Profile";
 import ApprovedTopics from "./pages/ApprovedTopics";
 import TopicDetailCommittee from "./pages/TopicDetailCommittee";
 import ProgressManagement from "./pages/ProgressManagement";
+import AdminUsers from "./pages/AdminUsers";
 
 interface JwtPayload {
   TaiKhoan: string;
@@ -124,6 +125,7 @@ function App() {
             <Route path="progress/:maDT" element={<ProgressManagement />} />
             <Route path="progress-demo" element={<ProgressManagement />} />
             <Route path="progress-demo" element={<ProgressManagement />} />
+            <Route path="admin/users" element={<AdminUsers />} />
           </Route>
         </Routes>
       </Layout>

@@ -33,8 +33,6 @@ const roles = [
   'Ban KH&CN',
   'Tài chính',
   'Admin',
-  'Hội đồng xét duyệt',
-  'Hội đồng chấm điểm',
 ];
 
 const isAdmin = (role?: string) => {
@@ -122,16 +120,23 @@ const AdminUsers = () => {
     return <div>Bạn không có quyền truy cập khu vực quản trị.</div>;
   }
 
-  const userFormFields = (includePassword = false) => (
+  const createUserFields = () => (
     <>
       <Form.Item name="TaiKhoan" label="Tài khoản" rules={[{ required: true }]}>
-        <Input disabled={Boolean(editingUser)} />
+        <Input />
       </Form.Item>
-      {includePassword && (
-        <Form.Item name="MatKhau" label="Mật khẩu tạm" rules={[{ required: true, min: 6 }]}>
-          <Input.Password />
-        </Form.Item>
-      )}
+      <Form.Item name="MatKhau" label="Mật khẩu tạm" rules={[{ required: true, min: 6 }]}>
+        <Input.Password />
+      </Form.Item>
+      <Form.Item name="VaiTro" label="Vai trò gốc" rules={[{ required: true }]}>
+        <Select options={roles.map((item) => ({ value: item, label: item }))} />
+      </Form.Item>
+    </>
+  );
+
+  const updateUserFields = () => (
+    <>
+      <Form.Item name="TaiKhoan" label="Tài khoản"><Input disabled /></Form.Item>
       <Form.Item name="TenDayDu" label="Họ tên">
         <Input />
       </Form.Item>
@@ -191,10 +196,10 @@ const AdminUsers = () => {
       />
 
       <Modal title="Cấp tài khoản" open={createOpen} onCancel={() => setCreateOpen(false)} footer={null} destroyOnClose>
-        <Form form={createForm} layout="vertical" onFinish={createUser}>{userFormFields(true)}<Button type="primary" htmlType="submit" block>Tạo tài khoản</Button></Form>
+        <Form form={createForm} layout="vertical" onFinish={createUser}>{createUserFields()}<Button type="primary" htmlType="submit" block>Tạo tài khoản</Button></Form>
       </Modal>
       <Modal title={`Sửa tài khoản ${editingUser?.TaiKhoan || ''}`} open={Boolean(editingUser)} onCancel={() => setEditingUser(null)} footer={null} destroyOnClose>
-        <Form form={editForm} layout="vertical" onFinish={updateUser}>{userFormFields(false)}<Button type="primary" htmlType="submit" block>Lưu thay đổi</Button></Form>
+        <Form form={editForm} layout="vertical" onFinish={updateUser}>{updateUserFields()}<Button type="primary" htmlType="submit" block>Lưu thay đổi</Button></Form>
       </Modal>
       <Modal title={`Đặt lại mật khẩu: ${resettingUser?.TaiKhoan || ''}`} open={Boolean(resettingUser)} onCancel={() => setResettingUser(null)} footer={null} destroyOnClose>
         <Form form={passwordForm} layout="vertical" onFinish={resetPassword}>

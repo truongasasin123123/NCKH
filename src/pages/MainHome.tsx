@@ -1,6 +1,6 @@
 import { Layout, Row, Col, Badge } from "antd";
-import { Outlet, NavLink } from "react-router-dom";
-import { UserOutlined, EditOutlined, BellOutlined,ProfileOutlined, FileOutlined, BarChartOutlined, TeamOutlined } from "@ant-design/icons";
+import { Navigate, Outlet, NavLink, useLocation } from "react-router-dom";
+import { UserOutlined, EditOutlined, BellOutlined,ProfileOutlined, FileOutlined, BarChartOutlined, TeamOutlined, AuditOutlined } from "@ant-design/icons";
 import { useState, useEffect } from "react";
 import { jwtDecode } from 'jwt-decode';
 import { getNotifications } from "./Quản lý thông tin đề án/NotificationService";
@@ -10,6 +10,7 @@ const { Content } = Layout;
 
 interface JwtPayload {
   VaiTro?: string;
+  DaHoanThienHoSo?: boolean;
 }
 
 const MainHome: React.FC = () => {
@@ -17,9 +18,20 @@ const MainHome: React.FC = () => {
 
   const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
   const user: JwtPayload | null = token ? jwtDecode<JwtPayload>(token) : null;
+  const location = useLocation();
   const displayRole = user?.VaiTro || null;
-  const isCommitteeRole = displayRole?.toLowerCase().includes('hội đồng') || displayRole?.toLowerCase().includes('hoidong');
-  const isAdmin = displayRole?.toLowerCase() === 'admin' || displayRole?.toLowerCase() === 'quản trị';
+  const normalizedRole = (displayRole || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .toLowerCase()
+    .replace(/\s/g, '');
+  const isCommitteeRole = normalizedRole.includes('hoidong');
+  const isAdmin = normalizedRole === 'admin' || normalizedRole === 'quantri';
+
+  if (user?.DaHoanThienHoSo === false && location.pathname !== '/mainhome/profile') {
+    return <Navigate to="/mainhome/profile" replace />;
+  }
 
   const fetchUnreadCount = async () => {
     try {
@@ -52,12 +64,6 @@ const MainHome: React.FC = () => {
           <Col xs={24} md={4}>
             <ul className="item-sider">
               <li>
-                <NavLink to="/mainhome" className="li-link">
-                  <ProfileOutlined style={{ fontSize: 18, marginRight: 5 }} />
-                  <span>Đề tài của tôi</span>
-                </NavLink>
-              </li>
-              <li>
                 <NavLink
                   to="/mainhome/profile"
                   className="li-link"
@@ -66,15 +72,6 @@ const MainHome: React.FC = () => {
                   <span>Thông tin cá nhân</span>
                 </NavLink>
               </li>
-              {!isCommitteeRole && (
-                <li>
-                  <NavLink to="/mainhome/registertopic" className="li-link">
-                    <EditOutlined style={{ fontSize: 18, marginRight: 5 }} />
-                    <span>Đăng ký đề tài</span>
-                  </NavLink>
-                </li>
-              )}
-
               <li>
                 <NavLink
                   to="/mainhome/notifications"
@@ -89,6 +86,24 @@ const MainHome: React.FC = () => {
                   </div>
                 </NavLink>
               </li>
+              {!isAdmin && (
+                <>
+                  <li>
+                    <NavLink to="/mainhome" className="li-link">
+                      <ProfileOutlined style={{ fontSize: 18, marginRight: 5 }} />
+                      <span>Đề tài của tôi</span>
+                    </NavLink>
+                  </li>
+                  {!isCommitteeRole && (
+                    <li>
+                      <NavLink to="/mainhome/registertopic" className="li-link">
+                        <EditOutlined style={{ fontSize: 18, marginRight: 5 }} />
+                        <span>Đăng ký đề tài</span>
+                      </NavLink>
+                    </li>
+                  )}
+                </>
+              )}
               {isCommitteeRole && (
                 <li>
                   <NavLink
@@ -101,22 +116,32 @@ const MainHome: React.FC = () => {
                 </li>
               )}
               {isAdmin && (
+                <>
+                  <li>
+                    <NavLink to="/mainhome/admin/users" className="li-link">
+                      <TeamOutlined style={{ fontSize: 18, marginRight: 5 }} />
+                      <span>Quản lý tài khoản</span>
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink to="/mainhome/admin/councils" className="li-link">
+                      <AuditOutlined style={{ fontSize: 18, marginRight: 5 }} />
+                      <span>Quản lý hội đồng</span>
+                    </NavLink>
+                  </li>
+                </>
+              )}
+              {!isAdmin && (
                 <li>
-                  <NavLink to="/mainhome/admin/users" className="li-link">
-                    <TeamOutlined style={{ fontSize: 18, marginRight: 5 }} />
-                    <span>Quản lý tài khoản</span>
+                  <NavLink
+                    to="/mainhome/progress-demo"
+                    className="li-link"
+                  >
+                    <BarChartOutlined style={{ fontSize: 18, marginRight: 5 }} />
+                    <span>Quản lý tiến độ</span>
                   </NavLink>
                 </li>
               )}
-              <li>
-                <NavLink
-                  to="/mainhome/progress-demo"
-                  className="li-link"
-                >
-                  <BarChartOutlined style={{ fontSize: 18, marginRight: 5 }} />
-                  <span>Quản lý tiến độ</span>
-                </NavLink>
-              </li>
             </ul>
           </Col>
 

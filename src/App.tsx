@@ -20,6 +20,8 @@ import ApprovedTopics from "./pages/ApprovedTopics";
 import TopicDetailCommittee from "./pages/TopicDetailCommittee";
 import ProgressManagement from "./pages/ProgressManagement";
 import AdminUsers from "./pages/AdminUsers";
+import CouncilList from "./pages/Chức năng quản trị hệ thống/CouncilList";
+import CouncilDetail from "./pages/Chức năng quản trị hệ thống/CouncilDetail";
 
 interface JwtPayload {
   TaiKhoan: string;
@@ -126,6 +128,8 @@ function App() {
             <Route path="progress-demo" element={<ProgressManagement />} />
             <Route path="progress-demo" element={<ProgressManagement />} />
             <Route path="admin/users" element={<AdminUsers />} />
+            <Route path="admin/councils" element={<CouncilList />} />
+            <Route path="admin/councils/:maHoiDong" element={<CouncilDetail />} />
           </Route>
         </Routes>
       </Layout>

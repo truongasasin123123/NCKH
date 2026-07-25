@@ -33,7 +33,9 @@ function Login() {
             }
 
             message.success("Đăng nhập thành công!");
-            window.location.href = "/home";
+            window.location.href = res.data.requiresProfileCompletion
+                ? "/mainhome/profile"
+                : "/home";
 
         } catch (error: any) {
             message.error("Sai tài khoản hoặc mật khẩu!");

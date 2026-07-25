@@ -52,7 +52,7 @@ function Register() {
                         <Form.Item
                             label="Tên đầy đủ"
                             name="TenDayDu"
-                            className="auth-input"
+                            className="custom-input"
                             rules={[{ required: true, message: "Vui lòng nhập tên đầy đủ!" }]}
                         >
                             <Input />
@@ -61,8 +61,11 @@ function Register() {
                         <Form.Item
                             label="Gmail:"
                             name="Gmail"
-                            className="auth-input"
-                            rules={[{ required: true, message: "Vui lòng nhập email!" }]}
+                            className="custom-input"
+                            rules={[
+                                { type: "email", message: "Sai định dạng email" },
+                                { required: true, message: "Vui lòng nhập gmail!" },
+                            ]}
                         >
                             <Input />
                         </Form.Item>
@@ -70,7 +73,7 @@ function Register() {
                         <Form.Item
                             label="Tài khoản:"
                             name="TaiKhoan"
-                            className="auth-input"
+                            className="custom-input"
                             rules={[{ required: true, message: "Vui lòng nhập tài khoản!" }]}
                         >
                             <Input />

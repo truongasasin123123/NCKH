@@ -19,10 +19,10 @@ import Profile from "./pages/Profile";
 import ApprovedTopics from "./pages/ApprovedTopics";
 import TopicDetailCommittee from "./pages/TopicDetailCommittee";
 import ProgressManagement from "./pages/ProgressManagement";
-import CreateAccount from "./pages/Chức năng quản trị hệ thống/CreateAccount";
-import CouncilList from "./pages/Chức năng quản trị hệ thống/CouncilList";
-import CreateCouncilPage from "./pages/Chức năng quản trị hệ thống/CreateCouncilPage";
-import CouncilDetail from "./pages/Chức năng quản trị hệ thống/CouncilDetail";
+import CreateAccount from "./pages/QuanTriHeThong/CreateAccount";
+import CouncilList from "./pages/QuanTriHeThong/CouncilList";
+import CreateCouncilPage from "./pages/QuanTriHeThong/CreateCouncilPage";
+import CouncilDetail from "./pages/QuanTriHeThong/CouncilDetail";
 
 interface JwtPayload {
   TaiKhoan: string;

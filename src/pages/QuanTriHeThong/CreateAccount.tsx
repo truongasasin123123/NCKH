@@ -1,6 +1,6 @@
 import { Form, Input, Select, Button, message, Card, Typography } from "antd";
 
-import { createAccount } from "../Quản lý thông tin đề án/AccountService";
+import { createAccount } from "../ThongTinDeTai/AccountService";
 
 const { Option } = Select;
 const { Title } = Typography;

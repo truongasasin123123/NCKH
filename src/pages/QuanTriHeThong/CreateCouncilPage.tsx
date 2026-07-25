@@ -1,6 +1,6 @@
-import { Form, Input, Select, DatePicker, Button, message, Card, Typography } from "antd";
+import { Form, Input, Select, DatePicker, Button, message, Card, Typography, Row, Col, InputNumber } from "antd";
 import { useNavigate } from "react-router-dom";
-import { createCouncil } from "../Quản lý thông tin đề án/CouncilService";
+import { createCouncil } from "../ThongTinDeTai/CouncilService";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -15,7 +15,7 @@ const CreateCouncilPage: React.FC = () => {
         TenHoiDong: values.TenHoiDong,
         LoaiHoiDong: values.LoaiHoiDong,
 
-        
+
       });
       message.success("Tạo hội đồng thành công");
       navigate(-1);
@@ -63,6 +63,41 @@ const CreateCouncilPage: React.FC = () => {
             <Button type="primary" htmlType="submit">
               Tạo hội đồng
             </Button>
+          </Form.Item>
+
+          <Form.Item label="Năm hoạt động" required>
+            <Row gutter={8}>
+              <Col span={12}>
+                <Form.Item
+                  name="NamBatDau"
+                  noStyle
+                  rules={[{ required: true, message: "Nhập năm bắt đầu" }]}
+                  initialValue={new Date().getFullYear()}
+                >
+                  <InputNumber style={{ width: "100%" }} min={2000} max={2100} placeholder="Từ năm" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  name="NamKetThuc"
+                  noStyle
+                  rules={[
+                    { required: true, message: "Nhập năm kết thúc" },
+                    ({ getFieldValue }) => ({
+                      validator(_, value) {
+                        if (!value || value >= getFieldValue("NamBatDau")) {
+                          return Promise.resolve();
+                        }
+                        return Promise.reject(new Error("Năm kết thúc phải ≥ năm bắt đầu"));
+                      },
+                    }),
+                  ]}
+                  initialValue={new Date().getFullYear() + 1}
+                >
+                  <InputNumber style={{ width: "100%" }} min={2000} max={2100} placeholder="Đến năm" />
+                </Form.Item>
+              </Col>
+            </Row>
           </Form.Item>
         </Form>
       </Card>

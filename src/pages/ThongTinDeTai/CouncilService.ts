@@ -3,10 +3,12 @@ export interface Council {
   MaHoiDong: string;
   TenHoiDong: string;
   LoaiHoiDong: string;
-
   MoTa: string;
+  NamBatDau: number;
+  NamKetThuc: number;
+  NgayThanhLap?: string;
+  TrangThai?: string;
 }
-
 export interface CouncilMember {
   MaThanhVien: string;
   TaiKhoan: string;
@@ -15,42 +17,12 @@ export interface CouncilMember {
 }
 
 export const DEFAULT_COUNCILS: Council[] = [
-  {
-    MaHoiDong: "KHDT_Khoa",
-    TenHoiDong: "Hội đồng Khoa học - Đào tạo Khoa",
-    LoaiHoiDong: "KHDT_Khoa",
-    MoTa: "Xét duyệt đề cương cấp cơ sở.",
-  },
-  {
-    MaHoiDong: "XetChonThamDinh",
-    TenHoiDong: "Hội đồng xét chọn / tuyển chọn / thẩm định",
-    LoaiHoiDong: "XetChonThamDinh",
-    MoTa: "Xét chọn danh mục, thẩm định đề tài trước khi phê duyệt.",
-  },
-  {
-    MaHoiDong: "KiemTraGiamSat",
-    TenHoiDong: "Hội đồng kiểm tra, giám sát",
-    LoaiHoiDong: "KiemTraGiamSat",
-    MoTa: "Theo dõi thực hiện đề tài và kiểm tra tiến độ.",
-  },
-  {
-    MaHoiDong: "NghiemThu",
-    TenHoiDong: "Hội đồng nghiệm thu",
-    LoaiHoiDong: "NghiemThu",
-    MoTa: "Đánh giá kết quả cuối cùng, chấm điểm và xếp loại.",
-  },
-  {
-    MaHoiDong: "ThanhLy",
-    TenHoiDong: "Hội đồng thanh lý",
-    LoaiHoiDong: "ThanhLy",
-    MoTa: "Xử lý đề tài không đạt, quá hạn hoặc có quyết định thanh lý.",
-  },
-  {
-    MaHoiDong: "SVNCKH",
-    TenHoiDong: "Hội đồng xét chọn công trình SVNCKH",
-    LoaiHoiDong: "SVNCKH",
-    MoTa: "Chọn công trình tham gia hội nghị/giải thưởng cấp Khoa hoặc Học viện.",
-  },
+  { MaHoiDong: "KHDT_Khoa", TenHoiDong: "Hội đồng Khoa học - Đào tạo Khoa", LoaiHoiDong: "KHDT_Khoa", MoTa: "Xét duyệt đề cương cấp cơ sở.", NamBatDau: 2026, NamKetThuc: 2027 },
+  { MaHoiDong: "XetChonThamDinh", TenHoiDong: "Hội đồng xét chọn / tuyển chọn / thẩm định", LoaiHoiDong: "XetChonThamDinh", MoTa: "Xét chọn danh mục, thẩm định đề tài trước khi phê duyệt.", NamBatDau: 2026, NamKetThuc: 2027 },
+  { MaHoiDong: "KiemTraGiamSat", TenHoiDong: "Hội đồng kiểm tra, giám sát", LoaiHoiDong: "KiemTraGiamSat", MoTa: "Theo dõi thực hiện đề tài và kiểm tra tiến độ.", NamBatDau: 2026, NamKetThuc: 2027 },
+  { MaHoiDong: "NghiemThu", TenHoiDong: "Hội đồng nghiệm thu", LoaiHoiDong: "NghiemThu", MoTa: "Đánh giá kết quả cuối cùng, chấm điểm và xếp loại.", NamBatDau: 2026, NamKetThuc: 2027 },
+  { MaHoiDong: "ThanhLy", TenHoiDong: "Hội đồng thanh lý", LoaiHoiDong: "ThanhLy", MoTa: "Xử lý đề tài không đạt, quá hạn hoặc có quyết định thanh lý.", NamBatDau: 2026, NamKetThuc: 2027 },
+  { MaHoiDong: "SVNCKH", TenHoiDong: "Hội đồng xét chọn công trình SVNCKH", LoaiHoiDong: "SVNCKH", MoTa: "Chọn công trình tham gia hội nghị/giải thưởng cấp Khoa hoặc Học viện.", NamBatDau: 2026, NamKetThuc: 2027 },
 ];
 
 export const getCouncils = async (): Promise<Council[]> => {

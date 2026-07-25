@@ -3,7 +3,7 @@ import { Outlet, NavLink } from "react-router-dom";
 import { UserOutlined, EditOutlined, BellOutlined, ProfileOutlined, FileOutlined, BarChartOutlined, TeamOutlined, UnorderedListOutlined, AuditOutlined, PieChartOutlined } from "@ant-design/icons";
 import { useState, useEffect } from "react";
 import { jwtDecode } from 'jwt-decode';
-import { getNotifications } from "./Quản lý thông tin đề án/NotificationService";
+import { getNotifications } from "./ThongTinDeTai/NotificationService";
 import "../style/content.css";
 
 const { Content } = Layout;

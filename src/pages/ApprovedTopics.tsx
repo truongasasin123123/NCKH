@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Table, Tag, Button, message, Spin } from 'antd';
 import { EyeOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { getPendingTopics } from './Quản lý thông tin đề án/TopicService';
-import type { TopicLoad } from './Quản lý thông tin đề án/TopicService';
+import { getPendingTopics } from './ThongTinDeTai/TopicService';
+import type { TopicLoad } from './ThongTinDeTai/TopicService';
 import { useNavigate } from 'react-router-dom';
 
 const ApprovedTopics: React.FC = () => {

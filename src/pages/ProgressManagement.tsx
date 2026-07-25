@@ -2,12 +2,12 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Layout, Card, Timeline, Table, Button, Modal, Form, Input, DatePicker, InputNumber, Upload, message, Badge, Space, Tabs, Divider, Select, Row, Col, Tag } from 'antd';
 import { CheckOutlined, PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined, EyeOutlined, ClockCircleOutlined, CheckCircleOutlined, ExclamationCircleOutlined, CloseCircleOutlined, DownloadOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getTopicProgress, createMocTienDo, updateMocTienDo, deleteMocTienDo, getMemberById, } from './Quản lý thông tin đề án/ProgressService';
-import type { MocTienDo, CapNhatTienDo, ThanhVienMocDT } from './Quản lý thông tin đề án/ProgressService';
-import { getMemberByTopic, getMyTopics, getPendingTopics } from './Quản lý thông tin đề án/TopicService';
-import type { ThanhVienDT, TopicLoad } from './Quản lý thông tin đề án/TopicService';
-import { downloadDocument, getDocumentsByMilestone, submitMilestone } from './Quản lý thông tin đề án/DocumentsService';
-import type { TaiLieu } from './Quản lý thông tin đề án/DocumentsService';
+import { getTopicProgress, createMocTienDo, updateMocTienDo, deleteMocTienDo, getMemberById, } from './ThongTinDeTai/ProgressService';
+import type { MocTienDo, CapNhatTienDo, ThanhVienMocDT } from './ThongTinDeTai/ProgressService';
+import { getMemberByTopic, getMyTopics, getPendingTopics } from './ThongTinDeTai/TopicService';
+import type { ThanhVienDT, TopicLoad } from './ThongTinDeTai/TopicService';
+import { downloadDocument, getDocumentsByMilestone, submitMilestone } from './ThongTinDeTai/DocumentsService';
+import type { TaiLieu } from './ThongTinDeTai/DocumentsService';
 import { jwtDecode } from 'jwt-decode';
 import dayjs from 'dayjs';
 

@@ -1,7 +1,21 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Card, Descriptions, Table, Button, Select, message, Popconfirm, Tag, AutoComplete } from "antd";
-import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
+import {
+  Card,
+  Descriptions,
+  Table,
+  Button,
+  Select,
+  message,
+  Popconfirm,
+  Tag,
+  AutoComplete,
+  Space,
+  Form,
+  Input,
+  InputNumber,
+} from "antd";
+import { PlusOutlined, DeleteOutlined, EditOutlined, CloseOutlined, SaveOutlined } from "@ant-design/icons";
 import {
   getCouncilDetail,
   getCouncilMembers,
@@ -9,9 +23,9 @@ import {
   removeCouncilMember,
   searchAccounts,
   DEFAULT_COUNCILS,
-} from "../Quản lý thông tin đề án/CouncilService";
+} from "../ThongTinDeTai/CouncilService";
 
-import type { Council, CouncilMember } from "../Quản lý thông tin đề án/CouncilService";
+import type { Council, CouncilMember } from "../ThongTinDeTai/CouncilService";
 
 const { Option } = Select;
 
@@ -101,6 +115,28 @@ const CouncilDetail: React.FC = () => {
     }
   };
 
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm] = Form.useForm();
+
+  const handleStartEdit = () => {
+    editForm.setFieldsValue({
+      MoTa: council?.MoTa,
+      NamBatDau: council?.NamBatDau,
+      NamKetThuc: council?.NamKetThuc,
+    });
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+  };
+
+  const handleSaveEdit = (values: any) => {
+    setCouncil((prev) => (prev ? { ...prev, ...values } : prev));
+    message.success("Cập nhật hội đồng thành công");
+    setIsEditing(false);
+  };
+
   const columns = [
     { title: "Tài khoản", dataIndex: "TaiKhoan" },
     { title: "Họ tên", dataIndex: "HoTen" },
@@ -134,13 +170,69 @@ const CouncilDetail: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      <Card title="Thông tin hội đồng" style={{ marginBottom: 24 }}>
-        <Descriptions column={2}>
-          <Descriptions.Item label="Mã hội đồng">{council.MaHoiDong}</Descriptions.Item>
-          <Descriptions.Item label="Tên hội đồng">{council.TenHoiDong}</Descriptions.Item>
-          <Descriptions.Item label="Loại hội đồng">{council.LoaiHoiDong}</Descriptions.Item>
-          <Descriptions.Item label="Mô tả">{council.MoTa}</Descriptions.Item>
-        </Descriptions>
+      <Card
+        title="Thông tin hội đồng"
+        style={{ marginBottom: 24 }}
+        extra={
+          !isEditing ? (
+            <Button icon={<EditOutlined />} onClick={handleStartEdit}>
+              Chỉnh sửa
+            </Button>
+          ) : (
+            <Space>
+              <Button icon={<CloseOutlined />} onClick={handleCancelEdit}>
+                Hủy
+              </Button>
+              <Button type="primary" icon={<SaveOutlined />} onClick={() => editForm.submit()}>
+                Lưu
+              </Button>
+            </Space>
+          )
+        }
+      >
+        {!isEditing ? (
+          <Descriptions column={2}>
+            <Descriptions.Item label="Mã hội đồng">{council.MaHoiDong}</Descriptions.Item>
+            <Descriptions.Item label="Tên hội đồng">{council.TenHoiDong}</Descriptions.Item>
+            <Descriptions.Item label="Loại hội đồng">{council.LoaiHoiDong}</Descriptions.Item>
+            <Descriptions.Item label="Mô tả">{council.MoTa}</Descriptions.Item>
+            <Descriptions.Item label="Năm hoạt động">
+              {council.NamBatDau} - {council.NamKetThuc}
+            </Descriptions.Item>
+          </Descriptions>
+        ) : (
+          <Form form={editForm} layout="vertical" onFinish={handleSaveEdit}>
+            <Form.Item label="Mô tả" name="MoTa">
+              <Input.TextArea rows={2} />
+            </Form.Item>
+            <Space size={16}>
+              <Form.Item
+                label="Năm bắt đầu"
+                name="NamBatDau"
+                rules={[{ required: true, message: "Nhập năm bắt đầu" }]}
+              >
+                <InputNumber min={2000} max={2100} />
+              </Form.Item>
+              <Form.Item
+                label="Năm kết thúc"
+                name="NamKetThuc"
+                rules={[
+                  { required: true, message: "Nhập năm kết thúc" },
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      if (!value || value >= getFieldValue("NamBatDau")) {
+                        return Promise.resolve();
+                      }
+                      return Promise.reject(new Error("Năm kết thúc phải ≥ năm bắt đầu"));
+                    },
+                  }),
+                ]}
+              >
+                <InputNumber min={2000} max={2100} />
+              </Form.Item>
+            </Space>
+          </Form>
+        )}
       </Card>
 
       <Card title="Thành viên hội đồng">

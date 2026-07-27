@@ -1,4 +1,4 @@
-import { Form, Input, Button, message, Card, Row, Col, Avatar, Upload, Modal } from "antd";
+import { Alert, Form, Input, Button, message, Card, Row, Col, Avatar, Upload, Modal } from "antd";
 import { EditOutlined, SaveOutlined, CloseOutlined, UserOutlined, UploadOutlined } from "@ant-design/icons";
 import { useState, useEffect, } from "react";
 import { jwtDecode } from 'jwt-decode';
@@ -12,6 +12,7 @@ interface UserProfile {
   SDT?: string;
   AvatarUrl?: string;
   role?: string;
+  DaHoanThienHoSo?: boolean;
 }
 
 interface JwtPayload {
@@ -45,6 +46,7 @@ function Profile() {
       setUserProfile(profileData);
       setAvatarUrl(data.AvatarUrl);
       form.setFieldsValue(profileData);
+      setEditing(data.DaHoanThienHoSo === false);
     } catch (error: any) {
       message.error("Không thể lấy thông tin người dùng");
     }
@@ -104,6 +106,15 @@ function Profile() {
     <div style={{ background: '#fff', padding: 20, borderRadius: 4 }}>
       {userProfile && (
         <>
+          {userProfile.DaHoanThienHoSo === false && (
+            <Alert
+              type="info"
+              showIcon
+              message="Hoàn thiện thông tin cá nhân"
+              description="Vui lòng nhập họ tên và email trước khi sử dụng các chức năng khác của hệ thống."
+              style={{ marginBottom: 16 }}
+            />
+          )}
           <Card style={{ marginBottom: 16 }}>
             <Row gutter={[16, 16]} align="middle">
               <Col xs={24} md={18}>

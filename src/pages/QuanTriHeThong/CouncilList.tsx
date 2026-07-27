@@ -1,187 +1,161 @@
-import { useEffect, useState } from "react";
-import { Table, Typography, Button, Modal, Form, Input, Select, message, Space } from "antd";
-import { PlusOutlined } from "@ant-design/icons";
-import { useNavigate } from "react-router-dom";
-import { getCouncils, createCouncil } from "../ThongTinDeTai/CouncilService";
-import type { Council } from "../ThongTinDeTai/CouncilService";
+import { useEffect, useMemo, useState } from 'react';
+import { Button, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, message } from 'antd';
+import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
+import {
+  createCouncil,
+  createCouncilType,
+  deleteCouncil,
+  getCouncilTypes,
+  getCouncils,
+} from '../ThongTinDeTai/CouncilService';
+import type { Council, CouncilBusiness, CouncilType } from '../ThongTinDeTai/CouncilService';
 
-const { Title, Text } = Typography;
-const { TextArea } = Input;
-
-// Danh mục loại hội đồng đang có trong hệ thống
-const LOAI_HOI_DONG = [
-    { value: "KHDT_Khoa", label: "Hội đồng Khoa học - Đào tạo Khoa" },
-    { value: "XetChonThamDinh", label: "Hội đồng xét chọn / tuyển chọn / thẩm định" },
-    { value: "KiemTraGiamSat", label: "Hội đồng kiểm tra, giám sát" },
-    { value: "NghiemThu", label: "Hội đồng nghiệm thu" },
-    { value: "ThanhLy", label: "Hội đồng thanh lý" },
-    { value: "SVNCKH", label: "Hội đồng xét chọn công trình SVNCKH" },
+const businessOptions: Array<{ value: CouncilBusiness; label: string }> = [
+  { value: 'approval', label: 'Xét duyệt đề tài' },
+  { value: 'scoring', label: 'Nghiệm thu / chấm điểm' },
+  { value: 'monitoring', label: 'Theo dõi' },
+  { value: 'liquidation', label: 'Thanh lý' },
+  { value: 'other', label: 'Khác' },
 ];
 
-const CouncilList: React.FC = () => {
-    const navigate = useNavigate();
-    const [councils, setCouncils] = useState<Council[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [search, setSearch] = useState("");
+const CouncilList = () => {
+  const navigate = useNavigate();
+  const [councils, setCouncils] = useState<Council[]>([]);
+  const [types, setTypes] = useState<CouncilType[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [keyword, setKeyword] = useState('');
+  const [createOpen, setCreateOpen] = useState(false);
+  const [typeOpen, setTypeOpen] = useState(false);
+  const [form] = Form.useForm();
+  const [typeForm] = Form.useForm();
 
-    const [openCreate, setOpenCreate] = useState(false);
-    const [creating, setCreating] = useState(false);
-    const [form] = Form.useForm();
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [councilData, typeData] = await Promise.all([getCouncils(), getCouncilTypes()]);
+      setCouncils(councilData);
+      setTypes(typeData);
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || 'Không thể tải danh sách hội đồng');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const fetchCouncils = async () => {
-        setLoading(true);
-        try {
-            const data = await getCouncils();
-            setCouncils(data);
-        } catch (err) {
-            message.error("Không tải được danh sách hội đồng.");
-        } finally {
-            setLoading(false);
-        }
-    };
+  useEffect(() => { loadData(); }, []);
 
-    useEffect(() => {
-        fetchCouncils();
-    }, []);
-
-    // Chọn loại hội đồng thì tự điền mô tả gợi ý, người dùng vẫn sửa được
-    const handleLoaiChange = (value: string) => {
-        const loai = LOAI_HOI_DONG.find((l) => l.value === value);
-        if (loai && !form.getFieldValue("MoTa")) {
-            form.setFieldValue("MoTa", loai.label);
-        }
-        if (!form.getFieldValue("MaHoiDong")) {
-            form.setFieldValue("MaHoiDong", value);
-        }
-    };
-
-    const handleCreate = async () => {
-        try {
-            const values = await form.validateFields();
-            setCreating(true);
-            await createCouncil(values);
-            message.success("Đã tạo hội đồng mới.");
-            setOpenCreate(false);
-            form.resetFields();
-            fetchCouncils();
-        } catch (err: any) {
-            if (err?.errorFields) return; // lỗi validate, antd tự hiển thị dưới field
-            message.error(err?.response?.data?.message || "Tạo hội đồng thất bại.");
-        } finally {
-            setCreating(false);
-        }
-    };
-
-    const filtered = councils.filter(
-        (c) =>
-            c.TenHoiDong.toLowerCase().includes(search.toLowerCase()) ||c.MaHoiDong.toLowerCase().includes(search.toLowerCase())
+  const filteredCouncils = useMemo(() => {
+    const search = keyword.trim().toLowerCase();
+    if (!search) return councils;
+    return councils.filter((council) =>
+      council.TenHoiDong.toLowerCase().includes(search) ||
+      council.LoaiHoiDong?.TenLoaiHoiDong.toLowerCase().includes(search),
     );
+  }, [councils, keyword]);
 
-    const columns = [
-        {
-            title: "Tên hội đồng",
-            dataIndex: "TenHoiDong",
-            render: (text: string, record: Council) => (
-                <a onClick={() => navigate(record.MaHoiDong)}>{text}</a>
+  const submitCouncil = async () => {
+    try {
+      const values = await form.validateFields();
+      await createCouncil(values);
+      message.success('Đã tạo hội đồng');
+      setCreateOpen(false);
+      form.resetFields();
+      loadData();
+    } catch (error: any) {
+      if (!error?.errorFields) message.error(error?.response?.data?.message || 'Không thể tạo hội đồng');
+    }
+  };
+
+  const submitType = async () => {
+    try {
+      const values = await typeForm.validateFields();
+      const created = await createCouncilType(values);
+      message.success('Đã thêm loại hội đồng');
+      setTypes((current) => [...current, created].sort((a, b) => a.TenLoaiHoiDong.localeCompare(b.TenLoaiHoiDong)));
+      form.setFieldValue('MaLoaiHoiDong', created.MaLoaiHoiDong);
+      setTypeOpen(false);
+      typeForm.resetFields();
+    } catch (error: any) {
+      if (!error?.errorFields) message.error(error?.response?.data?.message || 'Không thể thêm loại hội đồng');
+    }
+  };
+
+  const removeCouncil = async (id: number) => {
+    try {
+      await deleteCouncil(id);
+      message.success('Đã xóa hội đồng');
+      loadData();
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || 'Không thể xóa hội đồng');
+    }
+  };
+
+  return (
+    <div style={{ background: '#fff', padding: 20, borderRadius: 6 }}>
+      <Space style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }} wrap>
+        <Input.Search
+          allowClear
+          placeholder="Tìm theo tên hoặc loại hội đồng"
+          value={keyword}
+          onChange={(event) => setKeyword(event.target.value)}
+          style={{ width: 300 }}
+        />
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>Tạo hội đồng</Button>
+      </Space>
+
+      <Table<Council>
+        rowKey="MaHoiDong"
+        loading={loading}
+        dataSource={filteredCouncils}
+        pagination={{ pageSize: 10 }}
+        columns={[
+          { title: 'Mã', dataIndex: 'MaHoiDong', width: 80 },
+          {
+            title: 'Tên hội đồng',
+            dataIndex: 'TenHoiDong',
+            render: (name: string, council) => <Button type="link" onClick={() => navigate(`/mainhome/admin/councils/${council.MaHoiDong}`)}>{name}</Button>,
+          },
+          { title: 'Loại hội đồng', render: (_, council) => <Tag>{council.LoaiHoiDong?.TenLoaiHoiDong || '—'}</Tag> },
+          { title: 'Mô tả', dataIndex: 'MoTa', render: (value) => value || '—' },
+          {
+            title: "Năm hoạt động",
+            render: (_: any, record: Council) => `${record.NamBatDau} - ${record.NamKetThuc}`,
+            width: 150,
+          },
+          {
+            title: 'Thao tác',
+            render: (_, council) => (
+              <Popconfirm title="Xóa hội đồng này?" description="Chỉ xóa được hội đồng chưa gán đề tài." onConfirm={() => removeCouncil(council.MaHoiDong)}>
+                <Button danger size="small" icon={<DeleteOutlined />}>Xóa</Button>
+              </Popconfirm>
             ),
-        },
-        {
-            title: "Mô tả",
-            dataIndex: "MoTa",
-            render: (text: string) => <Text type="secondary">{text}</Text>,
-        },
-        {
-            title: "Chức năng",
-            render: (_: any, record: Council) => (
-                <Button type="link" onClick={() => navigate(record.MaHoiDong)}>
-                    Xem chi tiết
-                </Button>
-            ),
-        },
-    ];
+          },
+        ]}
+      />
 
-    return (
-        <div style={{ padding: 24 }}>
-            <div
-                style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 16,
-                }}
-            >
-                <Title level={4} style={{ margin: 0 }}>
-                    Danh sách hội đồng
-                </Title>
-                <Space>
-                    <Input.Search
-                        placeholder="Tìm theo tên hoặc mã hội đồng"
-                        allowClear
-                        style={{ width: 280 }}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
-                    <Button type="primary" icon={<PlusOutlined />} onClick={() => setOpenCreate(true)}>
-                        Tạo hội đồng
-                    </Button>
-                </Space>
-            </div>
+      <Modal title="Tạo hội đồng" open={createOpen} onCancel={() => setCreateOpen(false)} onOk={submitCouncil} okText="Tạo" cancelText="Hủy" destroyOnClose>
+        <Form form={form} layout="vertical">
+          <Form.Item name="TenHoiDong" label="Tên hội đồng" rules={[{ required: true, message: 'Vui lòng nhập tên hội đồng' }]}>
+            <Input placeholder="Ví dụ: Hội đồng xét duyệt CNTT đợt 1" />
+          </Form.Item>
+          <Form.Item name="MaLoaiHoiDong" label="Loại hội đồng" rules={[{ required: true, message: 'Vui lòng chọn loại hội đồng' }]}>
+            <Select placeholder="Chọn loại hội đồng" options={types.map((type) => ({ value: type.MaLoaiHoiDong, label: type.TenLoaiHoiDong }))} />
+          </Form.Item>
+          <Button type="link" style={{ padding: 0, marginBottom: 16 }} onClick={() => setTypeOpen(true)}>+ Thêm loại hội đồng mới</Button>
+          <Form.Item name="MoTa" label="Mô tả"><Input.TextArea rows={3} /></Form.Item>
+        </Form>
+      </Modal>
 
-            <Table
-                rowKey="MaHoiDong"
-                columns={columns}
-                dataSource={filtered}
-                loading={loading}
-                pagination={{ pageSize: 10, showTotal: (total) => `${total} hội đồng` }}
-            />
-
-            <Modal
-                title="Tạo hội đồng mới"
-                open={openCreate}
-                onCancel={() => {
-                    setOpenCreate(false);
-                    form.resetFields();
-                }}
-                onOk={handleCreate}
-                confirmLoading={creating}
-                okText="Tạo hội đồng"
-                cancelText="Huỷ"
-                destroyOnClose
-            >
-                <Form form={form} layout="vertical" requiredMark={false}>
-                    <Form.Item
-                        name="LoaiHoiDong"
-                        label="Loại hội đồng"
-                        rules={[{ required: true, message: "Vui lòng chọn loại hội đồng." }]}
-                    >
-                        <Select
-                            placeholder="Chọn loại hội đồng"
-                            options={LOAI_HOI_DONG}
-                            onChange={handleLoaiChange}/>
-                    </Form.Item>
-                    <Form.Item
-                        name="TenHoiDong"
-                        label="Tên hội đồng"
-                        rules={[{ required: true, message: "Vui lòng nhập tên hội đồng." }]}
-                    >
-                        <Input placeholder="VD: Hội đồng nghiệm thu đợt 1 - 2026" />
-                    </Form.Item>
-                    <Form.Item
-                        name="MaHoiDong"
-                        label="Mã hội đồng"
-                        rules={[
-                            { required: true, message: "Vui lòng nhập mã hội đồng." },
-                            { pattern: /^[A-Za-z0-9_]+$/, message: "Chỉ gồm chữ, số và dấu gạch dưới." },
-                        ]}
-                    >
-                        <Input placeholder="VD: NghiemThu_2026" />
-                    </Form.Item>
-                    <Form.Item name="MoTa" label="Mô tả">
-                        <TextArea rows={3} placeholder="Mô tả chức năng của hội đồng" />
-                    </Form.Item>
-                </Form>
-            </Modal>
-        </div>
-    );
+      <Modal title="Thêm loại hội đồng" open={typeOpen} onCancel={() => setTypeOpen(false)} onOk={submitType} okText="Thêm" cancelText="Hủy" destroyOnClose>
+        <Form form={typeForm} layout="vertical" initialValues={{ NghiepVu: 'other' }}>
+          <Form.Item name="TenLoaiHoiDong" label="Tên loại hội đồng" rules={[{ required: true, message: 'Vui lòng nhập tên loại' }]}><Input /></Form.Item>
+          <Form.Item name="NghiepVu" label="Nghiệp vụ" rules={[{ required: true }]}><Select options={businessOptions} /></Form.Item>
+          <Form.Item name="MoTa" label="Mô tả"><Input.TextArea rows={2} /></Form.Item>
+        </Form>
+      </Modal>
+    </div>
+  );
 };
 
 export default CouncilList;

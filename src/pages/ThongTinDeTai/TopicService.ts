@@ -25,7 +25,7 @@ export interface ThanhVienDT {
     NguoiDung: NguoiDung;
 }
 
-export interface NguoiDung{
+export interface NguoiDung {
     TenDayDu: string
     VaiTro: string
 }

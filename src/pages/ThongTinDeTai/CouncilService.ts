@@ -1,66 +1,64 @@
 import ApiAxios from '../../axios.config';
+
+export type CouncilBusiness = 'approval' | 'scoring' | 'monitoring' | 'liquidation' | 'other';
+export type CouncilPosition = 'Chủ tịch' | 'Thư ký' | 'Ủy viên' | 'Phản biện';
+
+export interface CouncilType {
+  MaLoaiHoiDong: number;
+  TenLoaiHoiDong: string;
+  NghiepVu: CouncilBusiness;
+  MoTa?: string;
+}
+
+export interface CouncilMember {
+  Id: number;
+  TaiKhoan: string;
+  ChucDanh: CouncilPosition;
+  NguoiDung?: { TaiKhoan: string; TenDayDu?: string; VaiTro?: string };
+}
+
 export interface Council {
-  MaHoiDong: string;
+  MaHoiDong: number;
   TenHoiDong: string;
-  LoaiHoiDong: string;
-  MoTa: string;
+  MaLoaiHoiDong: number;
+  MoTa?: string;
   NamBatDau: number;
   NamKetThuc: number;
-  NgayThanhLap?: string;
-  TrangThai?: string;
-}
-export interface CouncilMember {
-  MaThanhVien: string;
-  TaiKhoan: string;
-  HoTen: string;
-  VaiTroHoiDong: "ChuTich" | "UyVien" | "ThuKy";
+  LoaiHoiDong?: CouncilType;
+  ThanhVienHoiDong?: CouncilMember[];
 }
 
-export const DEFAULT_COUNCILS: Council[] = [
-  { MaHoiDong: "KHDT_Khoa", TenHoiDong: "Hội đồng Khoa học - Đào tạo Khoa", LoaiHoiDong: "KHDT_Khoa", MoTa: "Xét duyệt đề cương cấp cơ sở.", NamBatDau: 2026, NamKetThuc: 2027 },
-  { MaHoiDong: "XetChonThamDinh", TenHoiDong: "Hội đồng xét chọn / tuyển chọn / thẩm định", LoaiHoiDong: "XetChonThamDinh", MoTa: "Xét chọn danh mục, thẩm định đề tài trước khi phê duyệt.", NamBatDau: 2026, NamKetThuc: 2027 },
-  { MaHoiDong: "KiemTraGiamSat", TenHoiDong: "Hội đồng kiểm tra, giám sát", LoaiHoiDong: "KiemTraGiamSat", MoTa: "Theo dõi thực hiện đề tài và kiểm tra tiến độ.", NamBatDau: 2026, NamKetThuc: 2027 },
-  { MaHoiDong: "NghiemThu", TenHoiDong: "Hội đồng nghiệm thu", LoaiHoiDong: "NghiemThu", MoTa: "Đánh giá kết quả cuối cùng, chấm điểm và xếp loại.", NamBatDau: 2026, NamKetThuc: 2027 },
-  { MaHoiDong: "ThanhLy", TenHoiDong: "Hội đồng thanh lý", LoaiHoiDong: "ThanhLy", MoTa: "Xử lý đề tài không đạt, quá hạn hoặc có quyết định thanh lý.", NamBatDau: 2026, NamKetThuc: 2027 },
-  { MaHoiDong: "SVNCKH", TenHoiDong: "Hội đồng xét chọn công trình SVNCKH", LoaiHoiDong: "SVNCKH", MoTa: "Chọn công trình tham gia hội nghị/giải thưởng cấp Khoa hoặc Học viện.", NamBatDau: 2026, NamKetThuc: 2027 },
-];
+export const getCouncilTypes = async (): Promise<CouncilType[]> =>
+  (await ApiAxios.get('/admin/councils/types')).data;
 
-export const getCouncils = async (): Promise<Council[]> => {
-  const res = await ApiAxios.get("/councils");
-  return res.data;
-};
+export const createCouncilType = async (payload: Pick<CouncilType, 'TenLoaiHoiDong'> & Partial<Pick<CouncilType, 'NghiepVu' | 'MoTa'>>) =>
+  (await ApiAxios.post('/admin/councils/types', payload)).data;
 
-export const getCouncilDetail = async (maHoiDong: string) => {
-  const res = await ApiAxios.get(`/councils/${maHoiDong}`);
-  return res.data;
-};
+export const getCouncils = async (typeId?: number): Promise<Council[]> =>
+  (await ApiAxios.get('/admin/councils', { params: { typeId } })).data;
 
-export const createCouncil = async (payload: Partial<Council>) => {
-  const res = await ApiAxios.post("/councils", payload);
-  return res.data;
-};
+export const getCouncilDetail = async (id: number): Promise<Council> =>
+  (await ApiAxios.get(`/admin/councils/${id}`)).data;
+
+export const createCouncil = async (payload: Pick<Council, 'TenHoiDong' | 'MaLoaiHoiDong'> & Partial<Pick<Council, 'MoTa'>>) =>
+  (await ApiAxios.post('/admin/councils', payload)).data;
+
+export const updateCouncil = async (id: number, payload: Partial<Pick<Council, 'TenHoiDong' | 'MaLoaiHoiDong' | 'MoTa'>>) =>
+  (await ApiAxios.patch(`/admin/councils/${id}`, payload)).data;
+
+export const deleteCouncil = async (id: number) =>
+  (await ApiAxios.delete(`/admin/councils/${id}`)).data;
 
 export const searchAccounts = async (keyword: string) => {
-  const res = await ApiAxios.get(`/users/search?keyword=${keyword}`);
-  return res.data;
+  const response = await ApiAxios.get('/admin/users', { params: { keyword, page: 1, limit: 20 } });
+  return response.data.data as Array<{ TaiKhoan: string; TenDayDu?: string; VaiTro?: string }>;
 };
 
-export const getCouncilMembers = async (maHoiDong: string): Promise<CouncilMember[]> => {
-  const res = await ApiAxios.get(`/councils/${maHoiDong}/members`);
-  return res.data;
-};
+export const addCouncilMember = async (councilId: number, TaiKhoan: string, ChucDanh: CouncilPosition) =>
+  (await ApiAxios.post(`/admin/councils/${councilId}/members`, { TaiKhoan, ChucDanh })).data;
 
-export const addCouncilMember = async (maHoiDong: string, taiKhoan: string, vaiTro: string) => {
-  const res = await ApiAxios.post(`/councils/${maHoiDong}/members`, { TaiKhoan: taiKhoan, VaiTroHoiDong: vaiTro });
-  return res.data;
-};
+export const removeCouncilMember = async (councilId: number, TaiKhoan: string) =>
+  (await ApiAxios.delete(`/admin/councils/${councilId}/members/${TaiKhoan}`)).data;
 
-export const removeCouncilMember = async (maHoiDong: string, maThanhVien: string) => {
-  const res = await ApiAxios.delete(`/councils/${maHoiDong}/members/${maThanhVien}`);
-  return res.data;
-};
-
-export const assignCouncilToTopic = async (maDT: string, maHoiDong: string) => {
-  const res = await ApiAxios.post(`/topics/${maDT}/assign-council`, { MaHoiDong: maHoiDong });
-  return res.data;
-};
+export const assignCouncilToTopic = async (maDT: string, MaHoiDong: number) =>
+  (await ApiAxios.post(`/admin/councils/projects/${maDT}`, { MaHoiDong })).data;

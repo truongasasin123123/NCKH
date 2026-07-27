@@ -19,10 +19,11 @@ import Profile from "./pages/Profile";
 import ApprovedTopics from "./pages/ApprovedTopics";
 import TopicDetailCommittee from "./pages/TopicDetailCommittee";
 import ProgressManagement from "./pages/ProgressManagement";
-import CreateAccount from "./pages/QuanTriHeThong/CreateAccount";
+import AdminUsers from "./pages/AdminUsers";
 import CouncilList from "./pages/QuanTriHeThong/CouncilList";
-import CreateCouncilPage from "./pages/QuanTriHeThong/CreateCouncilPage";
 import CouncilDetail from "./pages/QuanTriHeThong/CouncilDetail";
+import DanhSachDeTai from "./pages/QuanTriHeThong/MonitoringCommittee";
+import ChiTietBaoCao from "./pages/QuanTriHeThong/ReportDetail";
 
 interface JwtPayload {
   TaiKhoan: string;
@@ -114,8 +115,7 @@ function App() {
           <Route path="/Register" element={<Register />} />
           <Route path="/home" element={<Home />} />
           <Route path="/forgot" element={<ForgotPassword />} />
-          <Route path="/mainhome" element={<MainHome />} />
-          <Route path="/change-password" element={<ChangePass />} />\
+          <Route path="/change-password" element={<ChangePass />} />
           <Route path="/mainhome" element={<MainHome />}>
             <Route path="profile" element={<Profile />} />
             <Route index element={<MyTopics />} />
@@ -123,15 +123,14 @@ function App() {
             <Route path="approvedtopics" element={<ApprovedTopics />} />
             <Route path="topic/:MaDT" element={<TopicDetail />} />
             <Route path="notifications" element={<Notifications />} />
-            <Route path="/mainhome/topic-committee/:MaDT" element={<TopicDetailCommittee />} />
+            <Route path="topic-committee/:MaDT" element={<TopicDetailCommittee />} />
             <Route path="progress/:maDT" element={<ProgressManagement />} />
             <Route path="progress-demo" element={<ProgressManagement />} />
-
-            <Route path="admin/users" element={<CreateAccount />} />
+            <Route path="admin/users" element={<AdminUsers />} />
             <Route path="admin/councils" element={<CouncilList />} />
-            <Route path="admin/councils/create" element={<CreateCouncilPage />} />
             <Route path="admin/councils/:maHoiDong" element={<CouncilDetail />} />
-
+            <Route path="hoi-dong-theo-doi" element={<DanhSachDeTai />} />
+            <Route path="hoi-dong-theo-doi/:maDT" element={<ChiTietBaoCao />} />
           </Route>
         </Routes>
       </Layout>

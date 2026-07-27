@@ -1,260 +1,192 @@
-import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
+  AutoComplete,
+  Button,
   Card,
   Descriptions,
-  Table,
-  Button,
-  Select,
-  message,
-  Popconfirm,
-  Tag,
-  AutoComplete,
-  Space,
   Form,
   Input,
   InputNumber,
-} from "antd";
-import { PlusOutlined, DeleteOutlined, EditOutlined, CloseOutlined, SaveOutlined } from "@ant-design/icons";
+  Popconfirm,
+  Select,
+  Space,
+  
+  Table,
+  Tag,
+  message,
+} from 'antd';
+import { ArrowLeftOutlined, DeleteOutlined, EditOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons';
 import {
-  getCouncilDetail,
-  getCouncilMembers,
   addCouncilMember,
+  getCouncilDetail,
+  getCouncilTypes,
   removeCouncilMember,
   searchAccounts,
-  DEFAULT_COUNCILS,
-} from "../ThongTinDeTai/CouncilService";
+  updateCouncil,
+} from '../ThongTinDeTai/CouncilService';
+import type { Council, CouncilMember, CouncilPosition, CouncilType } from '../ThongTinDeTai/CouncilService';
 
-import type { Council, CouncilMember } from "../ThongTinDeTai/CouncilService";
+const positions: CouncilPosition[] = ['Chủ tịch', 'Thư ký', 'Ủy viên', 'Phản biện'];
 
-const { Option } = Select;
-
-const ROLE_LABEL: Record<string, string> = {
-  ChuTich: "Chủ tịch",
-  UyVien: "Ủy viên",
-  ThuKy: "Thư ký",
-};
-
-const CouncilDetail: React.FC = () => {
+const CouncilDetail = () => {
   const { maHoiDong } = useParams<{ maHoiDong: string }>();
-  const [council, setCouncil] = useState<Council | null>(null);
-  const [members, setMembers] = useState<CouncilMember[]>([]);
-  const [options, setOptions] = useState<{ value: string; label: string }[]>([]);
-  const [selectedAccount, setSelectedAccount] = useState<string>("");
-  const [selectedRole, setSelectedRole] = useState<string>("UyVien");
-  const [loading, setLoading] = useState(false);
-  const [pageLoading, setPageLoading] = useState(true);
+  const navigate = useNavigate();
+  const councilId = Number(maHoiDong);
+  const [council, setCouncil] = useState<Council>();
+  const [types, setTypes] = useState<CouncilType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [accountOptions, setAccountOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [account, setAccount] = useState('');
+  const [position, setPosition] = useState<CouncilPosition>('Ủy viên');
+  const [form] = Form.useForm();
 
-  const fetchAll = async () => {
-    if (!maHoiDong) return;
-    setPageLoading(true);
+  const loadData = async () => {
+    if (!Number.isInteger(councilId) || councilId <= 0) return;
     try {
-      const defaultCouncil = DEFAULT_COUNCILS.find((c) => c.MaHoiDong === maHoiDong);
-
-      if (defaultCouncil) {
-        setCouncil(defaultCouncil);
-      } else {
-        const detail = await getCouncilDetail(maHoiDong);
-        setCouncil(detail);
-      }
-
-      const memberList = await getCouncilMembers(maHoiDong);
-      setMembers(memberList);
-    } catch (err) {
-      message.error("Không tải được dữ liệu hội đồng");
-      console.error(err);
-    } finally {
-      setPageLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchAll();
-  }, [maHoiDong]);
-
-  const handleSearch = async (keyword: string) => {
-    if (!keyword) {
-      setOptions([]);
-      return;
-    }
-    const results = await searchAccounts(keyword);
-    setOptions(
-      results.map((u: any) => ({
-        value: u.TaiKhoan,
-        label: `${u.TaiKhoan} - ${u.HoTen}`,
-      }))
-    );
-  };
-
-  const handleAddMember = async () => {
-    if (!selectedAccount || !maHoiDong) {
-      message.warning("Chọn tài khoản trước khi thêm");
-      return;
-    }
-    setLoading(true);
-    try {
-      await addCouncilMember(maHoiDong, selectedAccount, selectedRole);
-      message.success("Thêm thành viên thành công");
-      setSelectedAccount("");
-      fetchAll();
-    } catch (err: any) {
-      message.error(err?.response?.data?.message || "Thêm thành viên thất bại");
+      setLoading(true);
+      const [detail, typeData] = await Promise.all([getCouncilDetail(councilId), getCouncilTypes()]);
+      setCouncil(detail);
+      setTypes(typeData);
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || 'Không thể tải thông tin hội đồng');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRemove = async (maThanhVien: string) => {
-    if (!maHoiDong) return;
+  useEffect(() => { loadData(); }, [maHoiDong]);
+
+  const members = council?.ThanhVienHoiDong ?? [];
+  
+
+  const findAccounts = async (keyword: string) => {
+    if (!keyword.trim()) return setAccountOptions([]);
     try {
-      await removeCouncilMember(maHoiDong, maThanhVien);
-      message.success("Đã xóa thành viên");
-      fetchAll();
-    } catch (err: any) {
-      message.error(err?.response?.data?.message || "Xóa thất bại");
+      const existed = new Set(members.map((member) => member.TaiKhoan));
+      const accounts = await searchAccounts(keyword);
+      setAccountOptions(accounts.filter((item) => !existed.has(item.TaiKhoan)).map((item) => ({
+        value: item.TaiKhoan,
+        label: `${item.TaiKhoan}${item.TenDayDu ? ` — ${item.TenDayDu}` : ''}${item.VaiTro ? ` (${item.VaiTro})` : ''}`,
+      })));
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || 'Không thể tìm tài khoản');
     }
   };
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [editForm] = Form.useForm();
-
-  const handleStartEdit = () => {
-    editForm.setFieldsValue({
-      MoTa: council?.MoTa,
-      NamBatDau: council?.NamBatDau,
-      NamKetThuc: council?.NamKetThuc,
-    });
-    setIsEditing(true);
+  const addMember = async () => {
+    if (!account) return message.warning('Vui lòng chọn tài khoản');
+    try {
+      await addCouncilMember(councilId, account, position);
+      message.success('Đã thêm thành viên');
+      setAccount('');
+      setAccountOptions([]);
+      loadData();
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || 'Không thể thêm thành viên');
+    }
   };
 
-  const handleCancelEdit = () => {
-    setIsEditing(false);
+  const removeMember = async (member: CouncilMember) => {
+    try {
+      await removeCouncilMember(councilId, member.TaiKhoan);
+      message.success('Đã xóa thành viên khỏi hội đồng');
+      loadData();
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || 'Không thể xóa thành viên');
+    }
   };
 
-  const handleSaveEdit = (values: any) => {
-    setCouncil((prev) => (prev ? { ...prev, ...values } : prev));
-    message.success("Cập nhật hội đồng thành công");
-    setIsEditing(false);
+  const saveCouncil = async () => {
+    try {
+      const values = await form.validateFields();
+      await updateCouncil(councilId, values);
+      message.success('Đã cập nhật hội đồng');
+      setEditing(false);
+      loadData();
+    } catch (error: any) {
+      if (!error?.errorFields) message.error(error?.response?.data?.message || 'Không thể cập nhật hội đồng');
+    }
   };
 
-  const columns = [
-    { title: "Tài khoản", dataIndex: "TaiKhoan" },
-    { title: "Họ tên", dataIndex: "HoTen" },
-    {
-      title: "Vai trò",
-      dataIndex: "VaiTroHoiDong",
-      render: (role: string) => (
-        <Tag color={role === "ChuTich" ? "gold" : role === "ThuKy" ? "blue" : "default"}>
-          {ROLE_LABEL[role] || role}
-        </Tag>
-      ),
-    },
-    {
-      title: "Chức năng",
-      render: (_: any, record: CouncilMember) => (
-        <Popconfirm
-          title="Xóa thành viên này khỏi hội đồng?"
-          onConfirm={() => handleRemove(record.MaThanhVien)}
-        >
-          <Button danger icon={<DeleteOutlined />} size="small" />
-        </Popconfirm>
-      ),
-    },
-  ];
+  const startEdit = () => {
+    form.setFieldsValue(council);
+    setEditing(true);
+  };
 
-  if (pageLoading) return <div style={{ padding: 24 }}>Đang tải...</div>;
-
-  if (!council) {
-    return <div style={{ padding: 24 }}>Không tìm thấy hội đồng.</div>;
-  }
+  if (loading) return <div style={{ padding: 24 }}>Đang tải...</div>;
+  if (!council) return <div style={{ padding: 24 }}>Không tìm thấy hội đồng.</div>;
 
   return (
-    <div style={{ padding: 24 }}>
-      <Card
-        title="Thông tin hội đồng"
-        style={{ marginBottom: 24 }}
-        extra={
-          !isEditing ? (
-            <Button icon={<EditOutlined />} onClick={handleStartEdit}>
-              Chỉnh sửa
-            </Button>
-          ) : (
-            <Space>
-              <Button icon={<CloseOutlined />} onClick={handleCancelEdit}>
-                Hủy
-              </Button>
-              <Button type="primary" icon={<SaveOutlined />} onClick={() => editForm.submit()}>
-                Lưu
-              </Button>
-            </Space>
-          )
-        }
-      >
-        {!isEditing ? (
-          <Descriptions column={2}>
+    <div style={{ background: '#fff', padding: 20, borderRadius: 6 }}>
+      <Space style={{ marginBottom: 16 }}>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/mainhome/admin/councils')}>Danh sách hội đồng</Button>
+      </Space>
+      <Card title="Thông tin hội đồng" extra={editing ? <Space><Button onClick={() => setEditing(false)}>Hủy</Button><Button type="primary" icon={<SaveOutlined />} onClick={saveCouncil}>Lưu</Button></Space> : <Button icon={<EditOutlined />} onClick={startEdit}>Chỉnh sửa</Button>}>
+        {editing ? (
+          <Form form={form} layout="vertical">
+            <Form.Item name="TenHoiDong" label="Tên hội đồng" rules={[{ required: true }]}><Input /></Form.Item>
+            <Form.Item name="MaLoaiHoiDong" label="Loại hội đồng" rules={[{ required: true }]}><Select options={types.map((type) => ({ value: type.MaLoaiHoiDong, label: type.TenLoaiHoiDong }))} /></Form.Item>
+            <Form.Item name="MoTa" label="Mô tả"><Input.TextArea rows={3} /></Form.Item>
+            <Form.Item
+              label="Năm bắt đầu"
+              name="NamBatDau"
+              rules={[{ required: true, message: "Nhập năm bắt đầu" }]}
+            >
+              <InputNumber min={2000} max={2100} />
+            </Form.Item>
+            <Form.Item
+              label="Năm kết thúc"
+              name="NamKetThuc"
+              rules={[
+                { required: true, message: "Nhập năm kết thúc" },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (!value || value >= getFieldValue("NamBatDau")) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject(new Error("Năm kết thúc phải ≥ năm bắt đầu"));
+                  },
+                }),
+              ]}
+            >
+              <InputNumber min={2000} max={2100} />
+            </Form.Item>
+          </Form>
+        ) : (
+          <Descriptions column={1}>
             <Descriptions.Item label="Mã hội đồng">{council.MaHoiDong}</Descriptions.Item>
             <Descriptions.Item label="Tên hội đồng">{council.TenHoiDong}</Descriptions.Item>
-            <Descriptions.Item label="Loại hội đồng">{council.LoaiHoiDong}</Descriptions.Item>
-            <Descriptions.Item label="Mô tả">{council.MoTa}</Descriptions.Item>
+            <Descriptions.Item label="Loại hội đồng">{council.LoaiHoiDong?.TenLoaiHoiDong || '—'}</Descriptions.Item>
+            <Descriptions.Item label="Mô tả">{council.MoTa || '—'}</Descriptions.Item>
             <Descriptions.Item label="Năm hoạt động">
               {council.NamBatDau} - {council.NamKetThuc}
             </Descriptions.Item>
           </Descriptions>
-        ) : (
-          <Form form={editForm} layout="vertical" onFinish={handleSaveEdit}>
-            <Form.Item label="Mô tả" name="MoTa">
-              <Input.TextArea rows={2} />
-            </Form.Item>
-            <Space size={16}>
-              <Form.Item
-                label="Năm bắt đầu"
-                name="NamBatDau"
-                rules={[{ required: true, message: "Nhập năm bắt đầu" }]}
-              >
-                <InputNumber min={2000} max={2100} />
-              </Form.Item>
-              <Form.Item
-                label="Năm kết thúc"
-                name="NamKetThuc"
-                rules={[
-                  { required: true, message: "Nhập năm kết thúc" },
-                  ({ getFieldValue }) => ({
-                    validator(_, value) {
-                      if (!value || value >= getFieldValue("NamBatDau")) {
-                        return Promise.resolve();
-                      }
-                      return Promise.reject(new Error("Năm kết thúc phải ≥ năm bắt đầu"));
-                    },
-                  }),
-                ]}
-              >
-                <InputNumber min={2000} max={2100} />
-              </Form.Item>
-            </Space>
-          </Form>
         )}
       </Card>
 
-      <Card title="Thành viên hội đồng">
-        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-          <AutoComplete
-            style={{ flex: 1 }}
-            options={options}
-            onSearch={handleSearch}
-            onSelect={(value) => setSelectedAccount(value)}
-            placeholder="Tìm tài khoản (vd: gv001, tên...)"
-          />
-          <Select value={selectedRole} onChange={setSelectedRole} style={{ width: 140 }}>
-            <Option value="ChuTich">Chủ tịch</Option>
-            <Option value="UyVien">Ủy viên</Option>
-            <Option value="ThuKy">Thư ký</Option>
-          </Select>
-          <Button type="primary" icon={<PlusOutlined />} loading={loading} onClick={handleAddMember}>
-            Thêm
-          </Button>
-        </div>
+      
 
-        <Table rowKey="MaThanhVien" columns={columns} dataSource={members} pagination={false} />
+      <Card title="Thành viên hội đồng">
+        <Space style={{ display: 'flex', marginBottom: 16 }} wrap>
+          <AutoComplete style={{ minWidth: 300 }} options={accountOptions} value={account} onSearch={findAccounts} onChange={setAccount} onSelect={(value) => setAccount(value)} placeholder="Tìm tài khoản để thêm" />
+          <Select value={position} onChange={setPosition} style={{ width: 150 }} options={positions.map((item) => ({ value: item, label: item }))} />
+          <Button type="primary" icon={<PlusOutlined />} onClick={addMember}>Thêm thành viên</Button>
+        </Space>
+        <Table<CouncilMember>
+          rowKey="Id"
+          dataSource={members}
+          pagination={false}
+          columns={[
+            { title: 'Tài khoản', dataIndex: 'TaiKhoan' },
+            { title: 'Họ tên', render: (_, member) => member.NguoiDung?.TenDayDu || '—' },
+            { title: 'Role gốc', render: (_, member) => member.NguoiDung?.VaiTro || '—' },
+            { title: 'Chức danh', dataIndex: 'ChucDanh', render: (value) => <Tag color={value === 'Chủ tịch' ? 'gold' : value === 'Thư ký' ? 'blue' : 'default'}>{value}</Tag> },
+            { title: 'Thao tác', render: (_, member) => <Popconfirm title="Xóa thành viên này?" onConfirm={() => removeMember(member)}><Button danger size="small" icon={<DeleteOutlined />}>Xóa</Button></Popconfirm> },
+          ]}
+        />
       </Card>
     </div>
   );

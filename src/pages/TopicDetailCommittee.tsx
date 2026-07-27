@@ -12,11 +12,11 @@ import {
     getTopicById,
     getMemberByTopic,
     reviewProject,
-} from './Quản lý thông tin đề án/TopicService';
-import type { TopicLoad, ThanhVienDT } from './Quản lý thông tin đề án/TopicService';
-import { downloadDocument, getDocumentsByTopic } from './Quản lý thông tin đề án/DocumentsService';
-import { createProjectComment, deleteProjectComment, getProjectComments, updateProjectComment } from './Quản lý thông tin đề án/CommentsService';
-import type { ProjectComment } from './Quản lý thông tin đề án/CommentsService';
+} from './ThongTinDeTai/TopicService';
+import type { TopicLoad, ThanhVienDT } from './ThongTinDeTai/TopicService';
+import { downloadDocument, getDocumentsByTopic } from './ThongTinDeTai/DocumentsService';
+import { createProjectComment, deleteProjectComment, getProjectComments, updateProjectComment } from './ThongTinDeTai/CommentsService';
+import type { ProjectComment } from './ThongTinDeTai/CommentsService';
 
 interface JwtPayload {
     TaiKhoan?: string;

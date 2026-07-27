@@ -5,11 +5,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import { DownloadOutlined, ArrowLeftOutlined, EditOutlined, SaveOutlined, CloseOutlined, SendOutlined, UploadOutlined, BarChartOutlined, PlusOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
-import { getTopicById, getMemberByTopic, getProjectApprovals, submitProjectForApproval, updateProject } from './Quản lý thông tin đề án/TopicService';
-import type { TopicLoad, ThanhVienDT } from './Quản lý thông tin đề án/TopicService';
-import { downloadDocument, getDocumentsByTopic, uploadDocument } from './Quản lý thông tin đề án/DocumentsService';
-import { createProjectComment, deleteProjectComment, getProjectComments, updateProjectComment } from './Quản lý thông tin đề án/CommentsService';
-import type { ProjectComment } from './Quản lý thông tin đề án/CommentsService';
+import { getTopicById, getMemberByTopic, getProjectApprovals, submitProjectForApproval, updateProject } from './ThongTinDeTai/TopicService';
+import type { TopicLoad, ThanhVienDT } from './ThongTinDeTai/TopicService';
+import { downloadDocument, getDocumentsByTopic, uploadDocument } from './ThongTinDeTai/DocumentsService';
+import { createProjectComment, deleteProjectComment, getProjectComments, updateProjectComment } from './ThongTinDeTai/CommentsService';
+import type { ProjectComment } from './ThongTinDeTai/CommentsService';
 
 interface ReviewerApproval {
     account: string

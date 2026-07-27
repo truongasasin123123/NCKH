@@ -3,10 +3,10 @@ import { jwtDecode } from 'jwt-decode';
 import { Table, Tag, Space, Button, message, Spin, Popconfirm } from 'antd';
 import { EyeOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { deleteProject, getMyTopics, getPendingTopics } from './Quản lý thông tin đề án/TopicService';
-import type { TopicLoad } from './Quản lý thông tin đề án/TopicService';
+import { deleteProject, getMyTopics, getPendingTopics } from './ThongTinDeTai/TopicService';
+import type { TopicLoad } from './ThongTinDeTai/TopicService';
 import { useNavigate } from 'react-router-dom';
-import { getTopicProgress } from './Quản lý thông tin đề án/ProgressService';
+import { getTopicProgress } from './ThongTinDeTai/ProgressService';
 
 interface JwtPayload {
     TaiKhoan?: string;

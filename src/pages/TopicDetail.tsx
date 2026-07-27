@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import type { CollapseProps } from 'antd';
-import { Collapse, Spin, Button, Tag, Card, Row, Col, List, message, Modal, Input, Divider, Form, Upload, Radio, Space, Popconfirm } from 'antd';
+import { Collapse, Spin, Button, Tag, Card, Row, Col, List, message, Modal, Input, Divider, Form, Upload, Radio, Space, Popconfirm, InputNumber } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
-import { DownloadOutlined, ArrowLeftOutlined, EditOutlined, SaveOutlined, CloseOutlined, SendOutlined, UploadOutlined, BarChartOutlined } from '@ant-design/icons';
+import { DownloadOutlined, ArrowLeftOutlined, EditOutlined, SaveOutlined, CloseOutlined, SendOutlined, UploadOutlined, BarChartOutlined, PlusOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
-import { getTopicById, getMemberByTopic, getProjectApprovals, submitProjectForApproval, updateProject } from './Quản lý thông tin đề án/TopicService';
-import type { TopicLoad, ThanhVienDT } from './Quản lý thông tin đề án/TopicService';
-import { downloadDocument, getDocumentsByTopic, uploadDocument } from './Quản lý thông tin đề án/DocumentsService';
-import { createProjectComment, deleteProjectComment, getProjectComments, updateProjectComment } from './Quản lý thông tin đề án/CommentsService';
-import type { ProjectComment } from './Quản lý thông tin đề án/CommentsService';
+import { getTopicById, getMemberByTopic, getProjectApprovals, submitProjectForApproval, updateProject } from './ThongTinDeTai/TopicService';
+import type { TopicLoad, ThanhVienDT } from './ThongTinDeTai/TopicService';
+import { downloadDocument, getDocumentsByTopic, uploadDocument } from './ThongTinDeTai/DocumentsService';
+import { createProjectComment, deleteProjectComment, getProjectComments, updateProjectComment } from './ThongTinDeTai/CommentsService';
+import type { ProjectComment } from './ThongTinDeTai/CommentsService';
 
 interface ReviewerApproval {
     account: string
@@ -44,6 +44,51 @@ const TopicDetail: React.FC = () => {
     const [commentInput, setCommentInput] = useState('');
     const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
     const [editingCommentContent, setEditingCommentContent] = useState('');
+    const [showAddReviewForm, setShowAddReviewForm] = useState(false);
+    const [newReview, setNewReview] = useState({ name: '', score: undefined as number | undefined, comment: '' });
+    const [reviewTarget, setReviewTarget] = useState<'cham' | 'nghiem-thu' | 'ghi-chu'>('cham');
+    const [reviewItems, setReviewItems] = useState<NonNullable<CollapseProps['items']>>([
+        {
+            key: '1',
+            label: 'Ths Nguyễn Văn A',
+            children: (
+                <div>
+                    <strong>Điểm:</strong>
+                    <br />
+                    <strong>Nhận xét:</strong>
+                </div>
+            ),
+        },
+        {
+            key: '2',
+            label: 'Ths Trần Thị B',
+            children: <div><p></p></div>,
+        },
+    ]);
+    const [reviewItems2, setReviewItems2] = useState<NonNullable<CollapseProps['items']>>([
+        {
+            key: '3',
+            label: 'Ths Lê Văn C',
+            children: <div><p></p></div>,
+        },
+        {
+            key: '4',
+            label: 'Ths Phạm Thị D',
+            children: <div><p></p></div>,
+        },
+    ]);
+    const [reviewItems3, setReviewItems3] = useState<NonNullable<CollapseProps['items']>>([
+        {
+            key: '5',
+            label: 'Ths Đỗ Thị E',
+            children: <div><p></p></div>,
+        },
+        {
+            key: '6',
+            label: 'Ths Hoàng Văn F',
+            children: <div><p></p></div>,
+        },
+    ]);
 
     const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
     const user: JwtPayload | null = token ? jwtDecode<JwtPayload>(token) : null;
@@ -128,88 +173,100 @@ const TopicDetail: React.FC = () => {
         }
     };
 
-    const itemsNest1: CollapseProps['items'] = [
-        {
-            key: '1',
-            label: 'Ths Nguyễn Văn A',
+    const handleSaveReview = () => {
+        if (!newReview.name.trim()) {
+            message.warning('Vui lòng nhập tên người đánh giá');
+            return;
+        }
+
+        const reviewEntry = {
+            key: `${Date.now()}`,
+            label: newReview.name.trim(),
             children: (
-                <div>
-                    <p> </p>
-                    
+                <div style={{ display: 'grid', gap: 6 }}>
+                    <div><strong>Điểm:</strong> {newReview.score ?? 'Chưa chấm'}</div>
+                    <div><strong>Nhận xét:</strong> {newReview.comment.trim() || 'Không có nhận xét'}</div>
                 </div>
             ),
-        },
-        {
-            key: '2',
-            label: 'Ths Trần Thị B',
-            children: (
-                <div>
-                    <p> </p>
-                    
-                </div>
-            ),
-        },
-    ];
-    const itemsNest2: CollapseProps['items'] = [
-        {
-            key: '3',
-            label: 'Ths Lê Văn C',
-            children: (
-                <div>
-                    <p> </p>
-                    
-                </div>
-            ),
-        },
-        {
-            key: '4',
-            label: 'Ths Phạm Thị D',
-            children: (
-                <div>
-                    <p> </p>
-                    
-                </div>
-            ),
-        },
-    ];
-    const itemsNest3: CollapseProps['items'] = [
-        {
-            key: '5',
-            label: 'Ths Đỗ Thị E',
-            children: (
-                <div>
-                    <p> </p>
-                    
-                </div>
-            ),
-        },
-        {
-            key: '6',
-            label: 'Ths Hoàng Văn F',
-            children: (
-                <div>
-                    <p> </p>
-                    
-                </div>
-            ),
-        },
-    ];
+        };
+
+        if (reviewTarget === 'cham') {
+            setReviewItems((prev) => [...prev, reviewEntry]);
+        } else if (reviewTarget === 'nghiem-thu') {
+            setReviewItems2((prev) => [...prev, reviewEntry]);
+        } else {
+            setReviewItems3((prev) => [...prev, reviewEntry]);
+        }
+
+        setNewReview({ name: '', score: undefined, comment: '' });
+        setShowAddReviewForm(false);
+        message.success('Đã thêm mục đánh giá mới');
+    };
+
+    const handleCancelReview = () => {
+        setShowAddReviewForm(false);
+        setNewReview({ name: '', score: undefined, comment: '' });
+    };
+
+    const openAddReviewModal = (target: 'cham' | 'nghiem-thu' | 'ghi-chu') => {
+        setReviewTarget(target);
+        setShowAddReviewForm(true);
+    };
 
     const collapseItems: CollapseProps['items'] = [
         {
             key: 'hoidong-cham',
             label: 'Hội đồng chấm',
-            children: <Collapse defaultActiveKey="1" items={itemsNest1} />,
+            children: <Collapse defaultActiveKey="1" items={reviewItems} />,
+            extra: (
+                <Button
+                    type="primary"
+                    size="small"
+                    icon={<PlusOutlined />}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        openAddReviewModal('cham');
+                    }}
+                >
+                    Thêm
+                </Button>
+            ),
         },
         {
             key: 'hoidong-nghiem-thu',
             label: 'Hội đồng nghiệm thu',
-            children: <Collapse defaultActiveKey="1" items={itemsNest2}/>,
+            children: <Collapse defaultActiveKey="1" items={reviewItems2} />,
+            extra: (
+                <Button
+                    type="primary"
+                    size="small"
+                    icon={<PlusOutlined />}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        openAddReviewModal('nghiem-thu');
+                    }}
+                >
+                    Thêm
+                </Button>
+            ),
         },
         {
             key: 'ghi-chu',
             label: 'Ghi chú',
-            children: <Collapse defaultActiveKey="1" items={itemsNest3}/>,
+            children: <Collapse defaultActiveKey="1" items={reviewItems3} />,
+            extra: (
+                <Button
+                    type="primary"
+                    size="small"
+                    icon={<PlusOutlined />}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        openAddReviewModal('ghi-chu');
+                    }}
+                >
+                    Thêm
+                </Button>
+            ),
         },
     ];
 
@@ -687,6 +744,41 @@ const TopicDetail: React.FC = () => {
                         <Card title="Tổng hợp điểm" style={{ marginTop: 16 }}>
                             <Collapse items={collapseItems} defaultActiveKey={['hoidong-cham']} />
                         </Card>
+
+                        <Modal
+                            title="Thêm đánh giá mới"
+                            open={showAddReviewForm}
+                            onCancel={handleCancelReview}
+                            footer={[
+                                <Button key="cancel" onClick={handleCancelReview}>Hủy</Button>,
+                                <Button key="save" type="primary" onClick={handleSaveReview}>Lưu</Button>,
+                            ]}
+                            centered
+                            width={560}
+                        >
+                            <div style={{ display: 'grid', gap: 12 }}>
+                                <Input
+                                    placeholder="Nhập tên người đánh giá"
+                                    value={newReview.name}
+                                    onChange={(e) => setNewReview((prev) => ({ ...prev, name: e.target.value }))}
+                                />
+                                <InputNumber
+                                    style={{ width: '100%' }}
+                                    min={0}
+                                    max={10}
+                                    placeholder="Nhập điểm"
+                                    value={newReview.score}
+                                    onChange={(value) => setNewReview((prev) => ({ ...prev, score: value ?? undefined }))}
+                                />
+                                <Input.TextArea
+                                    rows={4}
+                                    placeholder="Nhập nhận xét"
+                                    value={newReview.comment}
+                                    onChange={(e) => setNewReview((prev) => ({ ...prev, comment: e.target.value }))}
+                                />
+                            </div>
+                        </Modal>
+
                         <Card title="Nhận xét" style={{ marginTop: 16, marginBottom: 24 }}>
                             {canComment && (
                                 <div style={{ marginBottom: 16 }}>

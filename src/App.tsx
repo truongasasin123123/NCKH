@@ -1,6 +1,6 @@
 import { Routes, Route, Link, useNavigate } from "react-router-dom";
 import { useState } from 'react';
-import { Button, Input, Dropdown, Space, message,Layout } from "antd";
+import { Button, Input, Dropdown, Space, message, Layout } from "antd";
 import { DownOutlined, LogoutOutlined, SettingOutlined, UserOutlined } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import Home from "./pages/Home";
@@ -20,8 +20,10 @@ import ApprovedTopics from "./pages/ApprovedTopics";
 import TopicDetailCommittee from "./pages/TopicDetailCommittee";
 import ProgressManagement from "./pages/ProgressManagement";
 import AdminUsers from "./pages/AdminUsers";
-import CouncilList from "./pages/Chức năng quản trị hệ thống/CouncilList";
-import CouncilDetail from "./pages/Chức năng quản trị hệ thống/CouncilDetail";
+import CouncilList from "./pages/QuanTriHeThong/CouncilList";
+import CouncilDetail from "./pages/QuanTriHeThong/CouncilDetail";
+import DanhSachDeTai from "./pages/QuanTriHeThong/MonitoringCommittee";
+import ChiTietBaoCao from "./pages/QuanTriHeThong/ReportDetail";
 
 interface JwtPayload {
   TaiKhoan: string;
@@ -106,30 +108,29 @@ function App() {
         </div>
       </header>
 
-      <Layout style={{ minHeight: "100vh", background: "#f5f5f5",overflowX:"hidden" }}>
+      <Layout style={{ minHeight: "100vh", background: "#f5f5f5", overflowX: "hidden" }}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/Register" element={<Register />} />
           <Route path="/home" element={<Home />} />
           <Route path="/forgot" element={<ForgotPassword />} />
-          <Route path="/mainhome" element={<MainHome />} />
-          <Route path="/change-password" element={<ChangePass />} />\
+          <Route path="/change-password" element={<ChangePass />} />
           <Route path="/mainhome" element={<MainHome />}>
-          <Route path="profile" element={<Profile />} />
-
+            <Route path="profile" element={<Profile />} />
             <Route index element={<MyTopics />} />
             <Route path="registertopic" element={<RegisterTopic />} />
             <Route path="approvedtopics" element={<ApprovedTopics />} />
             <Route path="topic/:MaDT" element={<TopicDetail />} />
             <Route path="notifications" element={<Notifications />} />
-            <Route path="/mainhome/topic-committee/:MaDT" element={<TopicDetailCommittee />} />
+            <Route path="topic-committee/:MaDT" element={<TopicDetailCommittee />} />
             <Route path="progress/:maDT" element={<ProgressManagement />} />
-            <Route path="progress-demo" element={<ProgressManagement />} />
             <Route path="progress-demo" element={<ProgressManagement />} />
             <Route path="admin/users" element={<AdminUsers />} />
             <Route path="admin/councils" element={<CouncilList />} />
             <Route path="admin/councils/:maHoiDong" element={<CouncilDetail />} />
+            <Route path="hoi-dong-theo-doi" element={<DanhSachDeTai />} />
+            <Route path="hoi-dong-theo-doi/:maDT" element={<ChiTietBaoCao />} />
           </Route>
         </Routes>
       </Layout>
@@ -162,7 +163,7 @@ function App() {
           <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>Phiên bản 1.0.0</span>
         </div>
       </footer>
- 
+
     </>
   )
 }

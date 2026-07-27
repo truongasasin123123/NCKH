@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   AutoComplete,
@@ -7,10 +7,11 @@ import {
   Descriptions,
   Form,
   Input,
+  InputNumber,
   Popconfirm,
   Select,
   Space,
-  Statistic,
+  
   Table,
   Tag,
   message,
@@ -58,12 +59,7 @@ const CouncilDetail = () => {
   useEffect(() => { loadData(); }, [maHoiDong]);
 
   const members = council?.ThanhVienHoiDong ?? [];
-  const statistics = useMemo(() => ({
-    total: members.length,
-    president: members.filter((member) => member.ChucDanh === 'Chủ tịch').length,
-    secretary: members.filter((member) => member.ChucDanh === 'Thư ký').length,
-    reviewer: members.filter((member) => member.ChucDanh === 'Phản biện').length,
-  }), [members]);
+  
 
   const findAccounts = async (keyword: string) => {
     if (!keyword.trim()) return setAccountOptions([]);
@@ -133,6 +129,30 @@ const CouncilDetail = () => {
             <Form.Item name="TenHoiDong" label="Tên hội đồng" rules={[{ required: true }]}><Input /></Form.Item>
             <Form.Item name="MaLoaiHoiDong" label="Loại hội đồng" rules={[{ required: true }]}><Select options={types.map((type) => ({ value: type.MaLoaiHoiDong, label: type.TenLoaiHoiDong }))} /></Form.Item>
             <Form.Item name="MoTa" label="Mô tả"><Input.TextArea rows={3} /></Form.Item>
+            <Form.Item
+              label="Năm bắt đầu"
+              name="NamBatDau"
+              rules={[{ required: true, message: "Nhập năm bắt đầu" }]}
+            >
+              <InputNumber min={2000} max={2100} />
+            </Form.Item>
+            <Form.Item
+              label="Năm kết thúc"
+              name="NamKetThuc"
+              rules={[
+                { required: true, message: "Nhập năm kết thúc" },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (!value || value >= getFieldValue("NamBatDau")) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject(new Error("Năm kết thúc phải ≥ năm bắt đầu"));
+                  },
+                }),
+              ]}
+            >
+              <InputNumber min={2000} max={2100} />
+            </Form.Item>
           </Form>
         ) : (
           <Descriptions column={1}>
@@ -140,16 +160,14 @@ const CouncilDetail = () => {
             <Descriptions.Item label="Tên hội đồng">{council.TenHoiDong}</Descriptions.Item>
             <Descriptions.Item label="Loại hội đồng">{council.LoaiHoiDong?.TenLoaiHoiDong || '—'}</Descriptions.Item>
             <Descriptions.Item label="Mô tả">{council.MoTa || '—'}</Descriptions.Item>
+            <Descriptions.Item label="Năm hoạt động">
+              {council.NamBatDau} - {council.NamKetThuc}
+            </Descriptions.Item>
           </Descriptions>
         )}
       </Card>
 
-      <Space style={{ display: 'flex', margin: '16px 0' }} wrap>
-        <Statistic title="Tổng thành viên" value={statistics.total} />
-        <Statistic title="Chủ tịch" value={statistics.president} />
-        <Statistic title="Thư ký" value={statistics.secretary} />
-        <Statistic title="Phản biện" value={statistics.reviewer} />
-      </Space>
+      
 
       <Card title="Thành viên hội đồng">
         <Space style={{ display: 'flex', marginBottom: 16 }} wrap>

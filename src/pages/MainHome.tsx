@@ -1,9 +1,9 @@
 import { Layout, Row, Col, Badge } from "antd";
 import { Navigate, Outlet, NavLink, useLocation } from "react-router-dom";
-import { UserOutlined, EditOutlined, BellOutlined,ProfileOutlined, FileOutlined, BarChartOutlined, TeamOutlined, AuditOutlined } from "@ant-design/icons";
+import { UserOutlined, EditOutlined, BellOutlined, ProfileOutlined, FileOutlined, BarChartOutlined, TeamOutlined, AuditOutlined } from "@ant-design/icons";
 import { useState, useEffect } from "react";
 import { jwtDecode } from 'jwt-decode';
-import { getNotifications } from "./Quản lý thông tin đề án/NotificationService";
+import { getNotifications } from "./ThongTinDeTai/NotificationService";
 import "../style/content.css";
 
 const { Content } = Layout;
@@ -63,6 +63,24 @@ const MainHome: React.FC = () => {
         <Row gutter={16}>
           <Col xs={24} md={4}>
             <ul className="item-sider">
+              {!isAdmin && (
+                <>
+                  <li>
+                    <NavLink to="/mainhome" className="li-link">
+                      <ProfileOutlined style={{ fontSize: 18, marginRight: 5 }} />
+                      <span>Đề tài của tôi</span>
+                    </NavLink>
+                  </li>
+                  {!isCommitteeRole && (
+                    <li>
+                      <NavLink to="/mainhome/registertopic" className="li-link">
+                        <EditOutlined style={{ fontSize: 18, marginRight: 5 }} />
+                        <span>Đăng ký đề tài</span>
+                      </NavLink>
+                    </li>
+                  )}
+                </>
+              )}
               <li>
                 <NavLink
                   to="/mainhome/profile"
@@ -86,24 +104,6 @@ const MainHome: React.FC = () => {
                   </div>
                 </NavLink>
               </li>
-              {!isAdmin && (
-                <>
-                  <li>
-                    <NavLink to="/mainhome" className="li-link">
-                      <ProfileOutlined style={{ fontSize: 18, marginRight: 5 }} />
-                      <span>Đề tài của tôi</span>
-                    </NavLink>
-                  </li>
-                  {!isCommitteeRole && (
-                    <li>
-                      <NavLink to="/mainhome/registertopic" className="li-link">
-                        <EditOutlined style={{ fontSize: 18, marginRight: 5 }} />
-                        <span>Đăng ký đề tài</span>
-                      </NavLink>
-                    </li>
-                  )}
-                </>
-              )}
               {isCommitteeRole && (
                 <li>
                   <NavLink
@@ -131,14 +131,19 @@ const MainHome: React.FC = () => {
                   </li>
                 </>
               )}
-              {!isAdmin && (
+              {!isAdmin && !isCommitteeRole && (
                 <li>
-                  <NavLink
-                    to="/mainhome/progress-demo"
-                    className="li-link"
-                  >
+                  <NavLink to="/mainhome/progress-demo" className="li-link">
                     <BarChartOutlined style={{ fontSize: 18, marginRight: 5 }} />
                     <span>Quản lý tiến độ</span>
+                  </NavLink>
+                </li>
+              )}
+              {(isCommitteeRole|| isAdmin) &&(
+                <li>
+                  <NavLink to="/mainhome/hoi-dong-theo-doi" className="li-link">
+                    <BarChartOutlined style={{ fontSize: 18, marginRight: 5 }} />
+                    <span>Theo dõi tiến độ đề tài</span>
                   </NavLink>
                 </li>
               )}

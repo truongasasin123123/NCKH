@@ -14,6 +14,7 @@ interface UploadDocumentParams {
   file: File;
   maDT: string;
   maMoc?: number;
+  maBaoCaoTienDo?: number;
   loaiTaiLieu?: string;
 }
 
@@ -21,12 +22,14 @@ export const uploadDocument = async ({
   file,
   maDT,
   maMoc,
+  maBaoCaoTienDo,
   loaiTaiLieu,
 }: UploadDocumentParams): Promise<TaiLieu> => {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('MaDT', maDT);
   if (maMoc !== undefined) formData.append('MaMoc', String(maMoc));
+  if (maBaoCaoTienDo !== undefined) formData.append('MaBaoCaoTienDo', String(maBaoCaoTienDo));
   if (loaiTaiLieu) formData.append('LoaiTaiLieu', loaiTaiLieu);
 
   const response = await ApiAxios.post('/documents/upload', formData);
@@ -64,6 +67,9 @@ export const getDocumentsByMilestone = async (
   const response = await ApiAxios.get(`/documents/moc/${maMoc}`);
   return response.data;
 };
+
+export const getDocumentsByProgressReport = async (reportId: number): Promise<TaiLieu[]> =>
+  (await ApiAxios.get(`/documents/report/${reportId}`)).data;
 
 const getFileName = (contentDisposition?: string, fallback = 'tai-lieu') => {
   const encodedName = contentDisposition?.match(/filename\*=UTF-8''([^;]+)/i)?.[1];

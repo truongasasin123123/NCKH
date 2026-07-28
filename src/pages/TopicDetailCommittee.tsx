@@ -6,7 +6,7 @@ import {
     message, Modal, Input, Divider, Form, Space, Popconfirm
 } from 'antd';
 import {
-    ArrowLeftOutlined, CheckCircleOutlined, CloseCircleOutlined, DownloadOutlined,
+    ArrowLeftOutlined, BarChartOutlined, CheckCircleOutlined, CloseCircleOutlined, DownloadOutlined,
 } from '@ant-design/icons';
 import {
     getTopicById,
@@ -216,7 +216,7 @@ const TopicDetailCommittee: React.FC = () => {
                 {topic && (
                     <>
                         {/* Nút quay lại */}
-                        <div style={{ marginBottom: 20 }}>
+                        <div>
                             <Button
                                 type="text"
                                 icon={<ArrowLeftOutlined />}
@@ -224,6 +224,12 @@ const TopicDetailCommittee: React.FC = () => {
                                 style={{ marginBottom: 16 }}
                             >
                                 Quay lại
+                            </Button>
+                            <Button
+                                icon={<BarChartOutlined />}
+                                onClick={() => navigate(`/mainhome/progress/${MaDT}`)}
+                            >
+                                Quản lý tiến độ
                             </Button>
                         </div>
 
@@ -237,29 +243,29 @@ const TopicDetailCommittee: React.FC = () => {
                                     </div>
                                 </Col>
                                 {topic.TrangThai === 'Chờ phê duyệt' && (
-                                <Col xs={24} md={6}>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                    <Col xs={24} md={6}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
 
-                                        <Button
-                                            type="primary"
-                                            icon={<CheckCircleOutlined />}
-                                            block
-                                            onClick={() => setApproveModalOpen(true)}
-                                        >
-                                            Phê duyệt đề tài
-                                        </Button>
+                                            <Button
+                                                type="primary"
+                                                icon={<CheckCircleOutlined />}
+                                                block
+                                                onClick={() => setApproveModalOpen(true)}
+                                            >
+                                                Phê duyệt đề tài
+                                            </Button>
 
 
-                                        <Button
-                                            danger
-                                            icon={<CloseCircleOutlined />}
-                                            block
-                                            onClick={() => setRejectModalOpen(true)}
-                                        >
-                                            Từ chối phê duyệt
-                                        </Button>
-                                    </div>
-                                </Col>
+                                            <Button
+                                                danger
+                                                icon={<CloseCircleOutlined />}
+                                                block
+                                                onClick={() => setRejectModalOpen(true)}
+                                            >
+                                                Từ chối phê duyệt
+                                            </Button>
+                                        </div>
+                                    </Col>
                                 )}
                             </Row>
                         </Card>

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { jwtDecode } from 'jwt-decode';
-import { Table, Tag, Space, Button, message, Spin, Popconfirm } from 'antd';
+import { Table, Tag, Space, Button, message, Spin, Popconfirm, Input, Select } from 'antd';
 import { EyeOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { deleteProject, getMyTopics, getPendingTopics } from './ThongTinDeTai/TopicService';
@@ -25,6 +25,7 @@ const MyTopics: React.FC = () => {
     const displayRole = user?.VaiTro || null;
     const isCommitteeRole = displayRole?.toLowerCase().includes('hội đồng');
     const isAdvisorRole = displayRole?.toLowerCase().includes('người hướng dẫn');
+    
 
     useEffect(() => {
         fetchTopics();
@@ -110,7 +111,34 @@ const MyTopics: React.FC = () => {
             message.error(error?.response?.data?.message || 'Không thể xóa đề tài');
         }
     };
+    const [keyword, setKeyword] = useState('');
+    const [statusFilter, setStatusFilter] = useState<string | undefined>();
 
+    // Lấy tên đề tài dù cấu trúc dữ liệu khác nhau giữa các role
+    const getTopicName = (record: any): string => record?.DeTai?.TenDT || record?.TenDT || '';
+    const getTopicStatus = (record: any): string => record?.DeTai?.TrangThai || record?.TrangThai || '';
+
+    const filteredTopics = useMemo(() => {
+        const search = keyword.trim().toLowerCase();
+        return topics.filter((topic) => {
+            const matchKeyword = !search || getTopicName(topic).toLowerCase().includes(search);
+            const matchStatus = !statusFilter || getTopicStatus(topic) === statusFilter;
+            return matchKeyword && matchStatus;
+        });
+    }, [topics, keyword, statusFilter]);
+
+    // Danh sách trạng thái để đổ vào Select, tự rút ra từ dữ liệu đang có (tránh hard-code thiếu trạng thái)
+    const statusOptions = useMemo(() => {
+        const statusMap: Record<string, string> = {
+            "Nháp": "Nháp",
+            "Đã phê duyệt": "Bắt đầu",
+            "Sắp hạn": "Sắp hạn",
+            "Khẩn cấp": "Khẩn cấp",
+            "Chờ phê duyệt": "Chờ phê duyệt",
+        };
+        const uniqueStatuses = Array.from(new Set(topics.map((topic) => getTopicStatus(topic)).filter(Boolean)));
+        return uniqueStatuses.map((value) => ({ value, label: statusMap[value] || value }));
+    }, [topics]);
 
     const studentColumns: ColumnsType<TopicLoad> = [
         {
@@ -234,7 +262,7 @@ const MyTopics: React.FC = () => {
                     size="small"
                     icon={<EyeOutlined />}
                     title={`Xem đề tài`}
-                     onClick={() => navigate(`/mainhome/topic-committee/${record.MaDT}`)}
+                    onClick={() => navigate(`/mainhome/topic-committee/${record.MaDT}`)}
                 >
                 </Button>
             ),
@@ -323,16 +351,38 @@ const MyTopics: React.FC = () => {
             )}
             <div style={{ background: '#fff', padding: 20, borderRadius: 4 }}>
                 <h2>{pageTitle}</h2>
+
+                <Space style={{ marginBottom: 16, display: 'flex' }} wrap>
+                    <Input.Search
+                        allowClear
+                        placeholder="Tìm theo tên đề tài..."
+                        value={keyword}
+                        onChange={(e) => setKeyword(e.target.value)}
+                        style={{ width: 280 }}
+                    />
+                    {!isCommitteeRole && (
+                        <Select
+                            allowClear
+                            placeholder="Trạng thái"
+                            style={{ width: 180 }}
+                            value={statusFilter}
+                            onChange={setStatusFilter}
+                            options={statusOptions}
+                        />
+                    )}
+                </Space>
+
                 <Spin spinning={loading}>
                     <Table
                         columns={currentColumns}
-                        dataSource={topics}
+                        dataSource={filteredTopics}
                         rowKey="MaDT"
                         pagination={{ pageSize: 10 }}
                         scroll={{ x: 1000 }}
                     />
                 </Spin>
             </div>
+            
         </>
     );
 };

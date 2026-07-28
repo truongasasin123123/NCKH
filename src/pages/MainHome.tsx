@@ -1,6 +1,6 @@
 import { Layout, Row, Col, Badge } from "antd";
 import { Navigate, Outlet, NavLink, useLocation } from "react-router-dom";
-import { UserOutlined, EditOutlined, BellOutlined, ProfileOutlined, FileOutlined, BarChartOutlined, TeamOutlined, AuditOutlined } from "@ant-design/icons";
+import { UserOutlined, EditOutlined, BellOutlined, ProfileOutlined, FileOutlined, BarChartOutlined, TeamOutlined, AuditOutlined, FileTextOutlined } from "@ant-design/icons";
 import { useState, useEffect } from "react";
 import { jwtDecode } from 'jwt-decode';
 import { getNotifications } from "./ThongTinDeTai/NotificationService";
@@ -32,20 +32,12 @@ const MainHome: React.FC = () => {
   const isAdmin = normalizedRole === 'admin' || normalizedRole === 'quantri';
   const canAccessCouncil = isAdmin || isCommitteeRole || isCouncilMember;
 
-  if (user?.DaHoanThienHoSo === false && location.pathname !== '/mainhome/profile') {
-    return <Navigate to="/mainhome/profile" replace />;
-  }
-  if (canAccessCouncil && location.pathname === '/mainhome') {
-    return <Navigate to="/mainhome/approvedtopics" replace />;
-  }
+
 
   const fetchUnreadCount = async () => {
     try {
       const data = await getNotifications();
-
-      // đếm thông báo chưa đọc
       const count = data.filter(n => !n.TrangThai).length;
-
       setUnreadCount(count);
     } catch (error) {
       console.error("Lỗi khi tải thông báo:", error);
@@ -54,12 +46,9 @@ const MainHome: React.FC = () => {
 
   useEffect(() => {
     fetchUnreadCount();
-
-    // kiểm tra thông báo mới mỗi 5s
     const interval = setInterval(() => {
       fetchUnreadCount();
     }, 5000);
-
     return () => clearInterval(interval);
   }, []);
 
@@ -69,6 +58,13 @@ const MainHome: React.FC = () => {
       .then((data) => setIsCouncilMember(data.isCouncilMember))
       .catch(() => setIsCouncilMember(false));
   }, [token, isAdmin]);
+
+  if (user?.DaHoanThienHoSo === false && location.pathname !== '/mainhome/profile') {
+    return <Navigate to="/mainhome/profile" replace />;
+  }
+  if (canAccessCouncil && location.pathname === '/mainhome') {
+    return <Navigate to="/mainhome/approvedtopics" replace />;
+  }
 
   return (
     <>
@@ -129,9 +125,15 @@ const MainHome: React.FC = () => {
                       <span>Quản lý hội đồng</span>
                     </NavLink>
                   </li>
+                  <li>
+                    <NavLink to="/mainhome/admin/document-types" className="li-link">
+                      <FileTextOutlined style={{ fontSize: 18, marginRight: 5 }} />
+                      <span>Quản lý loại tài liệu</span>
+                    </NavLink>
+                  </li>
                 </>
               )}
-              {!isAdmin && !canAccessCouncil && (
+              {(!isAdmin || canAccessCouncil) && (
                 <li>
                   <NavLink to="/mainhome/progress-demo" className="li-link">
                     <BarChartOutlined style={{ fontSize: 18, marginRight: 5 }} />

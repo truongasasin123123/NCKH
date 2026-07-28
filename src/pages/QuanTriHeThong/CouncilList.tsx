@@ -110,7 +110,10 @@ const CouncilList = () => {
         dataSource={filteredCouncils}
         pagination={{ pageSize: 10 }}
         columns={[
-          { title: 'Mã', dataIndex: 'MaHoiDong', width: 80 },
+          {
+            title: 'Mã', dataIndex: 'MaHoiDong', width: 80, sorter: (a: Council, b: Council) => a.MaHoiDong - b.MaHoiDong,
+            defaultSortOrder: 'ascend',
+          },
           {
             title: 'Tên hội đồng',
             dataIndex: 'TenHoiDong',

@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Layout, Card, Timeline, Table, Button, Modal, Form, Input, DatePicker, InputNumber, Upload, message, Badge, Space, Tabs, Divider, Select, Row, Col, Tag, Collapse } from 'antd';
 import { CheckOutlined, PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined, EyeOutlined, ClockCircleOutlined, CheckCircleOutlined, ExclamationCircleOutlined, CloseCircleOutlined, DownloadOutlined, SendOutlined } from '@ant-design/icons';
-import { useParams, useNavigate, Navigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { getMemberByTopic, getMyTopics } from './ThongTinDeTai/TopicService';
 import type { ThanhVienDT, TopicLoad } from './ThongTinDeTai/TopicService';
-import { deleteDocument, downloadDocument, getDocumentsByMilestone, submitMilestone, uploadDocument } from './ThongTinDeTai/DocumentsService';
-import type { TaiLieu } from './ThongTinDeTai/DocumentsService';
+import {
+  deleteDocument, downloadDocument, getDocumentsByMilestone, submitMilestone, uploadDocument,
+  getLoaiTaiLieuByNghiepVu,
+} from './ThongTinDeTai/DocumentsService';
+import type { TaiLieu, LoaiTaiLieu } from './ThongTinDeTai/DocumentsService';
 import { jwtDecode } from 'jwt-decode';
 import dayjs from 'dayjs';
 import {
@@ -61,26 +64,43 @@ const ProgressManagement: React.FC = () => {
   const [editingBaoCao, setEditingBaoCao] = useState<BaoCaoTienDo | null>(null);
   const [loaiBaoCao, setLoaiBaoCao] = useState<LoaiBaoCao>('Theo mốc');
 
+  // ---- Loại tài liệu (danh mục) ----
+  const [loaiTaiLieuOptions, setLoaiTaiLieuOptions] = useState<(LoaiTaiLieu & { BatBuoc: boolean })[]>([]);
+  const [uploadLoaiTaiLieu, setUploadLoaiTaiLieu] = useState<string | undefined>();   // modal "Nộp file minh chứng"
+  const [editLoaiTaiLieu, setEditLoaiTaiLieu] = useState<string | undefined>();       // modal "Sửa mốc"
+  const [baoCaoLoaiTaiLieu, setBaoCaoLoaiTaiLieu] = useState<string | undefined>();   // modal "Báo cáo tiến độ"
+
   const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
   const user: JwtPayload | null = token ? jwtDecode<JwtPayload>(token) : null;
   const isCommitteeRole = (user?.VaiTro || '').toLowerCase().includes('hội đồng')
     || (user?.VaiTro || '').toLowerCase().includes('hoidong');
 
-  const handleTopicChange = async (maDT: string) => {
-    // Lưu đề tài đang chọn
-    setSelectedTopicId(maDT);
+  useEffect(() => {
+    getLoaiTaiLieuByNghiepVu('theo_doi')
+      .then(setLoaiTaiLieuOptions)
+      .catch(() => setLoaiTaiLieuOptions([]));
+  }, []);
 
-    // Reset dữ liệu modal sửa
+  const loaiTaiLieuSelectOptions = loaiTaiLieuOptions.map((item) => ({
+    value: item.TenLoaiTL,
+    label: item.BatBuoc ? `${item.TenLoaiTL} (bắt buộc)` : item.TenLoaiTL,
+  }));
+
+  // ✅ Nếu là hội đồng mà đang ở tab báo cáo (đã bị ẩn) thì chuyển về timeline để tránh Tabs trắng
+  useEffect(() => {
+    if (isCommitteeRole && activeTab === 'baocao') {
+      setActiveTab('timeline');
+    }
+  }, [isCommitteeRole, activeTab]);
+
+  const handleTopicChange = async (maDT: string) => {
+    setSelectedTopicId(maDT);
     setMilestoneMembers([]);
     editForm.resetFields(["ThanhVienIds"]);
 
     try {
-      // Lấy toàn bộ thành viên của đề tài
       const data = await getMemberByTopic(maDT);
-
-      // Lưu danh sách thành viên của đề tài
       setMembers(data);
-
     } catch (err) {
       console.error("Lỗi lấy thành viên đề tài:", err);
       setMembers([]);
@@ -117,10 +137,15 @@ const ProgressManagement: React.FC = () => {
     setBaoCaoFiles([]);
     setEditingBaoCao(null);
     setLoaiBaoCao('Theo mốc');
+    setBaoCaoLoaiTaiLieu(undefined);
   };
 
   const handleLuuBaoCao = async (values: any) => {
     if (!maDTToUse) return;
+    if (baoCaoFiles.length > 0 && !baoCaoLoaiTaiLieu) {
+      message.warning('Vui lòng chọn loại tài liệu cho file minh chứng!');
+      return;
+    }
     try {
       setSubmittingBaoCao(true);
       const report = editingBaoCao
@@ -135,7 +160,7 @@ const ProgressManagement: React.FC = () => {
             DeXuat: values.DeXuat,
           });
       await Promise.all(baoCaoFiles.map((file) => uploadDocument({
-        file, maDT: maDTToUse, maBaoCaoTienDo: report.Id, loaiTaiLieu: 'Minh chứng báo cáo tiến độ',
+        file, maDT: maDTToUse, maBaoCaoTienDo: report.Id, loaiTaiLieu: baoCaoLoaiTaiLieu,
       })));
       message.success(editingBaoCao ? 'Đã cập nhật báo cáo nháp' : 'Đã tạo báo cáo ở trạng thái Nháp');
       resetBaoCaoModal();
@@ -280,9 +305,7 @@ const ProgressManagement: React.FC = () => {
       .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase()
       .trim();
-  if (isCommitteeRole) {
-    return <Navigate to="/mainhome/hoi-dong-theo-doi" replace />;
-  }
+
   const currentMember = members.find(
     (member) => member.TaiKhoan === user?.TaiKhoan,
   );
@@ -317,7 +340,6 @@ const ProgressManagement: React.FC = () => {
       setLoadingMembers(false);
     }
   };
-
 
   // Render timeline view
   const renderTimeline = () => {
@@ -410,7 +432,8 @@ const ProgressManagement: React.FC = () => {
       progressData?.MocTienDo.filter((moc: MocTienDo) =>
         moc.TenMoc.toLowerCase().includes(searchText.toLowerCase())
       ) ?? [];
-    const columns = [
+
+    const columns: any[] = [
       {
         title: 'Thứ tự',
         dataIndex: 'ThuTu',
@@ -451,7 +474,11 @@ const ProgressManagement: React.FC = () => {
           />
         ),
       },
-      {
+    ];
+
+    // ✅ Ẩn toàn bộ cột "Thao tác" (Xem/Sửa/Xóa/Nộp) với hội đồng
+    if (!isCommitteeRole) {
+      columns.push({
         title: 'Thao tác',
         key: 'actions',
         render: (moc: MocTienDo) => (
@@ -488,7 +515,7 @@ const ProgressManagement: React.FC = () => {
                   Xóa
                 </Button>
               </>
-            ) : !isCommitteeRole ? (
+            ) : (
               <Button
                 size="small"
                 type="primary"
@@ -505,11 +532,11 @@ const ProgressManagement: React.FC = () => {
               >
                 Nộp
               </Button>
-            ) : null}
+            )}
           </Space>
         ),
-      },
-    ];
+      });
+    }
 
     return (
       <Table
@@ -518,11 +545,9 @@ const ProgressManagement: React.FC = () => {
         rowKey="MaMoc"
         loading={loading}
         pagination={false}
-
       />
     );
   };
-
 
   // Handlers
   const handleCreateMoc = () => {
@@ -533,6 +558,7 @@ const ProgressManagement: React.FC = () => {
   const handleEditMoc = (moc: MocTienDo) => {
     setSelectedMoc(moc);
     setSelectedFile(null);
+    setEditLoaiTaiLieu(undefined);
 
     editForm.setFieldsValue({
       ...moc,
@@ -546,7 +572,6 @@ const ProgressManagement: React.FC = () => {
   };
 
   const handleOpenUploadModal = (moc: MocTienDo) => {
-    // Kiểm tra lại để tránh trường hợp disabled bị bỏ qua
     if (moc.TrangThai === "Trễ hạn") {
       message.warning("Mốc này không thể nộp tài liệu, hãy liên hệ trưởng nhóm để có thể nộp file.");
       return;
@@ -554,6 +579,7 @@ const ProgressManagement: React.FC = () => {
 
     setSelectedMoc(moc);
     setSelectedFile(null);
+    setUploadLoaiTaiLieu(undefined);
     setIsUploadModalVisible(true);
   };
 
@@ -563,31 +589,33 @@ const ProgressManagement: React.FC = () => {
       return;
     }
 
+    if (!uploadLoaiTaiLieu) {
+      message.warning("Vui lòng chọn loại tài liệu!");
+      return;
+    }
+
     if (!selectedMoc) {
       message.warning("Không tìm thấy mốc tiến độ!");
       return;
     }
 
     try {
-      setLoading(true); // nếu bạn có loading
+      setLoading(true);
 
       const result = await submitMilestone({
         file: selectedFile,
-        maDT: String(maDTToUse), // hoặc maDT hiện tại của bạn
+        maDT: String(maDTToUse),
         maMoc: selectedMoc.MaMoc,
-        loaiTaiLieu: "MINH_CHUNG", // hoặc giá trị BE yêu cầu
+        loaiTaiLieu: uploadLoaiTaiLieu,
       });
 
       message.success("Nộp tài liệu thành công!");
-
       console.log(result);
 
-
-      // Reset
       setSelectedFile(null);
-      createForm.resetFields(); // nếu Upload nằm trong Form này
+      setUploadLoaiTaiLieu(undefined);
+      createForm.resetFields();
 
-      // Đóng modal
       setIsUploadModalVisible(false);
       fetchProgressData();
     } catch (error) {
@@ -643,10 +671,7 @@ const ProgressManagement: React.FC = () => {
       fetchProgressData();
     } catch (error: any) {
       console.error(error);
-
-      // 2. Trích xuất message từ lỗi (Cấu trúc phổ biến của Axios và NestJS)
       const errorMessage = error.response?.data?.message || error.message || 'Lỗi khi tạo mốc';
-
       if (Array.isArray(errorMessage)) {
         message.error(errorMessage.join(', '));
       } else {
@@ -657,6 +682,11 @@ const ProgressManagement: React.FC = () => {
 
   const handleSaveSubmit = async (values: any) => {
     if (!selectedMoc) return;
+
+    if (selectedFile && !editLoaiTaiLieu) {
+      message.warning('Vui lòng chọn loại tài liệu cho file đính kèm!');
+      return;
+    }
 
     try {
       const updatedMoc: CapNhatTienDo = {
@@ -678,7 +708,7 @@ const ProgressManagement: React.FC = () => {
           file: selectedFile,
           maDT: selectedMoc.MaDT || maDTToUse || '',
           maMoc: selectedMoc.MaMoc,
-          loaiTaiLieu: 'Minh chứng tiến độ',
+          loaiTaiLieu: editLoaiTaiLieu,
         });
       }
 
@@ -687,6 +717,7 @@ const ProgressManagement: React.FC = () => {
       setIsEditModalVisible(false);
       editForm.resetFields();
       setSelectedFile(null);
+      setEditLoaiTaiLieu(undefined);
 
       fetchProgressData();
     } catch (error) {
@@ -752,15 +783,11 @@ const ProgressManagement: React.FC = () => {
                 >
                   Tìm
                 </Button>
-
               </>
             )}
-
           </Space>
         }
-
       >
-
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
@@ -777,10 +804,8 @@ const ProgressManagement: React.FC = () => {
                 {canManageMoc && (<Button type="primary" icon={<PlusOutlined />} onClick={handleCreateMoc}> Thêm mốc </Button>)}
               </Space>
             )
-
           }
         >
-
           <TabPane tab="Timeline" key="timeline">
             {renderTimeline()}
           </TabPane>
@@ -789,86 +814,89 @@ const ProgressManagement: React.FC = () => {
             {renderTable()}
           </TabPane>
 
-          <TabPane tab="Báo cáo tiến độ" key="baocao">
-            {canManageMoc && !isCommitteeRole && (
-              <Button
-                type="primary"
-                icon={<SendOutlined />}
-                onClick={handleOpenCreateBaoCao}
-                style={{ marginBottom: 16 }}
-              >
-                Tạo báo cáo tiến độ
-              </Button>
-            )}
+          {/* ✅ Ẩn hoàn toàn tab Báo cáo tiến độ với hội đồng */}
+          {!isCommitteeRole && (
+            <TabPane tab="Báo cáo tiến độ" key="baocao">
+              {canManageMoc && (
+                <Button
+                  type="primary"
+                  icon={<SendOutlined />}
+                  onClick={handleOpenCreateBaoCao}
+                  style={{ marginBottom: 16 }}
+                >
+                  Tạo báo cáo tiến độ
+                </Button>
+              )}
 
-            <Collapse
-              items={baoCaoList.map((bc) => ({
-                key: bc.Id,
-                label: (
-                  <Space size="middle">
-                    <span style={{ fontWeight: 500 }}>{bc.KyBaoCao}</span>
-                    <Tag color={bc.LoaiBaoCao === 'Theo mốc' ? 'blue' : 'purple'}>{bc.LoaiBaoCao}</Tag>
-                    <span>{bc.TienDoBaoCao}%</span>
-                    <span style={{ color: '#888' }}>{dayjs(bc.NgayGui).format('DD/MM/YYYY')}</span>
-                    <Tag color={
-                      bc.TrangThai === 'Đạt' ? 'success' :
-                        bc.TrangThai === 'Đã gửi' ? 'processing' :
-                          bc.TrangThai === 'Không đạt' ? 'error' : 'warning'
-                    }>
-                      {bc.TrangThai}
-                    </Tag>
-                  </Space>
-                ),
-                children: (
-                  <div>
-                    <p><strong>Nội dung:</strong> {bc.NoiDungBaoCao}</p>
-                    <p><strong>Khó khăn:</strong> {bc.KhoKhan || '—'}</p>
-                    <p><strong>Đề xuất:</strong> {bc.DeXuat || '—'}</p>
-                    {bc.NhanXetHoiDong && (
-                      <p><strong>Nhận xét hội đồng:</strong> {bc.NhanXetHoiDong}</p>
-                    )}
-                    {bc.PhanHoi?.length ? (
-                      <div style={{ marginBottom: 12 }}>
-                        <strong>Lịch sử phản hồi:</strong>
-                        {bc.PhanHoi.map((feedback) => (
-                          <div key={feedback.Id} style={{ marginTop: 6, padding: '8px 10px', background: '#fafafa', borderRadius: 4 }}>
-                            <Tag color={feedback.KetQua === 'Đạt' ? 'success' : feedback.KetQua === 'Không đạt' ? 'error' : 'warning'}>{feedback.KetQua}</Tag>
-                            {feedback.NhanXet} <span style={{ color: '#888' }}>— {dayjs(feedback.NgayPhanHoi).format('DD/MM/YYYY HH:mm')}</span>
-                          </div>
-                        ))}
+              <Collapse
+                items={baoCaoList.map((bc) => ({
+                  key: bc.Id,
+                  label: (
+                    <Space size="middle">
+                      <span style={{ fontWeight: 500 }}>{bc.KyBaoCao}</span>
+                      <Tag color={bc.LoaiBaoCao === 'Theo mốc' ? 'blue' : 'purple'}>{bc.LoaiBaoCao}</Tag>
+                      <span>{bc.TienDoBaoCao}%</span>
+                      <span style={{ color: '#888' }}>{dayjs(bc.NgayGui).format('DD/MM/YYYY')}</span>
+                      <Tag color={
+                        bc.TrangThai === 'Đạt' ? 'success' :
+                          bc.TrangThai === 'Đã gửi' ? 'processing' :
+                            bc.TrangThai === 'Không đạt' ? 'error' : 'warning'
+                      }>
+                        {bc.TrangThai}
+                      </Tag>
+                    </Space>
+                  ),
+                  children: (
+                    <div>
+                      <p><strong>Nội dung:</strong> {bc.NoiDungBaoCao}</p>
+                      <p><strong>Khó khăn:</strong> {bc.KhoKhan || '—'}</p>
+                      <p><strong>Đề xuất:</strong> {bc.DeXuat || '—'}</p>
+                      {bc.NhanXetHoiDong && (
+                        <p><strong>Nhận xét hội đồng:</strong> {bc.NhanXetHoiDong}</p>
+                      )}
+                      {bc.PhanHoi?.length ? (
+                        <div style={{ marginBottom: 12 }}>
+                          <strong>Lịch sử phản hồi:</strong>
+                          {bc.PhanHoi.map((feedback) => (
+                            <div key={feedback.Id} style={{ marginTop: 6, padding: '8px 10px', background: '#fafafa', borderRadius: 4 }}>
+                              <Tag color={feedback.KetQua === 'Đạt' ? 'success' : feedback.KetQua === 'Không đạt' ? 'error' : 'warning'}>{feedback.KetQua}</Tag>
+                              {feedback.NhanXet} <span style={{ color: '#888' }}>— {dayjs(feedback.NgayPhanHoi).format('DD/MM/YYYY HH:mm')}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                      <div style={{ marginTop: 16, marginBottom: 12 }}>
+                        <strong>Minh chứng</strong>
+                        <div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 2 }}>Tài liệu đính kèm của hồ sơ báo cáo</div>
                       </div>
-                    ) : null}
-                    <div style={{ marginTop: 16, marginBottom: 12 }}>
-                      <strong>Minh chứng</strong>
-                      <div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 2 }}>Tài liệu đính kèm của hồ sơ báo cáo</div>
-                    </div>
-                    {bc.TaiLieu?.length ? (
-                      <Space direction="vertical" size={8} style={{ width: '100%', marginBottom: 16 }}>
-                        {bc.TaiLieu.map((document) => (
-                          <div key={document.MaTL} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '8px 10px', background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 6 }}>
-                            <Button type="link" size="small" icon={<DownloadOutlined />} style={{ padding: 0, height: 'auto', textAlign: 'left', whiteSpace: 'normal' }} onClick={() => downloadDocument(document.MaTL, document.TenFile)}>{document.TenFile}</Button>
-                            {['Nháp', 'Yêu cầu bổ sung'].includes(bc.TrangThai) && <Button danger size="small" type="text" onClick={() => handleDeleteBaoCaoDocument(document.MaTL)}>Xóa</Button>}
-                          </div>
-                        ))}
-                      </Space>
-                    ) : <p>Chưa có tài liệu minh chứng.</p>}
-                    {['Nháp', 'Yêu cầu bổ sung'].includes(bc.TrangThai) && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, paddingTop: 14, borderTop: '1px solid #f0f0f0' }}>
-                        <Space wrap>
-                          <Button onClick={() => handleEditBaoCao(bc)}>Chỉnh sửa</Button>
-                          {bc.TrangThai === 'Nháp' && <Button danger type="text" onClick={() => handleDeleteBaoCao(bc)}>Xóa báo cáo</Button>}
+                      {bc.TaiLieu?.length ? (
+                        <Space direction="vertical" size={8} style={{ width: '100%', marginBottom: 16 }}>
+                          {bc.TaiLieu.map((document) => (
+                            <div key={document.MaTL} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '8px 10px', background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 6 }}>
+                              <Button type="link" size="small" icon={<DownloadOutlined />} style={{ padding: 0, height: 'auto', textAlign: 'left', whiteSpace: 'normal' }} onClick={() => downloadDocument(document.MaTL, document.TenFile)}>{document.TenFile}</Button>
+                              {['Nháp', 'Yêu cầu bổ sung'].includes(bc.TrangThai) && <Button danger size="small" type="text" onClick={() => handleDeleteBaoCaoDocument(document.MaTL)}>Xóa</Button>}
+                            </div>
+                          ))}
                         </Space>
-                        <Button type="primary" icon={<SendOutlined />} loading={submittingBaoCao} onClick={() => handleSubmitExistingReport(bc.Id)}>
-                          {bc.TrangThai === 'Yêu cầu bổ sung' ? 'Gửi lại báo cáo' : 'Gửi báo cáo'}
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                ),
-              }))}
-            />
-            {!baoCaoLoading && baoCaoList.length === 0 && <div>Chưa có báo cáo nào</div>}
-          </TabPane>
+                      ) : <p>Chưa có tài liệu minh chứng.</p>}
+                      {['Nháp', 'Yêu cầu bổ sung'].includes(bc.TrangThai) && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, paddingTop: 14, borderTop: '1px solid #f0f0f0' }}>
+                          <Space wrap>
+                            <Button onClick={() => handleEditBaoCao(bc)}>Chỉnh sửa</Button>
+                            {bc.TrangThai === 'Nháp' && <Button danger type="text" onClick={() => handleDeleteBaoCao(bc)}>Xóa báo cáo</Button>}
+                          </Space>
+                          <Button type="primary" icon={<SendOutlined />} loading={submittingBaoCao} onClick={() => handleSubmitExistingReport(bc.Id)}>
+                            {bc.TrangThai === 'Yêu cầu bổ sung' ? 'Gửi lại báo cáo' : 'Gửi báo cáo'}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ),
+                }))}
+              />
+              {!baoCaoLoading && baoCaoList.length === 0 && <div>Chưa có báo cáo nào</div>}
+            </TabPane>
+          )}
         </Tabs>
       </Card>
 
@@ -898,7 +926,7 @@ const ProgressManagement: React.FC = () => {
             <Select
               mode="multiple"
               showSearch
-              allowClear // Thêm nút xóa nhanh danh sách đã chọn
+              allowClear
               placeholder="Nhập tên tài khoản để thêm thành viên"
               filterOption={(input, option) =>
                 String(option?.label).toLowerCase().includes(input.toLowerCase())
@@ -908,7 +936,6 @@ const ProgressManagement: React.FC = () => {
             />
           </Form.Item>
 
-          {/* Hàng 1: Đưa Ngày bắt đầu và Ngày kết thúc lên cùng 1 dòng */}
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item name="NgayBatDau" label="Ngày bắt đầu" rules={[{ required: true }]}>
@@ -922,7 +949,6 @@ const ProgressManagement: React.FC = () => {
             </Col>
           </Row>
 
-          {/* Hàng 2: Đưa Thứ tự và Trọng số lên cùng 1 dòng */}
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item name="ThuTu" label="Thứ tự" rules={[{ required: true }]}>
@@ -940,7 +966,6 @@ const ProgressManagement: React.FC = () => {
             <TextArea allowClear placeholder="Nhập ghi chú" rows={3} />
           </Form.Item>
 
-          {/* Khu vực nút bấm */}
           <Form.Item style={{ marginBottom: 0, textAlign: 'center', }}>
             <div style={{ display: "flex", gap: 20, justifyContent: "center", marginTop: 20 }}>
               <Button type="primary" htmlType="submit">
@@ -959,7 +984,10 @@ const ProgressManagement: React.FC = () => {
       <Modal
         title={`Sửa / Cập nhật mốc: ${selectedMoc?.TenMoc}`}
         open={isEditModalVisible}
-        onCancel={() => setIsEditModalVisible(false)}
+        onCancel={() => {
+          setIsEditModalVisible(false);
+          setEditLoaiTaiLieu(undefined);
+        }}
         footer={null}
       >
         <Form form={editForm} layout="vertical" onFinish={handleSaveSubmit}>
@@ -979,7 +1007,7 @@ const ProgressManagement: React.FC = () => {
             <Select
               mode="multiple"
               showSearch
-              allowClear // Thêm nút xóa nhanh danh sách đã chọn
+              allowClear
               placeholder="Nhập tên tài khoản để thêm thành viên"
               disabled={!canManageMoc || loadingMembers}
               filterOption={(input, option) =>
@@ -1029,7 +1057,16 @@ const ProgressManagement: React.FC = () => {
           </Form.Item>
           <Divider />
 
-          {/* % Hoàn thành removed — milestones are completed when students submit */}
+          <Form.Item label="Loại tài liệu (nếu đính kèm file)">
+            <Select
+              allowClear
+              placeholder="Chọn loại tài liệu"
+              options={loaiTaiLieuSelectOptions}
+              value={editLoaiTaiLieu}
+              onChange={setEditLoaiTaiLieu}
+            />
+          </Form.Item>
+
           <Form.Item name="TepDinhKem" label="File minh chứng">
             <Upload
               beforeUpload={(file) => { setSelectedFile(file); return false; }}
@@ -1059,7 +1096,6 @@ const ProgressManagement: React.FC = () => {
             <TextArea disabled rows={2} />
           </Form.Item>
 
-          {/* Đã sửa chữ 'col' thành 'Col' và thêm width 100% cho DatePicker */}
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item name="NgayBatDau" label="Ngày bắt đầu">
@@ -1132,7 +1168,6 @@ const ProgressManagement: React.FC = () => {
             </div>
           </Form.Item>
           <Divider />
-          {/* % Hoàn thành removed from view */}
           <Form.Item label="File minh chứng">
             {documentsLoading ? (
               <span>Đang tải tài liệu...</span>
@@ -1161,7 +1196,7 @@ const ProgressManagement: React.FC = () => {
         </Form>
       </Modal>
 
-      {/*Modal Nộp mốc*/}
+      {/* Modal Nộp mốc */}
       <Modal
         title="Nộp file minh chứng"
         open={isUploadModalVisible}
@@ -1169,15 +1204,25 @@ const ProgressManagement: React.FC = () => {
         onCancel={() => {
           setIsUploadModalVisible(false);
           setSelectedFile(null);
+          setUploadLoaiTaiLieu(undefined);
         }}
         footer={null}
       >
         <Form layout="vertical" onFinish={handleSubmitFile}>
+          <Form.Item label="Loại tài liệu" required>
+            <Select
+              placeholder="Chọn loại tài liệu"
+              options={loaiTaiLieuSelectOptions}
+              value={uploadLoaiTaiLieu}
+              onChange={setUploadLoaiTaiLieu}
+            />
+          </Form.Item>
+
           <Form.Item name="TepDinhKem" label="File minh chứng">
             <Upload
               beforeUpload={(file) => {
                 setSelectedFile(file);
-                return false; // Không upload ngay
+                return false;
               }}
               maxCount={1}
               disabled={
@@ -1208,7 +1253,7 @@ const ProgressManagement: React.FC = () => {
             <Button
               type="primary"
               htmlType="submit"
-              disabled={!selectedFile}
+              disabled={!selectedFile || !uploadLoaiTaiLieu}
             >
               Nộp
             </Button>
@@ -1258,6 +1303,16 @@ const ProgressManagement: React.FC = () => {
           <Form.Item name="DeXuat" label="Đề xuất">
             <TextArea rows={2} />
           </Form.Item>
+
+          <Form.Item label="Loại tài liệu minh chứng" required>
+            <Select
+              placeholder="Chọn loại tài liệu"
+              options={loaiTaiLieuSelectOptions}
+              value={baoCaoLoaiTaiLieu}
+              onChange={setBaoCaoLoaiTaiLieu}
+            />
+          </Form.Item>
+
           <Form.Item label="Tài liệu minh chứng">
             <Upload
               beforeUpload={(file) => {

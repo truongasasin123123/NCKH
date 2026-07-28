@@ -1,6 +1,5 @@
 import { Routes, Route, Link, useNavigate } from "react-router-dom";
-import { useState } from 'react';
-import { Button, Input, Dropdown, Space, message, Layout } from "antd";
+import { Button, Dropdown, Space, message, Layout } from "antd";
 import { DownOutlined, LogoutOutlined, SettingOutlined, UserOutlined } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import Home from "./pages/Home";
@@ -24,6 +23,7 @@ import CouncilList from "./pages/QuanTriHeThong/CouncilList";
 import CouncilDetail from "./pages/QuanTriHeThong/CouncilDetail";
 import DanhSachDeTai from "./pages/QuanTriHeThong/MonitoringCommittee";
 import ChiTietBaoCao from "./pages/QuanTriHeThong/ReportDetail";
+import LoaiTaiLieuList from "./pages/QuanTriHeThong/DocumentList";
 
 interface JwtPayload {
   TaiKhoan: string;
@@ -31,7 +31,7 @@ interface JwtPayload {
 }
 
 function App() {
-  const [search, setSearch] = useState("");
+  
   const token = localStorage.getItem("access_token") || sessionStorage.getItem("access_token");
   const user: JwtPayload | null = token ? jwtDecode(token) : null;
   const navigate = useNavigate();
@@ -81,13 +81,7 @@ function App() {
             />
           </Link>
 
-          <Input.Search
-            placeholder="Tìm kiếm đề tài..."
-            allowClear
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="header-search"
-          />
+          
         </div>
 
         <div className="user-nvarbar">
@@ -131,6 +125,7 @@ function App() {
             <Route path="admin/councils/:maHoiDong" element={<CouncilDetail />} />
             <Route path="hoi-dong-theo-doi" element={<DanhSachDeTai />} />
             <Route path="hoi-dong-theo-doi/:maDT" element={<ChiTietBaoCao />} />
+            <Route path="admin/document-types" element={<LoaiTaiLieuList />} />
           </Route>
         </Routes>
       </Layout>

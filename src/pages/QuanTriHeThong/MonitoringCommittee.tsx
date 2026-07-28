@@ -6,6 +6,7 @@ import type { DeTaiTheoDoi } from '../ThongTinDeTai/ProgressService';
 
 const mauTrangThai: Record<string, string> = {
   'Bắt đầu': 'processing',
+  'Đã phê duyệt': 'processing',
   'Đang thực hiện': 'processing',
   'Chờ nghiệm thu': 'gold',
   'Chờ thanh lý': 'error',
@@ -20,6 +21,7 @@ const mauTrangThai: Record<string, string> = {
 
 const nhanTrangThai: Record<string, string> = {
   'Bắt đầu': 'Bắt đầu',
+  'Đã phê duyệt': 'Bắt đầu',
   'Đang thực hiện': 'Đang thực hiện',
   'Chờ nghiệm thu': 'Chờ nghiệm thu',
   'Chờ thanh lý': 'Chờ thanh lý',

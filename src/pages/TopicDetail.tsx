@@ -818,7 +818,7 @@ const TopicDetail: React.FC = () => {
                                         >
                                             <div style={{ width: '100%' }}>
                                                 <strong>{comment.NguoiDung?.TenDayDu || comment.TaiKhoan}</strong>
-                                                <span style={{ color: '#8c8c8c' }}> · {comment.NguoiDung?.VaiTro || ''} · {new Date(comment.NgayTao).toLocaleString('vi-VN')}</span>
+                                                {comment.HoiDongs?.length ? <span style={{ color: '#1677ff' }}> · {comment.HoiDongs.join(', ')}</span> : <span style={{ color: '#8c8c8c' }}> · {comment.NguoiDung?.VaiTro || ''}</span>}
                                                 {isEditingComment ? (
                                                     <div style={{ marginTop: 8 }}>
                                                         <Input.TextArea value={editingCommentContent} onChange={(event) => setEditingCommentContent(event.target.value)} rows={3} />
@@ -828,6 +828,7 @@ const TopicDetail: React.FC = () => {
                                                         </Space>
                                                     </div>
                                                 ) : <p style={{ margin: '8px 0 0' }}>{comment.NoiDung}</p>}
+                                                <div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 6 }}>{new Date(comment.NgayTao).toLocaleString('vi-VN')}</div>
                                             </div>
                                         </List.Item>
                                     );

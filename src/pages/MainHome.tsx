@@ -4,6 +4,7 @@ import { UserOutlined, EditOutlined, BellOutlined, ProfileOutlined, FileOutlined
 import { useState, useEffect } from "react";
 import { jwtDecode } from 'jwt-decode';
 import { getNotifications } from "./ThongTinDeTai/NotificationService";
+import { getCouncilMembership } from './ThongTinDeTai/ProgressService';
 import "../style/content.css";
 
 const { Content } = Layout;
@@ -15,6 +16,7 @@ interface JwtPayload {
 
 const MainHome: React.FC = () => {
   const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [isCouncilMember, setIsCouncilMember] = useState(false);
 
   const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
   const user: JwtPayload | null = token ? jwtDecode<JwtPayload>(token) : null;
@@ -28,9 +30,13 @@ const MainHome: React.FC = () => {
     .replace(/\s/g, '');
   const isCommitteeRole = normalizedRole.includes('hoidong');
   const isAdmin = normalizedRole === 'admin' || normalizedRole === 'quantri';
+  const canAccessCouncil = isAdmin || isCommitteeRole || isCouncilMember;
 
   if (user?.DaHoanThienHoSo === false && location.pathname !== '/mainhome/profile') {
     return <Navigate to="/mainhome/profile" replace />;
+  }
+  if (canAccessCouncil && location.pathname === '/mainhome') {
+    return <Navigate to="/mainhome/approvedtopics" replace />;
   }
 
   const fetchUnreadCount = async () => {
@@ -57,13 +63,20 @@ const MainHome: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (!token || isAdmin) return;
+    getCouncilMembership()
+      .then((data) => setIsCouncilMember(data.isCouncilMember))
+      .catch(() => setIsCouncilMember(false));
+  }, [token, isAdmin]);
+
   return (
     <>
       <Content style={{ marginTop: 60 }}>
         <Row gutter={16}>
           <Col xs={24} md={4}>
             <ul className="item-sider">
-              {!isAdmin && (
+              {!isAdmin && !canAccessCouncil && (
                 <>
                   <li>
                     <NavLink to="/mainhome" className="li-link">
@@ -71,14 +84,12 @@ const MainHome: React.FC = () => {
                       <span>Đề tài của tôi</span>
                     </NavLink>
                   </li>
-                  {!isCommitteeRole && (
-                    <li>
-                      <NavLink to="/mainhome/registertopic" className="li-link">
-                        <EditOutlined style={{ fontSize: 18, marginRight: 5 }} />
-                        <span>Đăng ký đề tài</span>
-                      </NavLink>
-                    </li>
-                  )}
+                  <li>
+                    <NavLink to="/mainhome/registertopic" className="li-link">
+                      <EditOutlined style={{ fontSize: 18, marginRight: 5 }} />
+                      <span>Đăng ký đề tài</span>
+                    </NavLink>
+                  </li>
                 </>
               )}
               <li>
@@ -104,17 +115,6 @@ const MainHome: React.FC = () => {
                   </div>
                 </NavLink>
               </li>
-              {isCommitteeRole && (
-                <li>
-                  <NavLink
-                    to="/mainhome/approvedtopics"
-                    className="li-link"
-                  >
-                    <FileOutlined style={{ fontSize: 18, marginRight: 5 }} />
-                    <span>Đề tài đã phê duyệt</span>
-                  </NavLink>
-                </li>
-              )}
               {isAdmin && (
                 <>
                   <li>
@@ -131,7 +131,7 @@ const MainHome: React.FC = () => {
                   </li>
                 </>
               )}
-              {!isAdmin && !isCommitteeRole && (
+              {!isAdmin && !canAccessCouncil && (
                 <li>
                   <NavLink to="/mainhome/progress-demo" className="li-link">
                     <BarChartOutlined style={{ fontSize: 18, marginRight: 5 }} />
@@ -139,11 +139,11 @@ const MainHome: React.FC = () => {
                   </NavLink>
                 </li>
               )}
-              {(isCommitteeRole|| isAdmin) &&(
+              {canAccessCouncil && (
                 <li>
-                  <NavLink to="/mainhome/hoi-dong-theo-doi" className="li-link">
-                    <BarChartOutlined style={{ fontSize: 18, marginRight: 5 }} />
-                    <span>Theo dõi tiến độ đề tài</span>
+                  <NavLink to="/mainhome/approvedtopics" className="li-link">
+                    <FileOutlined style={{ fontSize: 18, marginRight: 5 }} />
+                    <span>Đề tài hội đồng</span>
                   </NavLink>
                 </li>
               )}

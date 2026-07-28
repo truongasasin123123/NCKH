@@ -1,113 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { Table, Tag, Button, message, Spin } from 'antd';
-import { EyeOutlined } from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
-import { getPendingTopics } from './ThongTinDeTai/TopicService';
-import type { TopicLoad } from './ThongTinDeTai/TopicService';
+import { useEffect, useState } from 'react';
+import { Button, Space, Spin, Table, Tag, message } from 'antd';
+import { EyeOutlined, FileTextOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { getDeTaiTheoHoiDong } from './ThongTinDeTai/ProgressService';
+import type { DeTaiTheoDoi } from './ThongTinDeTai/ProgressService';
 
-const ApprovedTopics: React.FC = () => {
-    const [topics, setTopics] = useState<TopicLoad[]>([]);
-    const [loading, setLoading] = useState(true);
-    const navigate = useNavigate();
-
-    useEffect(() => {
-        fetchTopics();
-    }, []);
-
-    const fetchTopics = async () => {
-        try {
-            var sate = "Đã phê duyệt";
-            setLoading(true);
-            const data = await getPendingTopics(sate);
-            setTopics(data);
-        } catch (error) {
-            message.error('Lỗi khi tải dữ liệu đề tài đã xét duyệt');
-            console.error(error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const getApprovalSender = (record: TopicLoad) => {
-        return record.ThanhVienDT?.[0]?.TaiKhoan || 'Không rõ';
-    };
-
-    const getApprovalDate = (record: TopicLoad) => {
-        const extra = record as any;
-        const dateValue = extra.NgayXetDuyet;
-        if (!dateValue) return '-';
-        const dateObj = typeof dateValue === 'string' ? new Date(dateValue) : dateValue;
-        return isNaN(dateObj.getTime()) ? String(dateValue) : dateObj.toLocaleDateString('vi-VN');
-    };
-
-    const columns: ColumnsType<TopicLoad> = [
-        {
-            title: 'STT',
-            width: 50,
-            render: (_, __, index) => index + 1,
-        },
-        {
-            title: 'Tên đề tài',
-            dataIndex: 'TenDT',
-            key: 'TenDT',
-            ellipsis: true,
-            width: 250,
-        },
-        {
-            title: 'Phân loại',
-            dataIndex: 'PhanLoai',
-            key: 'PhanLoai',
-            width: 150,
-        },
-        {
-            title: 'Người gửi',
-            key: 'NguoiGui',
-            width: 180,
-            render: (_, record) => getApprovalSender(record),
-        },
-        {
-            title: 'Ngày duyệt',
-            key: 'NgayDuyet',
-            width: 150,
-            render: (_, record) => getApprovalDate(record), // Giả sử dùng ngày gửi làm ngày duyệt
-        },
-        {
-            title: 'Trạng thái',
-            key: 'TrangThai',
-            width: 120,
-            render: () => <Tag color="green">Đã xét duyệt</Tag>,
-        },
-        {
-            title: 'Thao tác',
-            key: 'action',
-            width: 120,
-            render: (_, record: TopicLoad) => (
-                <Button
-                    type="primary"
-                    size="small"
-                    icon={<EyeOutlined />}
-                    title="Xem đề tài"
-                    onClick={() => navigate(`/mainhome/topic/${record.MaDT}`)}
-                />
-            ),
-        },
-    ];
-
-    return (
-        <div style={{ padding: 20 }}>
-            <h2>Đề tài đã xét duyệt</h2>
-            <Spin spinning={loading}>
-                <Table
-                    columns={columns}
-                    dataSource={topics}
-                    rowKey="MaDT"
-                    pagination={{ pageSize: 10 }}
-                    scroll={{ x: 800 }}
-                />
-            </Spin>
-        </div>
-    );
-};
-
-export default ApprovedTopics;
+export default function ApprovedTopics() {
+  const [topics, setTopics] = useState<DeTaiTheoDoi[]>([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  useEffect(() => { (async () => { try { setTopics(await getDeTaiTheoHoiDong()); } catch { message.error('Không tải được đề tài được phân công'); } finally { setLoading(false); } })(); }, []);
+  return <div style={{ padding: 20 }}><h2>Đề tài được phân công cho hội đồng</h2><Spin spinning={loading}><Table rowKey="MaDT" dataSource={topics} columns={[
+    { title: 'Mã đề tài', dataIndex: 'MaDT', width: 120 }, { title: 'Tên đề tài', dataIndex: 'TenDT' }, { title: 'Hội đồng', dataIndex: 'TenHoiDong', width: 220 },
+    { title: 'Nghiệp vụ', dataIndex: 'NghiepVuHoiDong', width: 130, render: (value: string) => <Tag>{value}</Tag> }, { title: 'Chủ nhiệm', dataIndex: 'ChuNhiem', width: 150 },
+    { title: 'Thành viên hội đồng', width: 240, render: (_: unknown, row: DeTaiTheoDoi) => row.ThanhVienHoiDong?.map((member) => `${member.TenDayDu} (${member.ChucDanh})`).join(', ') || '—' },
+    { title: 'Thao tác', width: 220, render: (_: unknown, row: DeTaiTheoDoi) => <Space size={8} wrap={false}>
+      <Button type="primary" size="small" icon={<EyeOutlined />} onClick={() => navigate(`/mainhome/topic-committee/${row.MaDT}`)}>Chi tiết</Button>
+      {row.NghiepVuHoiDong === 'monitoring' && <Button size="small" icon={<FileTextOutlined />} onClick={() => navigate(`/mainhome/hoi-dong-theo-doi/${row.MaDT}`)}>Báo cáo</Button>}
+    </Space> },
+  ]} /></Spin></div>;
+}

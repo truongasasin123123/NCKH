@@ -220,7 +220,7 @@ const TopicDetailCommittee: React.FC = () => {
                             <Button
                                 type="text"
                                 icon={<ArrowLeftOutlined />}
-                                onClick={() => navigate(topic.TrangThai === 'Đã phê duyệt' ? '/mainhome/approvedtopics' : '/mainhome')}
+                                onClick={() => navigate('/mainhome/approvedtopics')}
                                 style={{ marginBottom: 16 }}
                             >
                                 Quay lại
@@ -346,14 +346,12 @@ const TopicDetailCommittee: React.FC = () => {
                         </div>
 
                         <Card title="Nhận xét" style={{ marginTop: 16 }}>
-                            {topic.TrangThai === 'Chờ phê duyệt' && (
-                                <Form layout="vertical" onFinish={handleCommentSubmit}>
-                                    <Form.Item label="Ý kiến của hội đồng">
-                                        <Input.TextArea rows={4} value={commentText} onChange={(e) => setCommentText(e.target.value)} placeholder="Nhập nhận xét về đề tài..." />
-                                    </Form.Item>
-                                    <Form.Item><Button type="primary" htmlType="submit">Thêm nhận xét</Button></Form.Item>
-                                </Form>
-                            )}
+                            <Form layout="vertical" onFinish={handleCommentSubmit}>
+                                <Form.Item label="Ý kiến của hội đồng">
+                                    <Input.TextArea rows={4} value={commentText} onChange={(e) => setCommentText(e.target.value)} placeholder="Nhập nhận xét về đề tài..." />
+                                </Form.Item>
+                                <Form.Item><Button type="primary" htmlType="submit">Thêm nhận xét</Button></Form.Item>
+                            </Form>
                             <List
                                 locale={{ emptyText: 'Chưa có nhận xét' }}
                                 dataSource={projectComments}
@@ -377,13 +375,14 @@ const TopicDetailCommittee: React.FC = () => {
                                         ] : undefined}>
                                             <div style={{ width: '100%' }}>
                                                 <strong>{comment.NguoiDung?.TenDayDu || comment.TaiKhoan}</strong>
-                                                <span style={{ color: '#8c8c8c' }}> · {comment.NguoiDung?.VaiTro || ''} · {new Date(comment.NgayTao).toLocaleString('vi-VN')}</span>
+                                                {comment.HoiDongs?.length ? <span style={{ color: '#1677ff' }}> · {comment.HoiDongs.join(', ')}</span> : <span style={{ color: '#8c8c8c' }}> · {comment.NguoiDung?.VaiTro || ''}</span>}
                                                 {isEditingComment ? (
                                                     <div style={{ marginTop: 8 }}>
                                                         <Input.TextArea rows={3} value={editingCommentContent} onChange={(event) => setEditingCommentContent(event.target.value)} />
                                                         <Space style={{ marginTop: 8 }}><Button type="primary" size="small" onClick={() => handleUpdateComment(comment.Id)}>Lưu</Button><Button size="small" onClick={() => setEditingCommentId(null)}>Hủy</Button></Space>
                                                     </div>
                                                 ) : <p style={{ margin: '8px 0 0' }}>{comment.NoiDung}</p>}
+                                                <div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 6 }}>{new Date(comment.NgayTao).toLocaleString('vi-VN')}</div>
                                             </div>
                                         </List.Item>
                                     );

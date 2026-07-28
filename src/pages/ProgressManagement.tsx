@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Layout, Card, Timeline, Table, Button, Modal, Form, Input, DatePicker, InputNumber, Upload, message, Badge, Space, Tabs, Divider, Select, Row, Col, Tag, Collapse } from 'antd';
 import { CheckOutlined, PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined, EyeOutlined, ClockCircleOutlined, CheckCircleOutlined, ExclamationCircleOutlined, CloseCircleOutlined, DownloadOutlined, SendOutlined } from '@ant-design/icons';
-import { useParams, useNavigate } from 'react-router-dom';
-import { getMemberByTopic, getMyTopics, getPendingTopics } from './ThongTinDeTai/TopicService';
+import { useParams, useNavigate, Navigate } from 'react-router-dom';
+import { getMemberByTopic, getMyTopics } from './ThongTinDeTai/TopicService';
 import type { ThanhVienDT, TopicLoad } from './ThongTinDeTai/TopicService';
-import { downloadDocument, getDocumentsByMilestone, submitMilestone, uploadDocument } from './ThongTinDeTai/DocumentsService';
+import { deleteDocument, downloadDocument, getDocumentsByMilestone, submitMilestone, uploadDocument } from './ThongTinDeTai/DocumentsService';
 import type { TaiLieu } from './ThongTinDeTai/DocumentsService';
 import { jwtDecode } from 'jwt-decode';
 import dayjs from 'dayjs';
 import {
   getTopicProgress, createMocTienDo, updateMocTienDo, deleteMocTienDo, getMemberById,
-  getBaoCaoTheoDeTai, guiBaoCaoTienDo, taoBaoCaoTienDo,
+  capNhatBaoCaoTienDo, getBaoCaoTheoDeTai, guiBaoCaoTienDo, taoBaoCaoTienDo, xoaBaoCaoTienDo, getDeTaiDuocGan,
 } from './ThongTinDeTai/ProgressService';
-import type { MocTienDo, CapNhatTienDo, ThanhVienMocDT, BaoCaoTienDo } from './ThongTinDeTai/ProgressService';
+import type { MocTienDo, CapNhatTienDo, ThanhVienMocDT, BaoCaoTienDo, LoaiBaoCao } from './ThongTinDeTai/ProgressService';
 
 const { Content } = Layout;
 const { TabPane } = Tabs;
@@ -57,7 +57,9 @@ const ProgressManagement: React.FC = () => {
   const [isBaoCaoModalVisible, setIsBaoCaoModalVisible] = useState(false);
   const [baoCaoForm] = Form.useForm();
   const [submittingBaoCao, setSubmittingBaoCao] = useState(false);
-  const [baoCaoFile, setBaoCaoFile] = useState<File | null>(null);
+  const [baoCaoFiles, setBaoCaoFiles] = useState<File[]>([]);
+  const [editingBaoCao, setEditingBaoCao] = useState<BaoCaoTienDo | null>(null);
+  const [loaiBaoCao, setLoaiBaoCao] = useState<LoaiBaoCao>('Theo mốc');
 
   const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
   const user: JwtPayload | null = token ? jwtDecode<JwtPayload>(token) : null;
@@ -110,33 +112,35 @@ const ProgressManagement: React.FC = () => {
     }
   }, [activeTab, maDTToUse]);
 
-  const handleGuiBaoCao = async (values: any) => {
+  const resetBaoCaoModal = () => {
+    baoCaoForm.resetFields();
+    setBaoCaoFiles([]);
+    setEditingBaoCao(null);
+    setLoaiBaoCao('Theo mốc');
+  };
+
+  const handleLuuBaoCao = async (values: any) => {
     if (!maDTToUse) return;
-    if (!baoCaoFile) {
-      message.error('Cần đính kèm ít nhất một tài liệu minh chứng');
-      return;
-    }
     try {
       setSubmittingBaoCao(true);
-      const report = await taoBaoCaoTienDo(maDTToUse, {
-        MaMoc: values.MaMoc,
-        NoiDungBaoCao: values.NoiDungBaoCao,
-        TienDoBaoCao: values.TienDoBaoCao,
-        KhoKhan: values.KhoKhan,
-        DeXuat: values.DeXuat,
-      });
-      await uploadDocument({
-        file: baoCaoFile,
-        maDT: maDTToUse,
-        maBaoCaoTienDo: report.Id,
-        loaiTaiLieu: 'Minh chứng báo cáo tiến độ',
-      });
-      await guiBaoCaoTienDo(report.Id);
-      message.success('Đã gửi báo cáo tiến độ');
-      baoCaoForm.resetFields();
-      setBaoCaoFile(null);
+      const report = editingBaoCao
+        ? await capNhatBaoCaoTienDo(editingBaoCao.Id, values)
+        : await taoBaoCaoTienDo(maDTToUse, {
+            LoaiBaoCao: values.LoaiBaoCao,
+            MaMoc: values.LoaiBaoCao === 'Theo mốc' ? values.MaMoc : undefined,
+            KyBaoCao: values.LoaiBaoCao === 'Theo mốc' ? undefined : values.KyBaoCao,
+            NoiDungBaoCao: values.NoiDungBaoCao,
+            TienDoBaoCao: values.TienDoBaoCao,
+            KhoKhan: values.KhoKhan,
+            DeXuat: values.DeXuat,
+          });
+      await Promise.all(baoCaoFiles.map((file) => uploadDocument({
+        file, maDT: maDTToUse, maBaoCaoTienDo: report.Id, loaiTaiLieu: 'Minh chứng báo cáo tiến độ',
+      })));
+      message.success(editingBaoCao ? 'Đã cập nhật báo cáo nháp' : 'Đã tạo báo cáo ở trạng thái Nháp');
+      resetBaoCaoModal();
       setIsBaoCaoModalVisible(false);
-      fetchBaoCao();
+      await fetchBaoCao();
     } catch (error: any) {
       message.error(error.response?.data?.message || 'Gửi báo cáo thất bại');
     } finally {
@@ -144,7 +148,48 @@ const ProgressManagement: React.FC = () => {
     }
   };
 
-  const handleChonMocBaoCao = () => undefined;
+  const handleSubmitExistingReport = async (reportId: number) => {
+    try {
+      setSubmittingBaoCao(true);
+      await guiBaoCaoTienDo(reportId);
+      message.success('Đã gửi báo cáo tiến độ');
+      await fetchBaoCao();
+    } catch (error: any) {
+      message.error(error.response?.data?.message || 'Không thể gửi báo cáo');
+    } finally {
+      setSubmittingBaoCao(false);
+    }
+  };
+
+  const handleOpenCreateBaoCao = () => {
+    resetBaoCaoModal();
+    baoCaoForm.setFieldValue('LoaiBaoCao', 'Theo mốc');
+    setIsBaoCaoModalVisible(true);
+  };
+
+  const handleEditBaoCao = (report: BaoCaoTienDo) => {
+    setEditingBaoCao(report);
+    setLoaiBaoCao(report.LoaiBaoCao);
+    setBaoCaoFiles([]);
+    baoCaoForm.setFieldsValue({
+      LoaiBaoCao: report.LoaiBaoCao, MaMoc: report.MaMoc, KyBaoCao: report.KyBaoCao,
+      NoiDungBaoCao: report.NoiDungBaoCao, TienDoBaoCao: report.TienDoBaoCao,
+      KhoKhan: report.KhoKhan, DeXuat: report.DeXuat,
+    });
+    setIsBaoCaoModalVisible(true);
+  };
+
+  const handleDeleteBaoCao = (report: BaoCaoTienDo) => {
+    Modal.confirm({
+      title: 'Xóa báo cáo?', content: 'Báo cáo nháp và toàn bộ tài liệu minh chứng sẽ bị xóa.', okText: 'Xóa', okButtonProps: { danger: true },
+      onOk: async () => { await xoaBaoCaoTienDo(report.Id); message.success('Đã xóa báo cáo'); await fetchBaoCao(); },
+    });
+  };
+
+  const handleDeleteBaoCaoDocument = async (documentId: number) => {
+    try { await deleteDocument(documentId); message.success('Đã xóa tài liệu'); await fetchBaoCao(); }
+    catch (error: any) { message.error(error.response?.data?.message || 'Không thể xóa tài liệu'); }
+  };
 
   useEffect(() => {
     if (maDTToUse) {
@@ -186,10 +231,23 @@ const ProgressManagement: React.FC = () => {
   const fetchTopicList = async () => {
     setTopicLoading(true);
     try {
-      const data = isCommitteeRole
-        ? await getPendingTopics('Đã phê duyệt')
-        : await getMyTopics();
-      setTopics(data || []);
+      if (isCommitteeRole) {
+        const assigned = await getDeTaiDuocGan();
+        setTopics(assigned.map((topic) => ({
+          MaDT: topic.MaDT,
+          TenDT: topic.TenDT,
+          PhanLoai: '',
+          TrangThai: topic.TrangThai,
+          NgayBatDau: new Date(),
+          NgayKetThuc: new Date(),
+          NgayTao: new Date(),
+          MoTa: '',
+          TongKinhPhi: 0,
+          ThanhVienDT: [],
+        })));
+      } else {
+        setTopics(await getMyTopics());
+      }
     } catch (error) {
       message.error('Lỗi khi tải danh sách đề tài');
     } finally {
@@ -222,6 +280,9 @@ const ProgressManagement: React.FC = () => {
       .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase()
       .trim();
+  if (isCommitteeRole) {
+    return <Navigate to="/mainhome/hoi-dong-theo-doi" replace />;
+  }
   const currentMember = members.find(
     (member) => member.TaiKhoan === user?.TaiKhoan,
   );
@@ -733,10 +794,10 @@ const ProgressManagement: React.FC = () => {
               <Button
                 type="primary"
                 icon={<SendOutlined />}
-                onClick={() => setIsBaoCaoModalVisible(true)}
+                onClick={handleOpenCreateBaoCao}
                 style={{ marginBottom: 16 }}
               >
-                Gửi báo cáo tiến độ
+                Tạo báo cáo tiến độ
               </Button>
             )}
 
@@ -746,6 +807,7 @@ const ProgressManagement: React.FC = () => {
                 label: (
                   <Space size="middle">
                     <span style={{ fontWeight: 500 }}>{bc.KyBaoCao}</span>
+                    <Tag color={bc.LoaiBaoCao === 'Theo mốc' ? 'blue' : 'purple'}>{bc.LoaiBaoCao}</Tag>
                     <span>{bc.TienDoBaoCao}%</span>
                     <span style={{ color: '#888' }}>{dayjs(bc.NgayGui).format('DD/MM/YYYY')}</span>
                     <Tag color={
@@ -764,6 +826,42 @@ const ProgressManagement: React.FC = () => {
                     <p><strong>Đề xuất:</strong> {bc.DeXuat || '—'}</p>
                     {bc.NhanXetHoiDong && (
                       <p><strong>Nhận xét hội đồng:</strong> {bc.NhanXetHoiDong}</p>
+                    )}
+                    {bc.PhanHoi?.length ? (
+                      <div style={{ marginBottom: 12 }}>
+                        <strong>Lịch sử phản hồi:</strong>
+                        {bc.PhanHoi.map((feedback) => (
+                          <div key={feedback.Id} style={{ marginTop: 6, padding: '8px 10px', background: '#fafafa', borderRadius: 4 }}>
+                            <Tag color={feedback.KetQua === 'Đạt' ? 'success' : feedback.KetQua === 'Không đạt' ? 'error' : 'warning'}>{feedback.KetQua}</Tag>
+                            {feedback.NhanXet} <span style={{ color: '#888' }}>— {dayjs(feedback.NgayPhanHoi).format('DD/MM/YYYY HH:mm')}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                    <div style={{ marginTop: 16, marginBottom: 12 }}>
+                      <strong>Minh chứng</strong>
+                      <div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 2 }}>Tài liệu đính kèm của hồ sơ báo cáo</div>
+                    </div>
+                    {bc.TaiLieu?.length ? (
+                      <Space direction="vertical" size={8} style={{ width: '100%', marginBottom: 16 }}>
+                        {bc.TaiLieu.map((document) => (
+                          <div key={document.MaTL} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '8px 10px', background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 6 }}>
+                            <Button type="link" size="small" icon={<DownloadOutlined />} style={{ padding: 0, height: 'auto', textAlign: 'left', whiteSpace: 'normal' }} onClick={() => downloadDocument(document.MaTL, document.TenFile)}>{document.TenFile}</Button>
+                            {['Nháp', 'Yêu cầu bổ sung'].includes(bc.TrangThai) && <Button danger size="small" type="text" onClick={() => handleDeleteBaoCaoDocument(document.MaTL)}>Xóa</Button>}
+                          </div>
+                        ))}
+                      </Space>
+                    ) : <p>Chưa có tài liệu minh chứng.</p>}
+                    {['Nháp', 'Yêu cầu bổ sung'].includes(bc.TrangThai) && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, paddingTop: 14, borderTop: '1px solid #f0f0f0' }}>
+                        <Space wrap>
+                          <Button onClick={() => handleEditBaoCao(bc)}>Chỉnh sửa</Button>
+                          {bc.TrangThai === 'Nháp' && <Button danger type="text" onClick={() => handleDeleteBaoCao(bc)}>Xóa báo cáo</Button>}
+                        </Space>
+                        <Button type="primary" icon={<SendOutlined />} loading={submittingBaoCao} onClick={() => handleSubmitExistingReport(bc.Id)}>
+                          {bc.TrangThai === 'Yêu cầu bổ sung' ? 'Gửi lại báo cáo' : 'Gửi báo cáo'}
+                        </Button>
+                      </div>
                     )}
                   </div>
                 ),
@@ -1119,25 +1217,35 @@ const ProgressManagement: React.FC = () => {
       </Modal>
 
       <Modal
-        title="Gửi báo cáo tiến độ"
+        title={editingBaoCao ? 'Cập nhật báo cáo tiến độ' : 'Tạo báo cáo tiến độ'}
         open={isBaoCaoModalVisible}
         onCancel={() => {
           setIsBaoCaoModalVisible(false);
-          setBaoCaoFile(null);
+          resetBaoCaoModal();
         }}
         footer={null}
       >
-        <Form form={baoCaoForm} layout="vertical" onFinish={handleGuiBaoCao}>
-          <Form.Item name="MaMoc" label="Mốc tiến độ" rules={[{ required: true, message: 'Chọn mốc tiến độ' }]}>
+        <Form form={baoCaoForm} layout="vertical" onFinish={handleLuuBaoCao} initialValues={{ LoaiBaoCao: 'Theo mốc' }}>
+          <Form.Item name="LoaiBaoCao" label="Loại báo cáo" rules={[{ required: true }]}>
             <Select
-              placeholder="Chọn mốc tiến độ..."
-              onChange={handleChonMocBaoCao}
-              options={(progressData?.MocTienDo || []).map((moc: MocTienDo) => ({
-                value: moc.MaMoc,
-                label: `${moc.ThuTu}. ${moc.TenMoc} (${moc.TrangThai})`,
-              }))}
+              disabled={!!editingBaoCao}
+              options={['Theo mốc', 'Định kỳ', 'Đột xuất'].map((value) => ({ value, label: value }))}
+              onChange={(value: LoaiBaoCao) => { setLoaiBaoCao(value); baoCaoForm.setFieldsValue({ MaMoc: undefined, KyBaoCao: undefined }); }}
             />
           </Form.Item>
+          {loaiBaoCao === 'Theo mốc' ? (
+            <Form.Item name="MaMoc" label="Mốc tiến độ" rules={[{ required: true, message: 'Chọn mốc tiến độ' }]}>
+              <Select
+                placeholder="Chọn mốc tiến độ..."
+                disabled={!!editingBaoCao}
+                options={(progressData?.MocTienDo || []).filter((moc: MocTienDo) => editingBaoCao?.MaMoc === moc.MaMoc || !baoCaoList.some((report) => report.MaMoc === moc.MaMoc)).map((moc: MocTienDo) => ({ value: moc.MaMoc, label: `${moc.ThuTu}. ${moc.TenMoc} (${moc.TrangThai})` }))}
+              />
+            </Form.Item>
+          ) : (
+            <Form.Item name="KyBaoCao" label="Kỳ / tiêu đề báo cáo" rules={[{ required: true, whitespace: true, message: 'Nhập kỳ hoặc tiêu đề báo cáo' }]}>
+              <Input placeholder={loaiBaoCao === 'Định kỳ' ? 'Ví dụ: Báo cáo tháng 08/2026' : 'Ví dụ: Báo cáo sự cố thiết bị'} />
+            </Form.Item>
+          )}
           <Form.Item name="TienDoBaoCao" label="Tiến độ hiện tại (%)" rules={[{ required: true, message: 'Nhập tiến độ' }]}>
             <InputNumber min={0} max={100} style={{ width: '100%' }} />
           </Form.Item>
@@ -1150,20 +1258,20 @@ const ProgressManagement: React.FC = () => {
           <Form.Item name="DeXuat" label="Đề xuất">
             <TextArea rows={2} />
           </Form.Item>
-          <Form.Item label="Tài liệu minh chứng" required>
+          <Form.Item label="Tài liệu minh chứng">
             <Upload
               beforeUpload={(file) => {
-                setBaoCaoFile(file);
+                setBaoCaoFiles((files) => files.some((item) => item.name === file.name && item.size === file.size) ? files : [...files, file]);
                 return false;
               }}
-              maxCount={1}
-              onRemove={() => setBaoCaoFile(null)}
+              multiple
+              onRemove={(file) => setBaoCaoFiles((files) => files.filter((item) => item.name !== file.name || item.size !== file.size))}
             >
               <Button icon={<UploadOutlined />}>Chọn file</Button>
             </Upload>
-            {baoCaoFile && (
+            {baoCaoFiles.length > 0 && (
               <div style={{ marginTop: 8, fontSize: 12 }}>
-                <strong>Đã chọn:</strong> {baoCaoFile.name}
+                <strong>Đã chọn:</strong> {baoCaoFiles.map((file) => file.name).join(', ')}
               </div>
             )}
           </Form.Item>
@@ -1172,13 +1280,13 @@ const ProgressManagement: React.FC = () => {
             <Button
               onClick={() => {
                 setIsBaoCaoModalVisible(false);
-                setBaoCaoFile(null);
+                resetBaoCaoModal();
               }}
               style={{ marginRight: 8 }}
             >
               Hủy
             </Button>
-            <Button type="primary" htmlType="submit" loading={submittingBaoCao}>Gửi</Button>
+            <Button type="primary" htmlType="submit" loading={submittingBaoCao}>Lưu nháp</Button>
           </Form.Item>
         </Form>
       </Modal>

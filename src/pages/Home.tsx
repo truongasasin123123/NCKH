@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout, Button, Typography, Space, Row, Col } from 'antd';
 import { ArrowRightOutlined } from '@ant-design/icons';
+import { getCouncilMembership } from './ThongTinDeTai/ProgressService';
 
 const { Content } = Layout;
 const { Title, Paragraph } = Typography;
@@ -26,6 +27,15 @@ const features = [
 
 const HomePage: React.FC = () => {
     const navigate = useNavigate();
+    const [isCouncilMember, setIsCouncilMember] = useState(false);
+
+    useEffect(() => {
+        const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
+        if (!token) return;
+        getCouncilMembership()
+            .then((data) => setIsCouncilMember(data.isCouncilMember))
+            .catch(() => setIsCouncilMember(false));
+    }, []);
 
     return (
         <Layout style={{ background: '#f7f9f7', minHeight: '100vh' }}>
@@ -103,7 +113,7 @@ const HomePage: React.FC = () => {
                                 <Button
                                     type="primary"
                                     size="large"
-                                    onClick={() => navigate('/mainhome')}
+                                    onClick={() => navigate(isCouncilMember ? '/mainhome/approvedtopics' : '/mainhome')}
                                     icon={<ArrowRightOutlined />}
                                     style={{
                                         background: '#fff',
@@ -114,7 +124,7 @@ const HomePage: React.FC = () => {
                                         paddingInline: 28,
                                     }}
                                 >
-                                    Xem đề tài của tôi
+                                    {isCouncilMember ? 'Xem đề tài hội đồng' : 'Xem đề tài của tôi'}
                                 </Button>
                                 <Button
                                     size="large"

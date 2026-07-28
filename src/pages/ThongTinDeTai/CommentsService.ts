@@ -12,6 +12,7 @@ export interface ProjectComment {
     TenDayDu?: string;
     VaiTro?: string;
   };
+  HoiDongs?: string[];
 }
 
 export const getProjectComments = async (maDT: string): Promise<ProjectComment[]> => {

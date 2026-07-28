@@ -10,14 +10,31 @@ export interface TopicProgress { MaDT: string; TenDT: string; PhanTramTongThe: n
 export interface ThanhVienMocDT { Id: number; thanhVien: { idTV: number; VaiTroDT: string; NguoiDung: { TaiKhoan: string; TenDayDu: string; VaiTro: string } } }
 
 export type TrangThaiBaoCao = 'Nháp' | 'Đã gửi' | 'Yêu cầu bổ sung' | 'Đạt' | 'Không đạt';
+export type LoaiBaoCao = 'Theo mốc' | 'Định kỳ' | 'Đột xuất';
 export interface BaoCaoTienDo {
-  Id: number; MaDT: string; MaMoc: number; KyBaoCao: string; NoiDungBaoCao: string;
+  Id: number; MaDT: string; MaMoc?: number; LoaiBaoCao: LoaiBaoCao; KyBaoCao: string; NoiDungBaoCao: string;
   TienDoBaoCao?: number; KhoKhan?: string; DeXuat?: string; TaiKhoanNguoiGui: string;
   TrangThai: TrangThaiBaoCao; NhanXetHoiDong?: string; NgayGui?: string;
-  MocDeTai?: MocTienDo; TaiLieu?: Array<{ MaTL: number; TenFile: string }>;
+  MocDeTai?: MocTienDo;
+  TaiLieu?: Array<{ MaTL: number; TenFile: string }>;
+  PhanHoi?: Array<{ Id: number; KetQua: TrangThaiBaoCao; NhanXet: string; NgayPhanHoi: string; NguoiHoiDong?: { TenDayDu?: string; TaiKhoan?: string } }>;
 }
-export interface TaoBaoCaoDto { MaMoc: number; NoiDungBaoCao: string; TienDoBaoCao?: number; KhoKhan?: string; DeXuat?: string }
-export interface DeTaiTheoDoi { MaDT: string; TenDT: string; ChuNhiem: string; Khoa: string; TienDo: number; TrangThai: string }
+export interface TaoBaoCaoDto {
+  LoaiBaoCao: LoaiBaoCao;
+  MaMoc?: number;
+  KyBaoCao?: string;
+  NoiDungBaoCao: string;
+  TienDoBaoCao?: number;
+  KhoKhan?: string;
+  DeXuat?: string;
+}
+export interface CapNhatBaoCaoDto {
+  NoiDungBaoCao?: string;
+  TienDoBaoCao?: number;
+  KhoKhan?: string;
+  DeXuat?: string;
+}
+export interface DeTaiTheoDoi { MaDT: string; TenDT: string; ChuNhiem: string; Khoa: string; TienDo: number; TrangThai: string; TenHoiDong?: string; NghiepVuHoiDong?: string; ThanhVienHoiDong?: Array<{ TaiKhoan: string; TenDayDu: string; ChucDanh: string }> }
 
 export const getMocTienDoByTopic = async (maDT: string): Promise<MocTienDo[]> =>
   (await ApiAxios.get('/progress/getprogress', { params: { MaDT: maDT } })).data;
@@ -34,9 +51,18 @@ export const getBaoCaoTheoDeTai = async (maDT: string): Promise<BaoCaoTienDo[]> 
   (await ApiAxios.get(`/progress-reports/project/${maDT}`)).data;
 export const taoBaoCaoTienDo = async (maDT: string, dto: TaoBaoCaoDto): Promise<BaoCaoTienDo> =>
   (await ApiAxios.post(`/progress-reports/project/${maDT}`, dto)).data;
+export const capNhatBaoCaoTienDo = async (id: number, dto: CapNhatBaoCaoDto): Promise<BaoCaoTienDo> =>
+  (await ApiAxios.patch(`/progress-reports/${id}`, dto)).data;
+export const xoaBaoCaoTienDo = async (id: number) => {
+  await ApiAxios.delete(`/progress-reports/${id}`);
+};
 export const guiBaoCaoTienDo = async (id: number): Promise<BaoCaoTienDo> =>
   (await ApiAxios.post(`/progress-reports/${id}/submit`)).data;
 export const nhanXetBaoCao = async (id: number, decision: 'accepted' | 'supplement' | 'rejected', note: string) =>
   (await ApiAxios.post(`/progress-reports/${id}/review`, { decision, note })).data;
 export const getDeTaiDuocGan = async (): Promise<DeTaiTheoDoi[]> =>
   (await ApiAxios.get('/progress-reports/monitoring/projects')).data;
+export const getDeTaiTheoHoiDong = async (): Promise<DeTaiTheoDoi[]> =>
+  (await ApiAxios.get('/progress-reports/council/projects')).data;
+export const getCouncilMembership = async (): Promise<{ isCouncilMember: boolean }> =>
+  (await ApiAxios.get('/progress-reports/council/me')).data;

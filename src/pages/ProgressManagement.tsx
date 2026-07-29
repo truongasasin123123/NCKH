@@ -86,7 +86,7 @@ const ProgressManagement: React.FC = () => {
     label: item.BatBuoc ? `${item.TenLoaiTL} (bắt buộc)` : item.TenLoaiTL,
   }));
 
-  // ✅ Nếu là hội đồng mà đang ở tab báo cáo (đã bị ẩn) thì chuyển về timeline để tránh Tabs trắng
+
   useEffect(() => {
     if (isCommitteeRole && activeTab === 'baocao') {
       setActiveTab('timeline');
@@ -476,7 +476,7 @@ const ProgressManagement: React.FC = () => {
       },
     ];
 
-    // ✅ Ẩn toàn bộ cột "Thao tác" (Xem/Sửa/Xóa/Nộp) với hội đồng
+
     if (!isCommitteeRole) {
       columns.push({
         title: 'Thao tác',

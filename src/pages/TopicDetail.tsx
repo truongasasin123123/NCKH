@@ -46,6 +46,9 @@ const TopicDetail: React.FC = () => {
     const [editingCommentContent, setEditingCommentContent] = useState('');
     const [showAddReviewForm, setShowAddReviewForm] = useState(false);
     const [newReview, setNewReview] = useState({ name: '', score: undefined as number | undefined, comment: '' });
+    const PAGE_SIZE = 5; // số lượng hiển thị mỗi lần bấm "Tải thêm"
+    const [docsVisibleCount, setDocsVisibleCount] = useState(PAGE_SIZE);
+    const [commentsVisibleCount, setCommentsVisibleCount] = useState(PAGE_SIZE);
     const [reviewTarget, setReviewTarget] = useState<'cham' | 'nghiem-thu' | 'ghi-chu'>('cham');
     const [reviewItems, setReviewItems] = useState<NonNullable<CollapseProps['items']>>([
         {
@@ -689,34 +692,45 @@ const TopicDetail: React.FC = () => {
                                     {progressDocsLoading ? (
                                         <p>Đang tải tài liệu...</p>
                                     ) : projectDocuments.length > 0 ? (
-                                        <List
-                                            dataSource={projectDocuments}
-                                            renderItem={(doc) => (
-                                                <List.Item>
-                                                    <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', gap: 16 }}>
-                                                        <div>
-                                                            <strong>{doc.name}</strong>
-                                                            <div style={{ color: '#666', fontSize: 12 }}>{doc.source}{doc.date ? ` · ${doc.date}` : ''}</div>
+                                        <>
+                                            <List
+                                                dataSource={projectDocuments.slice(0, docsVisibleCount)}
+                                                renderItem={(doc) => (
+                                                    <List.Item>
+                                                        <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+                                                            <div>
+                                                                <strong>{doc.name}</strong>
+                                                                <div style={{ color: '#666', fontSize: 12 }}>{doc.source}{doc.date ? ` · ${doc.date}` : ''}</div>
+                                                            </div>
+                                                            <div style={{ gap: 8, display: 'flex' }}>
+                                                                <Button
+                                                                    type="primary"
+                                                                    icon={<DownloadOutlined />}
+                                                                    className="btn-see-upload"
+                                                                    onClick={() => downloadDocument(doc.id, doc.name)}
+                                                                >
+                                                                    Tải xuống
+                                                                </Button>
+                                                            </div>
                                                         </div>
-                                                        <div style={{ gap: 8, display: 'flex' }}>
-                                                            <Button
-                                                                type="primary"
-                                                                icon={<DownloadOutlined />}
-                                                                className="btn-see-upload"
-                                                                onClick={() => downloadDocument(doc.id, doc.name)}
-                                                            >
-                                                                Tải xuống
-                                                            </Button>
-                                                        </div>
-                                                    </div>
-                                                </List.Item>
+                                                    </List.Item>
+                                                )}
+                                            />
+                                            {docsVisibleCount < projectDocuments.length && (
+                                                <div style={{ textAlign: 'center', marginTop: 12 }}>
+                                                    <Button
+                                                        block
+                                                        onClick={() => setDocsVisibleCount((prev) => prev + PAGE_SIZE)}
+                                                    >
+                                                        Tải thêm tài liệu ({projectDocuments.length - docsVisibleCount} còn lại)
+                                                    </Button>
+                                                </div>
                                             )}
-                                        />
+                                        </>
                                     ) : (
                                         <p>Chưa có tài liệu dự án từ tiến độ.</p>
                                     )}
                                 </Card>
-
                             </>
                         )}
 
@@ -795,7 +809,7 @@ const TopicDetail: React.FC = () => {
                             )}
                             <List
                                 locale={{ emptyText: 'Chưa có nhận xét' }}
-                                dataSource={projectComments}
+                                dataSource={projectComments.slice(0, commentsVisibleCount)}
                                 renderItem={(comment) => {
                                     const isAuthor = comment.TaiKhoan === user?.TaiKhoan;
                                     const isEditingComment = editingCommentId === comment.Id;
@@ -834,6 +848,16 @@ const TopicDetail: React.FC = () => {
                                     );
                                 }}
                             />
+                            {commentsVisibleCount < projectComments.length && (
+                                <div style={{ textAlign: 'center', marginTop: 12 }}>
+                                    <Button
+                                        block
+                                        onClick={() => setCommentsVisibleCount((prev) => prev + PAGE_SIZE)}
+                                    >
+                                        Tải thêm bình luận ({projectComments.length - commentsVisibleCount} còn lại)
+                                    </Button>
+                                </div>
+                            )}
                         </Card>
 
                         <Modal

@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import type { CollapseProps } from 'antd';
-import { Collapse, Spin, Button, Tag, Card, Row, Col, List, message, Modal, Input, Divider, Form, Upload, Radio, Space, Popconfirm, InputNumber } from 'antd';
+import { Collapse, Spin, Button, Tag, Card, Row, Col, List, message, Modal, Input, Divider, Form, Upload, Space, Popconfirm } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
-import { DownloadOutlined, ArrowLeftOutlined, EditOutlined, SaveOutlined, CloseOutlined, SendOutlined, UploadOutlined, BarChartOutlined, PlusOutlined } from '@ant-design/icons';
+import { DownloadOutlined, ArrowLeftOutlined, EditOutlined, SaveOutlined, CloseOutlined, SendOutlined, UploadOutlined, BarChartOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { getTopicById, getMemberByTopic, getProjectApprovals, submitProjectForApproval, updateProject } from './ThongTinDeTai/TopicService';
 import type { TopicLoad, ThanhVienDT } from './ThongTinDeTai/TopicService';
 import { downloadDocument, getDocumentsByTopic, uploadDocument } from './ThongTinDeTai/DocumentsService';
 import { createProjectComment, deleteProjectComment, getProjectComments, updateProjectComment } from './ThongTinDeTai/CommentsService';
 import type { ProjectComment } from './ThongTinDeTai/CommentsService';
+import { getAcceptanceByProject } from './ThongTinDeTai/AcceptanceService';
+import type { HoSoNghiemThu } from './ThongTinDeTai/AcceptanceService';
 
 interface ReviewerApproval {
     account: string
@@ -39,59 +41,14 @@ const TopicDetail: React.FC = () => {
     const [editing, setEditing] = useState(false);
     const [approvalStatus, setApprovalStatus] = useState<ReviewerApproval[]>([]);
     const [submittedCouncilTypes, setSubmittedCouncilTypes] = useState<Array<'Xét duyệt' | 'Chấm điểm'>>([]);
-    const [councilType, setCouncilType] = useState<'approval' | 'scoring'>('approval');
     const [projectComments, setProjectComments] = useState<ProjectComment[]>([]);
     const [commentInput, setCommentInput] = useState('');
     const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
     const [editingCommentContent, setEditingCommentContent] = useState('');
-    const [showAddReviewForm, setShowAddReviewForm] = useState(false);
-    const [newReview, setNewReview] = useState({ name: '', score: undefined as number | undefined, comment: '' });
+    const [acceptanceDossier, setAcceptanceDossier] = useState<HoSoNghiemThu | null>(null);
     const PAGE_SIZE = 5; // số lượng hiển thị mỗi lần bấm "Tải thêm"
     const [docsVisibleCount, setDocsVisibleCount] = useState(PAGE_SIZE);
     const [commentsVisibleCount, setCommentsVisibleCount] = useState(PAGE_SIZE);
-    const [reviewTarget, setReviewTarget] = useState<'cham' | 'nghiem-thu' | 'ghi-chu'>('cham');
-    const [reviewItems, setReviewItems] = useState<NonNullable<CollapseProps['items']>>([
-        {
-            key: '1',
-            label: 'Ths Nguyễn Văn A',
-            children: (
-                <div>
-                    <strong>Điểm:</strong>
-                    <br />
-                    <strong>Nhận xét:</strong>
-                </div>
-            ),
-        },
-        {
-            key: '2',
-            label: 'Ths Trần Thị B',
-            children: <div><p></p></div>,
-        },
-    ]);
-    const [reviewItems2, setReviewItems2] = useState<NonNullable<CollapseProps['items']>>([
-        {
-            key: '3',
-            label: 'Ths Lê Văn C',
-            children: <div><p></p></div>,
-        },
-        {
-            key: '4',
-            label: 'Ths Phạm Thị D',
-            children: <div><p></p></div>,
-        },
-    ]);
-    const [reviewItems3, setReviewItems3] = useState<NonNullable<CollapseProps['items']>>([
-        {
-            key: '5',
-            label: 'Ths Đỗ Thị E',
-            children: <div><p></p></div>,
-        },
-        {
-            key: '6',
-            label: 'Ths Hoàng Văn F',
-            children: <div><p></p></div>,
-        },
-    ]);
 
     const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
     const user: JwtPayload | null = token ? jwtDecode<JwtPayload>(token) : null;
@@ -107,9 +64,7 @@ const TopicDetail: React.FC = () => {
     const approvalReviewers = approvalStatus.filter((reviewer) => reviewer.councilType === 'Xét duyệt');
     const approvedCount = approvalReviewers.filter((reviewer) => reviewer.status === 'Đã phê duyệt').length;
     const hasSubmittedForApproval = submittedCouncilTypes.includes('Xét duyệt');
-    const hasSubmittedForScoring = submittedCouncilTypes.includes('Chấm điểm');
-    const canSendToCouncil = !hasSubmittedForApproval
-        || (topic?.TrangThai === 'Đã phê duyệt' && !hasSubmittedForScoring);
+    const canSendToCouncil = !hasSubmittedForApproval;
     const isTopicLeader = members.some((member) =>
         member.TaiKhoan === user?.TaiKhoan && member.VaiTroDT === 'Nhóm trưởng',
     );
@@ -156,6 +111,14 @@ const TopicDetail: React.FC = () => {
                 await fetchApprovalStatus(MaDT);
                 await fetchComments(MaDT);
                 await fetchProjectDocuments(MaDT);
+                try {
+                    const dossiers = await getAcceptanceByProject(MaDT);
+                    setAcceptanceDossier(dossiers[0] || null);
+                } catch (acceptanceError) {
+                    // Đề tài cũ chưa có hồ sơ nghiệm thu vẫn phải mở được trang chi tiết.
+                    console.warn('Chưa tải được hồ sơ nghiệm thu:', acceptanceError);
+                    setAcceptanceDossier(null);
+                }
                 form.setFieldsValue({
                     TenDT: data.TenDT,
                     PhanLoai: data.PhanLoai,
@@ -176,100 +139,22 @@ const TopicDetail: React.FC = () => {
         }
     };
 
-    const handleSaveReview = () => {
-        if (!newReview.name.trim()) {
-            message.warning('Vui lòng nhập tên người đánh giá');
-            return;
-        }
-
-        const reviewEntry = {
-            key: `${Date.now()}`,
-            label: newReview.name.trim(),
-            children: (
-                <div style={{ display: 'grid', gap: 6 }}>
-                    <div><strong>Điểm:</strong> {newReview.score ?? 'Chưa chấm'}</div>
-                    <div><strong>Nhận xét:</strong> {newReview.comment.trim() || 'Không có nhận xét'}</div>
-                </div>
-            ),
-        };
-
-        if (reviewTarget === 'cham') {
-            setReviewItems((prev) => [...prev, reviewEntry]);
-        } else if (reviewTarget === 'nghiem-thu') {
-            setReviewItems2((prev) => [...prev, reviewEntry]);
-        } else {
-            setReviewItems3((prev) => [...prev, reviewEntry]);
-        }
-
-        setNewReview({ name: '', score: undefined, comment: '' });
-        setShowAddReviewForm(false);
-        message.success('Đã thêm mục đánh giá mới');
-    };
-
-    const handleCancelReview = () => {
-        setShowAddReviewForm(false);
-        setNewReview({ name: '', score: undefined, comment: '' });
-    };
-
-    const openAddReviewModal = (target: 'cham' | 'nghiem-thu' | 'ghi-chu') => {
-        setReviewTarget(target);
-        setShowAddReviewForm(true);
-    };
-
     const collapseItems: CollapseProps['items'] = [
-        {
-            key: 'hoidong-cham',
-            label: 'Hội đồng chấm',
-            children: <Collapse defaultActiveKey="1" items={reviewItems} />,
-            extra: (
-                <Button
-                    type="primary"
-                    size="small"
-                    icon={<PlusOutlined />}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        openAddReviewModal('cham');
-                    }}
-                >
-                    Thêm
-                </Button>
-            ),
-        },
         {
             key: 'hoidong-nghiem-thu',
             label: 'Hội đồng nghiệm thu',
-            children: <Collapse defaultActiveKey="1" items={reviewItems2} />,
-            extra: (
-                <Button
-                    type="primary"
-                    size="small"
-                    icon={<PlusOutlined />}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        openAddReviewModal('nghiem-thu');
-                    }}
-                >
-                    Thêm
-                </Button>
-            ),
-        },
-        {
-            key: 'ghi-chu',
-            label: 'Ghi chú',
-            children: <Collapse defaultActiveKey="1" items={reviewItems3} />,
-            extra: (
-                <Button
-                    type="primary"
-                    size="small"
-                    icon={<PlusOutlined />}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        openAddReviewModal('ghi-chu');
-                    }}
-                >
-                    Thêm
-                </Button>
-            ),
+            extra: acceptanceDossier?.DiemTrungBinh !== undefined ? (
+                <Tag color="green" style={{ marginRight: 8 }}>
+                    Điểm: {Number(acceptanceDossier.DiemTrungBinh).toFixed(2)}
+                </Tag>
+            ) : <span style={{ color: '#8c8c8c', marginRight: 8 }}>Chưa có điểm trung bình</span>,
+            children: acceptanceDossier?.PhieuCham?.length ? (
+                <Collapse items={acceptanceDossier.PhieuCham.map((score) => ({
+                    key: score.Id,
+                    label: `${score.NguoiHoiDong?.TenDayDu || score.TaiKhoanHoiDong} · ${score.TrangThai}`,
+                    children: <div><p><strong>Nhận xét:</strong> {score.NhanXet || 'Chưa công bố'}</p></div>,
+                }))} />
+            ) : <p>Hồ sơ chưa được gửi đến hội đồng nghiệm thu.</p>,
         },
     ];
 
@@ -294,13 +179,9 @@ const TopicDetail: React.FC = () => {
     };
 
     const handleSubmitTopic = async () => {
-        const isScoringCouncil = councilType === 'scoring';
-        if ((!isScoringCouncil && hasSubmittedForApproval) || (isScoringCouncil && hasSubmittedForScoring)) {
-            message.warning(`Đề tài đã được gửi Hội đồng ${isScoringCouncil ? 'chấm điểm' : 'xét duyệt'}, không thể gửi lại`);
-            return;
-        }
-        if (isScoringCouncil && topic?.TrangThai !== 'Đã phê duyệt') {
-            message.warning('Chỉ được gửi Hội đồng chấm điểm sau khi đề tài đã được phê duyệt');
+        const councilType = 'approval';
+        if (hasSubmittedForApproval) {
+            message.warning('Đề tài đã được gửi Hội đồng xét duyệt, không thể gửi lại');
             return;
         }
         if (!MaDT) {
@@ -321,9 +202,7 @@ const TopicDetail: React.FC = () => {
             }));
 
             const result = await submitProjectForApproval(MaDT, councilType, submitNotes);
-            if (!isScoringCouncil) {
-                setTopic((prev) => prev ? { ...prev, TrangThai: 'Chờ phê duyệt' } : prev);
-            }
+            setTopic((prev) => prev ? { ...prev, TrangThai: 'Chờ phê duyệt' } : prev);
             const newReviewers = (result.reviewers || []).map((reviewer: {
                 account: string;
                 name?: string;
@@ -334,19 +213,19 @@ const TopicDetail: React.FC = () => {
                 account: reviewer.account,
                 name: reviewer.name || reviewer.NguoiDung?.TenDayDu || reviewer.account,
                 status: reviewer.status,
-                councilType: reviewer.LoaiHoiDong || (isScoringCouncil ? 'Chấm điểm' : 'Xét duyệt'),
+                councilType: reviewer.LoaiHoiDong || 'Xét duyệt',
             }));
             setApprovalStatus((current) => [
-                ...current.filter((reviewer) => reviewer.councilType !== (isScoringCouncil ? 'Chấm điểm' : 'Xét duyệt')),
+                ...current.filter((reviewer) => reviewer.councilType !== 'Xét duyệt'),
                 ...newReviewers,
             ]);
             setSubmittedCouncilTypes((current) => Array.from(new Set([
                 ...current,
-                isScoringCouncil ? 'Chấm điểm' : 'Xét duyệt',
+                'Xét duyệt',
             ])) as Array<'Xét duyệt' | 'Chấm điểm'>);
             await fetchProjectDocuments(MaDT);
 
-            message.success(`Đã gửi đề tài đến ${newReviewers.length} thành viên Hội đồng ${isScoringCouncil ? 'chấm điểm' : 'xét duyệt'}`);
+            message.success(`Đã gửi đề tài đến ${newReviewers.length} thành viên Hội đồng xét duyệt`);
             setSubmitModalOpen(false);
             setSubmitNotes('');
             setAttachedFiles([]);
@@ -435,6 +314,10 @@ const TopicDetail: React.FC = () => {
             "Sắp hạn": { color: 'orange', label: 'Sắp hạn' },
             "Khẩn cấp": { color: 'red', label: 'Khẩn cấp' },
             "Chờ phê duyệt": { color: 'blue', label: 'Chờ phê duyệt' },
+            "Chờ nghiệm thu": { color: 'gold', label: 'Chờ nghiệm thu' },
+            "Đang nghiệm thu": { color: 'processing', label: 'Đang nghiệm thu' },
+            "Đã nghiệm thu": { color: 'green', label: 'Đã nghiệm thu' },
+            "Không đạt nghiệm thu": { color: 'red', label: 'Không đạt nghiệm thu' },
         };
         const statusInfo = statusMap[status] || { color: 'default', label: 'Không xác định' };
         return <Tag color={statusInfo.color}>{statusInfo.label}</Tag>;
@@ -537,10 +420,7 @@ const TopicDetail: React.FC = () => {
                                                 icon={<SendOutlined />}
                                                 block
                                                 disabled={!canSendToCouncil}
-                                                onClick={() => {
-                                                    setCouncilType(hasSubmittedForApproval ? 'scoring' : 'approval');
-                                                    setSubmitModalOpen(true);
-                                                }}
+                                                onClick={() => setSubmitModalOpen(true)}
                                             >
                                                 {canSendToCouncil ? 'Gửi hội đồng' : 'Đã gửi đủ hội đồng'}
                                             </Button>
@@ -755,43 +635,15 @@ const TopicDetail: React.FC = () => {
 
                             </>
                         )}
-                        <Card title="Tổng hợp điểm" style={{ marginTop: 16 }}>
+                        <Card
+                            title="Tổng hợp điểm"
+                            style={{ marginTop: 16 }}
+                            extra={isTopicLeader && ['Chờ nghiệm thu', 'Đang nghiệm thu', 'Đã nghiệm thu', 'Không đạt nghiệm thu'].includes(topic?.TrangThai || '') ? (
+                                <Button type="primary" onClick={() => navigate(`/mainhome/acceptance/${MaDT}`)}>Hồ sơ nghiệm thu</Button>
+                            ) : null}
+                        >
                             <Collapse items={collapseItems} defaultActiveKey={['hoidong-cham']} />
                         </Card>
-
-                        <Modal
-                            title="Thêm đánh giá mới"
-                            open={showAddReviewForm}
-                            onCancel={handleCancelReview}
-                            footer={[
-                                <Button key="cancel" onClick={handleCancelReview}>Hủy</Button>,
-                                <Button key="save" type="primary" onClick={handleSaveReview}>Lưu</Button>,
-                            ]}
-                            centered
-                            width={560}
-                        >
-                            <div style={{ display: 'grid', gap: 12 }}>
-                                <Input
-                                    placeholder="Nhập tên người đánh giá"
-                                    value={newReview.name}
-                                    onChange={(e) => setNewReview((prev) => ({ ...prev, name: e.target.value }))}
-                                />
-                                <InputNumber
-                                    style={{ width: '100%' }}
-                                    min={0}
-                                    max={10}
-                                    placeholder="Nhập điểm"
-                                    value={newReview.score}
-                                    onChange={(value) => setNewReview((prev) => ({ ...prev, score: value ?? undefined }))}
-                                />
-                                <Input.TextArea
-                                    rows={4}
-                                    placeholder="Nhập nhận xét"
-                                    value={newReview.comment}
-                                    onChange={(e) => setNewReview((prev) => ({ ...prev, comment: e.target.value }))}
-                                />
-                            </div>
-                        </Modal>
 
                         <Card title="Nhận xét" style={{ marginTop: 16, marginBottom: 24 }}>
                             {canComment && (
@@ -931,32 +783,10 @@ const TopicDetail: React.FC = () => {
 
                                     <div style={{ marginBottom: 24 }}>
                                         <p style={{ marginBottom: 12, fontWeight: 'bold' }}>Loại hội đồng</p>
-                                        <Radio.Group
-                                            value={councilType}
-                                            onChange={(event) => setCouncilType(event.target.value as 'approval' | 'scoring')}
-                                            optionType="button"
-                                            buttonStyle="solid"
-                                            options={[
-                                                {
-                                                    label: 'Hội đồng xét duyệt',
-                                                    value: 'approval',
-                                                    disabled: hasSubmittedForApproval,
-                                                },
-                                                {
-                                                    label: 'Hội đồng chấm điểm',
-                                                    value: 'scoring',
-                                                    disabled: topic.TrangThai !== 'Đã phê duyệt' || hasSubmittedForScoring,
-                                                },
-                                            ]}
-                                        />
+                                        <Tag color="purple">Hội đồng xét duyệt</Tag>
                                         <p style={{ marginTop: 12, marginBottom: 0 }}>
-                                            Hệ thống sẽ tự động gửi đến toàn bộ tài khoản thuộc hội đồng đã chọn.
+                                            Hệ thống sẽ tự động gửi đến toàn bộ thành viên của hội đồng xét duyệt.
                                         </p>
-                                        {topic.TrangThai !== 'Đã phê duyệt' && (
-                                            <p style={{ color: '#d46b08', marginTop: 8, marginBottom: 0 }}>
-                                                Hội đồng chấm điểm chỉ nhận đề tài sau khi đề tài được phê duyệt.
-                                            </p>
-                                        )}
                                     </div>
 
                                     <div style={{ marginBottom: 24 }}>

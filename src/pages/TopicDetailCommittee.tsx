@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import {
-    Spin, Button, Tag, Card, Row, Col, List,
+    Spin, Button, Tag, Card, Row, Col, List, Collapse,
     message, Modal, Input, Divider, Form, Space, Popconfirm
 } from 'antd';
 import {
@@ -17,6 +17,8 @@ import type { TopicLoad, ThanhVienDT } from './ThongTinDeTai/TopicService';
 import { downloadDocument, getDocumentsByTopic } from './ThongTinDeTai/DocumentsService';
 import { createProjectComment, deleteProjectComment, getProjectComments, updateProjectComment } from './ThongTinDeTai/CommentsService';
 import type { ProjectComment } from './ThongTinDeTai/CommentsService';
+import { getAcceptanceByProject } from './ThongTinDeTai/AcceptanceService';
+import type { HoSoNghiemThu } from './ThongTinDeTai/AcceptanceService';
 
 interface JwtPayload {
     TaiKhoan?: string;
@@ -43,6 +45,7 @@ const TopicDetailCommittee: React.FC = () => {
     const [editingCommentContent, setEditingCommentContent] = useState('');
     const [projectDocuments, setProjectDocuments] = useState<Array<{ id: number; name: string; source: string; date?: string }>>([]);
     const [documentsLoading, setDocumentsLoading] = useState(false);
+    const [acceptanceDossier, setAcceptanceDossier] = useState<HoSoNghiemThu | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
     const user: JwtPayload | null = token ? jwtDecode<JwtPayload>(token) : null;
@@ -82,6 +85,13 @@ const TopicDetailCommittee: React.FC = () => {
                 setMembers(memData);
                 await fetchProjectDocuments(MaDT);
                 await fetchComments(MaDT);
+                try {
+                    const dossiers = await getAcceptanceByProject(MaDT);
+                    setAcceptanceDossier(dossiers[0] || null);
+                } catch (acceptanceError) {
+                    console.warn('Chưa tải được hồ sơ nghiệm thu:', acceptanceError);
+                    setAcceptanceDossier(null);
+                }
             } else {
                 message.error('Không tìm thấy đề tài');
                 navigate('/mainhome');
@@ -152,6 +162,10 @@ const TopicDetailCommittee: React.FC = () => {
             "Sắp hạn": { color: 'orange', label: 'Sắp hạn' },
             "Khẩn cấp": { color: 'red', label: 'Khẩn cấp' },
             "Chờ phê duyệt": { color: 'blue', label: 'Chờ phê duyệt' },
+            "Chờ nghiệm thu": { color: 'gold', label: 'Chờ nghiệm thu' },
+            "Đang nghiệm thu": { color: 'processing', label: 'Đang nghiệm thu' },
+            "Đã nghiệm thu": { color: 'green', label: 'Đã nghiệm thu' },
+            "Không đạt nghiệm thu": { color: 'red', label: 'Không đạt nghiệm thu' },
         };
         const statusInfo = statusMap[status] || { color: 'default', label: 'Không xác định' };
         return <Tag color={statusInfo.color}>{statusInfo.label}</Tag>;
@@ -327,6 +341,32 @@ const TopicDetailCommittee: React.FC = () => {
                                 <p>Chưa có tài liệu.</p>
                             )}
                         </Card>
+
+                        {acceptanceDossier && (
+                            <Card title="Tổng hợp điểm nghiệm thu" style={{ marginTop: 16 }}>
+                                <Collapse
+                                    items={[{
+                                        key: 'acceptance-council',
+                                        label: 'Hội đồng nghiệm thu',
+                                        extra: acceptanceDossier.DiemTrungBinh !== undefined
+                                            ? <Tag color="blue">Điểm trung bình: {Number(acceptanceDossier.DiemTrungBinh).toFixed(2)}</Tag>
+                                            : <span style={{ color: '#8c8c8c' }}>Chưa có điểm trung bình</span>,
+                                        children: <>
+                                            <p><strong>Điểm cuối cùng:</strong> {acceptanceDossier.DiemCuoiCung ?? 'Chưa chốt'}</p>
+                                            <p><strong>Kết quả:</strong> {acceptanceDossier.KetQuaCuoiCung || 'Đang chấm'}</p>
+                                            <Collapse
+                                                items={(acceptanceDossier.PhieuCham || []).map((score) => ({
+                                                    key: score.Id,
+                                                    label: `${score.NguoiHoiDong?.TenDayDu || score.TaiKhoanHoiDong} · ${score.Diem ?? 'Chưa chấm'} điểm`,
+                                                    children: <p>{score.NhanXet || 'Chưa có nhận xét'}</p>,
+                                                }))}
+                                            />
+                                            {!acceptanceDossier.PhieuCham?.length && <p>Chưa có phiếu chấm.</p>}
+                                        </>,
+                                    }]}
+                                />
+                            </Card>
+                        )}
 
 
                         <div ref={scrollRef}>

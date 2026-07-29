@@ -67,7 +67,6 @@ const ProgressManagement: React.FC = () => {
   // ---- Loại tài liệu (danh mục) ----
   const [loaiTaiLieuOptions, setLoaiTaiLieuOptions] = useState<(LoaiTaiLieu & { BatBuoc: boolean })[]>([]);
   const [uploadLoaiTaiLieu, setUploadLoaiTaiLieu] = useState<string | undefined>();   // modal "Nộp file minh chứng"
-  const [editLoaiTaiLieu, setEditLoaiTaiLieu] = useState<string | undefined>();       // modal "Sửa mốc"
   const [baoCaoLoaiTaiLieu, setBaoCaoLoaiTaiLieu] = useState<string | undefined>();   // modal "Báo cáo tiến độ"
 
   const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
@@ -558,7 +557,6 @@ const ProgressManagement: React.FC = () => {
   const handleEditMoc = (moc: MocTienDo) => {
     setSelectedMoc(moc);
     setSelectedFile(null);
-    setEditLoaiTaiLieu(undefined);
 
     editForm.setFieldsValue({
       ...moc,
@@ -683,11 +681,6 @@ const ProgressManagement: React.FC = () => {
   const handleSaveSubmit = async (values: any) => {
     if (!selectedMoc) return;
 
-    if (selectedFile && !editLoaiTaiLieu) {
-      message.warning('Vui lòng chọn loại tài liệu cho file đính kèm!');
-      return;
-    }
-
     try {
       const updatedMoc: CapNhatTienDo = {
         TenMoc: values.TenMoc,
@@ -708,7 +701,7 @@ const ProgressManagement: React.FC = () => {
           file: selectedFile,
           maDT: selectedMoc.MaDT || maDTToUse || '',
           maMoc: selectedMoc.MaMoc,
-          loaiTaiLieu: editLoaiTaiLieu,
+          loaiTaiLieu: 'Tài liệu mốc tiến độ',
         });
       }
 
@@ -717,7 +710,6 @@ const ProgressManagement: React.FC = () => {
       setIsEditModalVisible(false);
       editForm.resetFields();
       setSelectedFile(null);
-      setEditLoaiTaiLieu(undefined);
 
       fetchProgressData();
     } catch (error) {
@@ -984,10 +976,7 @@ const ProgressManagement: React.FC = () => {
       <Modal
         title={`Sửa / Cập nhật mốc: ${selectedMoc?.TenMoc}`}
         open={isEditModalVisible}
-        onCancel={() => {
-          setIsEditModalVisible(false);
-          setEditLoaiTaiLieu(undefined);
-        }}
+        onCancel={() => setIsEditModalVisible(false)}
         footer={null}
       >
         <Form form={editForm} layout="vertical" onFinish={handleSaveSubmit}>
@@ -1056,16 +1045,6 @@ const ProgressManagement: React.FC = () => {
             <TextArea />
           </Form.Item>
           <Divider />
-
-          <Form.Item label="Loại tài liệu (nếu đính kèm file)">
-            <Select
-              allowClear
-              placeholder="Chọn loại tài liệu"
-              options={loaiTaiLieuSelectOptions}
-              value={editLoaiTaiLieu}
-              onChange={setEditLoaiTaiLieu}
-            />
-          </Form.Item>
 
           <Form.Item name="TepDinhKem" label="File minh chứng">
             <Upload

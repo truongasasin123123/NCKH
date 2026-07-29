@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { Table, Tag, Space, Button, message, Spin, Popconfirm, Input, Select } from 'antd';
-import { EyeOutlined, DeleteOutlined } from '@ant-design/icons';
+import { EyeOutlined, DeleteOutlined, FileTextOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { deleteProject, getMyTopics, getPendingTopics } from './ThongTinDeTai/TopicService';
 import type { TopicLoad } from './ThongTinDeTai/TopicService';
@@ -71,6 +71,10 @@ const MyTopics: React.FC = () => {
             "Sắp hạn": { color: 'orange', label: 'Sắp hạn' },
             "Khẩn cấp": { color: 'red', label: 'Khẩn cấp' },
             "Chờ phê duyệt": { color: 'blue', label: 'Chờ phê duyệt' },
+            "Chờ nghiệm thu": { color: 'gold', label: 'Chờ nghiệm thu' },
+            "Đang nghiệm thu": { color: 'processing', label: 'Đang nghiệm thu' },
+            "Đã nghiệm thu": { color: 'green', label: 'Đã nghiệm thu' },
+            "Không đạt nghiệm thu": { color: 'red', label: 'Không đạt nghiệm thu' },
         };
         const statusInfo = statusMap[status] || { color: 'default', label: 'Không xác định' };
         return <Tag color={statusInfo.color}>{statusInfo.label}</Tag>;
@@ -194,8 +198,10 @@ const MyTopics: React.FC = () => {
             title: 'Thao tác',
             key: 'action',
             width: 120,
-            render: (_, record: TopicLoad) => (
-                <Space>
+            render: (_, record: TopicLoad) => {
+                const topic = (record as any).DeTai || record;
+                const isLeader = (record as any).VaiTroDT === 'Nhóm trưởng';
+                return <Space>
                     <Button
                         type="primary"
                         size="small"
@@ -215,9 +221,11 @@ const MyTopics: React.FC = () => {
                             <Button danger size="small" icon={<DeleteOutlined />} title="Xóa đề tài" />
                         </Popconfirm>
                     )}
-
-                </Space>
-            ),
+                    {isLeader && ['Chờ nghiệm thu', 'Đang nghiệm thu', 'Đã nghiệm thu', 'Không đạt nghiệm thu'].includes(topic.TrangThai) && (
+                        <Button size="small" icon={<FileTextOutlined />} title="Hồ sơ nghiệm thu" onClick={() => navigate(`/mainhome/acceptance/${record.MaDT}`)} />
+                    )}
+                </Space>;
+            },
         },
     ];
 

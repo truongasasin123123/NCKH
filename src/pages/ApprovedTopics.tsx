@@ -17,6 +17,7 @@ export default function ApprovedTopics() {
     { title: 'Thao tác', width: 220, render: (_: unknown, row: DeTaiTheoDoi) => <Space size={8} wrap={false}>
       <Button type="primary" size="small" icon={<EyeOutlined />} onClick={() => navigate(`/mainhome/topic-committee/${row.MaDT}`)}>Chi tiết</Button>
       {row.NghiepVuHoiDong === 'monitoring' && <Button size="small" icon={<FileTextOutlined />} onClick={() => navigate(`/mainhome/hoi-dong-theo-doi/${row.MaDT}`)}>Báo cáo</Button>}
+      {row.NghiepVuHoiDong === 'scoring' && <Button size="small" icon={<FileTextOutlined />} onClick={() => navigate(`/mainhome/acceptance/${row.MaDT}`)}>Nghiệm thu</Button>}
     </Space> },
   ]} /></Spin></div>;
 }

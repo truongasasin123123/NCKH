@@ -90,6 +90,11 @@ export const getProjectApprovals = async (id: string) => {
     return response.data;
 };
 
+export const getProjectApprovalHistory = async (id: string) => {
+    const response = await ApiAxios.get(`/project/${id}/approval-history`);
+    return response.data;
+};
+
 export const reviewProject = async (
     id: string,
     decision: 'approved' | 'rejected',

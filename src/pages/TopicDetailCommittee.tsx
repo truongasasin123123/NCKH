@@ -162,6 +162,7 @@ const TopicDetailCommittee: React.FC = () => {
             "Sắp hạn": { color: 'orange', label: 'Sắp hạn' },
             "Khẩn cấp": { color: 'red', label: 'Khẩn cấp' },
             "Chờ phê duyệt": { color: 'blue', label: 'Chờ phê duyệt' },
+            "Từ chối": { color: 'red', label: 'Từ chối' },
             "Chờ nghiệm thu": { color: 'gold', label: 'Chờ nghiệm thu' },
             "Đang nghiệm thu": { color: 'processing', label: 'Đang nghiệm thu' },
             "Đã nghiệm thu": { color: 'green', label: 'Đã nghiệm thu' },

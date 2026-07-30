@@ -5,7 +5,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import { DownloadOutlined, ArrowLeftOutlined, EditOutlined, SaveOutlined, CloseOutlined, SendOutlined, UploadOutlined, BarChartOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
-import { getTopicById, getMemberByTopic, getProjectApprovals, submitProjectForApproval, updateProject } from './ThongTinDeTai/TopicService';
+import { getTopicById, getMemberByTopic, getProjectApprovals, getProjectApprovalHistory, submitProjectForApproval, updateProject } from './ThongTinDeTai/TopicService';
 import type { TopicLoad, ThanhVienDT } from './ThongTinDeTai/TopicService';
 import { downloadDocument, getDocumentsByTopic, uploadDocument } from './ThongTinDeTai/DocumentsService';
 import { createProjectComment, deleteProjectComment, getProjectComments, updateProjectComment } from './ThongTinDeTai/CommentsService';
@@ -18,6 +18,7 @@ interface ReviewerApproval {
     name: string
     status: string
     responseDate?: string
+    note?: string
     councilType: 'Xét duyệt' | 'Chấm điểm'
 }
 
@@ -40,6 +41,7 @@ const TopicDetail: React.FC = () => {
     const [progressDocsLoading, setProgressDocsLoading] = useState(false);
     const [editing, setEditing] = useState(false);
     const [approvalStatus, setApprovalStatus] = useState<ReviewerApproval[]>([]);
+    const [approvalHistory, setApprovalHistory] = useState<ReviewerApproval[]>([]);
     const [submittedCouncilTypes, setSubmittedCouncilTypes] = useState<Array<'Xét duyệt' | 'Chấm điểm'>>([]);
     const [projectComments, setProjectComments] = useState<ProjectComment[]>([]);
     const [commentInput, setCommentInput] = useState('');
@@ -64,11 +66,12 @@ const TopicDetail: React.FC = () => {
     const approvalReviewers = approvalStatus.filter((reviewer) => reviewer.councilType === 'Xét duyệt');
     const approvedCount = approvalReviewers.filter((reviewer) => reviewer.status === 'Đã phê duyệt').length;
     const hasSubmittedForApproval = submittedCouncilTypes.includes('Xét duyệt');
-    const canSendToCouncil = !hasSubmittedForApproval;
+    const isRejected = topic?.TrangThai === 'Từ chối';
     const isTopicLeader = members.some((member) =>
         member.TaiKhoan === user?.TaiKhoan && member.VaiTroDT === 'Nhóm trưởng',
     );
-    const canEditProject = topic?.TrangThai === 'Nháp' && isTopicLeader;
+    const canEditProject = (topic?.TrangThai === 'Nháp' || isRejected) && isTopicLeader;
+    const canSendToCouncil = isTopicLeader && (!hasSubmittedForApproval || isRejected);
     const [form] = Form.useForm();
 
     useEffect(() => {
@@ -83,6 +86,7 @@ const TopicDetail: React.FC = () => {
                 const [latestTopic] = await Promise.all([
                     getTopicById(MaDT),
                     fetchApprovalStatus(MaDT),
+                    fetchApprovalHistory(MaDT),
                     fetchComments(MaDT),
                 ]);
                 setTopic(latestTopic);
@@ -109,6 +113,7 @@ const TopicDetail: React.FC = () => {
                 setTopic(data);
                 setMembers(memData);
                 await fetchApprovalStatus(MaDT);
+                await fetchApprovalHistory(MaDT);
                 await fetchComments(MaDT);
                 await fetchProjectDocuments(MaDT);
                 try {
@@ -180,7 +185,8 @@ const TopicDetail: React.FC = () => {
 
     const handleSubmitTopic = async () => {
         const councilType = 'approval';
-        if (hasSubmittedForApproval) {
+        const isResubmission = topic?.TrangThai === 'Từ chối';
+        if (hasSubmittedForApproval && !isResubmission) {
             message.warning('Đề tài đã được gửi Hội đồng xét duyệt, không thể gửi lại');
             return;
         }
@@ -225,7 +231,11 @@ const TopicDetail: React.FC = () => {
             ])) as Array<'Xét duyệt' | 'Chấm điểm'>);
             await fetchProjectDocuments(MaDT);
 
-            message.success(`Đã gửi đề tài đến ${newReviewers.length} thành viên Hội đồng xét duyệt`);
+            message.success(
+                isResubmission
+                    ? 'Đã gửi lại phiếu xét duyệt cho các thành viên đã từ chối'
+                    : `Đã gửi đề tài đến ${newReviewers.length} thành viên Hội đồng xét duyệt`,
+            );
             setSubmitModalOpen(false);
             setSubmitNotes('');
             setAttachedFiles([]);
@@ -244,6 +254,7 @@ const TopicDetail: React.FC = () => {
                 TaiKhoanHoiDong: string;
                 TrangThai: string;
                 NgayPhanHoi?: string;
+                GhiChu?: string;
                 NguoiDung?: { TenDayDu?: string };
                 LoaiHoiDong?: 'Xét duyệt' | 'Chấm điểm';
             }) => ({
@@ -251,10 +262,34 @@ const TopicDetail: React.FC = () => {
                 name: approval.NguoiDung?.TenDayDu || approval.TaiKhoanHoiDong,
                 status: approval.TrangThai,
                 responseDate: approval.NgayPhanHoi,
+                note: approval.GhiChu,
                 councilType: approval.LoaiHoiDong || 'Xét duyệt',
             })));
         } catch (error) {
             console.error('Lỗi khi tải trạng thái xét duyệt:', error);
+        }
+    };
+
+    const fetchApprovalHistory = async (maDT: string) => {
+        try {
+            const history = await getProjectApprovalHistory(maDT);
+            setApprovalHistory(history.map((approval: {
+                TaiKhoanHoiDong: string;
+                TrangThai: string;
+                NgayPhanHoi?: string;
+                GhiChu?: string;
+                NguoiDung?: { TenDayDu?: string };
+                LoaiHoiDong?: 'Xét duyệt' | 'Chấm điểm';
+            }) => ({
+                account: approval.TaiKhoanHoiDong,
+                name: approval.NguoiDung?.TenDayDu || approval.TaiKhoanHoiDong,
+                status: approval.TrangThai,
+                responseDate: approval.NgayPhanHoi,
+                note: approval.GhiChu,
+                councilType: approval.LoaiHoiDong || 'Xét duyệt',
+            })));
+        } catch (error) {
+            console.error('Lỗi khi tải lịch sử xét duyệt:', error);
         }
     };
 
@@ -314,6 +349,7 @@ const TopicDetail: React.FC = () => {
             "Sắp hạn": { color: 'orange', label: 'Sắp hạn' },
             "Khẩn cấp": { color: 'red', label: 'Khẩn cấp' },
             "Chờ phê duyệt": { color: 'blue', label: 'Chờ phê duyệt' },
+            "Từ chối": { color: 'red', label: 'Từ chối' },
             "Chờ nghiệm thu": { color: 'gold', label: 'Chờ nghiệm thu' },
             "Đang nghiệm thu": { color: 'processing', label: 'Đang nghiệm thu' },
             "Đã nghiệm thu": { color: 'green', label: 'Đã nghiệm thu' },
@@ -422,7 +458,11 @@ const TopicDetail: React.FC = () => {
                                                 disabled={!canSendToCouncil}
                                                 onClick={() => setSubmitModalOpen(true)}
                                             >
-                                                {canSendToCouncil ? 'Gửi hội đồng' : 'Đã gửi đủ hội đồng'}
+                                                {isRejected
+                                                    ? 'Gửi lại cho người từ chối'
+                                                    : canSendToCouncil
+                                                        ? 'Gửi hội đồng'
+                                                        : 'Đã gửi đủ hội đồng'}
                                             </Button>
                                             {topic?.TrangThai === 'Đã phê duyệt' && (
                                                 <Button
@@ -442,7 +482,7 @@ const TopicDetail: React.FC = () => {
 
                         {editing ? (
                             <Form form={form} onFinish={handleEditSubmit} layout="vertical">
-                                <Row gutter={[16, 16]}>
+                                <Row gutter={[16, 16]} align="top">
                                     <Col xs={24} md={12}>
                                         <Card title="Thông tin cơ bản">
                                             <Form.Item
@@ -474,7 +514,7 @@ const TopicDetail: React.FC = () => {
                                         </Card>
                                     </Col>
                                     <Col xs={24} md={12}>
-                                        <Card title="Trạng thái">
+                                        <Card title="Trạng thái" style={{ height: 'fit-content' }}>
                                             <Form.Item label="Trạng thái" name="TrangThai">
                                                 <Input disabled />
                                             </Form.Item>
@@ -507,7 +547,7 @@ const TopicDetail: React.FC = () => {
                             </Form>
                         ) : (
                             <>
-                                <Row gutter={[16, 16]}>
+                                <Row gutter={[16, 16]} align="top">
                                     <Col xs={24} md={12}>
                                         <Card title="Thông tin cơ bản">
                                             <p>
@@ -526,7 +566,7 @@ const TopicDetail: React.FC = () => {
 
                                     </Col>
                                     <Col xs={24} md={12}>
-                                        <Card title="Trạng thái">
+                                        <Card title="Trạng thái" style={{ height: 'fit-content' }}>
                                             {approvalStatus.length > 0 ? (
                                                 <>
                                                     <p>
@@ -536,7 +576,7 @@ const TopicDetail: React.FC = () => {
                                                         dataSource={approvalStatus}
                                                         renderItem={(reviewer, index) => (
                                                             <List.Item>
-                                                                <span style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                                                                <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, width: '100%' }}>
                                                                     <span>
                                                                         {index + 1}. {reviewer.name}
                                                                         <Tag style={{ marginLeft: 8 }} color={reviewer.councilType === 'Xét duyệt' ? 'purple' : 'cyan'}>
@@ -550,8 +590,15 @@ const TopicDetail: React.FC = () => {
                                                                                 Phản hồi: {new Date(reviewer.responseDate).toLocaleString('vi-VN')}
                                                                             </span>
                                                                         )}
+                                                                        {reviewer.status === 'Từ chối' && reviewer.note && (
+                                                                            <span style={{ color: '#cf1322', display: 'block', fontSize: 12, marginTop: 4 }}>
+                                                                                Lý do từ chối: {reviewer.note}
+                                                                            </span>
+                                                                        )}
                                                                     </span>
-                                                                    {getApprovalStatusTag(reviewer.status)}
+                                                                    <span style={{ flex: '0 0 auto', lineHeight: 1 }}>
+                                                                        {getApprovalStatusTag(reviewer.status)}
+                                                                    </span>
                                                                 </span>
                                                             </List.Item>
                                                         )}
@@ -563,6 +610,31 @@ const TopicDetail: React.FC = () => {
                                         </Card>
                                     </Col>
                                 </Row>
+
+                                {approvalHistory.length > 0 && (
+                                    <Card title="Lịch sử phản hồi xét duyệt" size="small" style={{ marginTop: 16 }}>
+                                        <List
+                                            dataSource={approvalHistory}
+                                            renderItem={(reviewer) => (
+                                                <List.Item>
+                                                    <div>
+                                                        <strong>{reviewer.name}</strong> {getApprovalStatusTag(reviewer.status)}
+                                                        {reviewer.note && (
+                                                            <div style={{ color: '#cf1322', marginTop: 4 }}>
+                                                                Lý do: {reviewer.note}
+                                                            </div>
+                                                        )}
+                                                        {reviewer.responseDate && (
+                                                            <div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 4 }}>
+                                                                Phản hồi lúc: {new Date(reviewer.responseDate).toLocaleString('vi-VN')}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </List.Item>
+                                            )}
+                                        />
+                                    </Card>
+                                )}
 
                                 <Card title="Mô tả" style={{ marginTop: 16 }}>
                                     <p>{topic.MoTa || 'Chưa có mô tả'}</p>
@@ -713,7 +785,7 @@ const TopicDetail: React.FC = () => {
                         </Card>
 
                         <Modal
-                            title="GỬI ĐỀ TÀI LÊN HỘI ĐỒNG ĐÁNH GIÁ"
+                            title={isRejected ? 'GỬI LẠI PHIẾU XÉT DUYỆT' : 'GỬI ĐỀ TÀI LÊN HỘI ĐỒNG ĐÁNH GIÁ'}
                             open={submitModalOpen}
                             onCancel={() => {
                                 setSubmitModalOpen(false);
@@ -785,7 +857,9 @@ const TopicDetail: React.FC = () => {
                                         <p style={{ marginBottom: 12, fontWeight: 'bold' }}>Loại hội đồng</p>
                                         <Tag color="purple">Hội đồng xét duyệt</Tag>
                                         <p style={{ marginTop: 12, marginBottom: 0 }}>
-                                            Hệ thống sẽ tự động gửi đến toàn bộ thành viên của hội đồng xét duyệt.
+                                            {isRejected
+                                                ? 'Hệ thống chỉ gửi lại cho các thành viên đã từ chối ở vòng trước.'
+                                                : 'Hệ thống sẽ tự động gửi đến toàn bộ thành viên của hội đồng xét duyệt.'}
                                         </p>
                                     </div>
 

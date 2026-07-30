@@ -71,6 +71,7 @@ const MyTopics: React.FC = () => {
             "Sắp hạn": { color: 'orange', label: 'Sắp hạn' },
             "Khẩn cấp": { color: 'red', label: 'Khẩn cấp' },
             "Chờ phê duyệt": { color: 'blue', label: 'Chờ phê duyệt' },
+            "Từ chối": { color: 'red', label: 'Từ chối' },
             "Chờ nghiệm thu": { color: 'gold', label: 'Chờ nghiệm thu' },
             "Đang nghiệm thu": { color: 'processing', label: 'Đang nghiệm thu' },
             "Đã nghiệm thu": { color: 'green', label: 'Đã nghiệm thu' },
@@ -139,6 +140,7 @@ const MyTopics: React.FC = () => {
             "Sắp hạn": "Sắp hạn",
             "Khẩn cấp": "Khẩn cấp",
             "Chờ phê duyệt": "Chờ phê duyệt",
+            "Từ chối": "Từ chối",
         };
         const uniqueStatuses = Array.from(new Set(topics.map((topic) => getTopicStatus(topic)).filter(Boolean)));
         return uniqueStatuses.map((value) => ({ value, label: statusMap[value] || value }));

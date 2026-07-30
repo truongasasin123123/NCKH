@@ -11,6 +11,7 @@ import {
 import {
     getTopicById,
     getMemberByTopic,
+    getProjectApprovals,
     reviewProject,
 } from './ThongTinDeTai/TopicService';
 import type { TopicLoad, ThanhVienDT } from './ThongTinDeTai/TopicService';
@@ -30,6 +31,7 @@ const TopicDetailCommittee: React.FC = () => {
     const [topic, setTopic] = useState<TopicLoad | null>(null);
     const [members, setMembers] = useState<ThanhVienDT[]>([]);
     const [loading, setLoading] = useState(true);
+    const [myApprovalStatus, setMyApprovalStatus] = useState<string | null>(null);
 
     // State cho modal phê duyệt
     const [approveModalOpen, setApproveModalOpen] = useState(false);
@@ -80,9 +82,17 @@ const TopicDetailCommittee: React.FC = () => {
             setLoading(true);
             const data = await getTopicById(MaDT);
             const memData = await getMemberByTopic(MaDT);
+            const approvals = await getProjectApprovals(MaDT);
             if (data) {
                 setTopic(data);
                 setMembers(memData);
+                const myApproval = approvals.find((approval: {
+                    TaiKhoanHoiDong: string;
+                    LoaiHoiDong?: string;
+                    TrangThai: string;
+                }) => approval.TaiKhoanHoiDong === user?.TaiKhoan
+                    && (approval.LoaiHoiDong || 'Xét duyệt') === 'Xét duyệt');
+                setMyApprovalStatus(myApproval?.TrangThai || null);
                 await fetchProjectDocuments(MaDT);
                 await fetchComments(MaDT);
                 try {
@@ -180,6 +190,7 @@ const TopicDetailCommittee: React.FC = () => {
             setLoading(true);
             const result = await reviewProject(topic.MaDT, 'approved', approveNote);
             setTopic({ ...topic, TrangThai: result.projectStatus });
+            setMyApprovalStatus('Đã phê duyệt');
             message.success(
                 result.allApproved
                     ? 'Tất cả hội đồng đã phê duyệt. Đề tài được bắt đầu.'
@@ -212,8 +223,9 @@ const TopicDetailCommittee: React.FC = () => {
 
         try {
             setLoading(true);
-            await reviewProject(topic.MaDT, 'rejected', rejectReason);
-            setTopic({ ...topic, TrangThai: 'Từ chối' });
+            const result = await reviewProject(topic.MaDT, 'rejected', rejectReason);
+            setTopic({ ...topic, TrangThai: result.projectStatus });
+            setMyApprovalStatus('Từ chối');
             message.error('Đã từ chối đề tài');
             setRejectModalOpen(false);
             setRejectReason('');
@@ -257,7 +269,7 @@ const TopicDetailCommittee: React.FC = () => {
                                         {getStatusTag(topic.TrangThai)}
                                     </div>
                                 </Col>
-                                {topic.TrangThai === 'Chờ phê duyệt' && (
+                                {myApprovalStatus === 'Chờ phê duyệt' && (
                                     <Col xs={24} md={6}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
 

@@ -6,9 +6,8 @@ import { getMemberByTopic, getMyTopics } from './ThongTinDeTai/TopicService';
 import type { ThanhVienDT, TopicLoad } from './ThongTinDeTai/TopicService';
 import {
   deleteDocument, downloadDocument, getDocumentsByMilestone, submitMilestone, uploadDocument,
-  getLoaiTaiLieuByNghiepVu,
 } from './ThongTinDeTai/DocumentsService';
-import type { TaiLieu, LoaiTaiLieu } from './ThongTinDeTai/DocumentsService';
+import type { TaiLieu } from './ThongTinDeTai/DocumentsService';
 import { jwtDecode } from 'jwt-decode';
 import dayjs from 'dayjs';
 import {
@@ -64,27 +63,10 @@ const ProgressManagement: React.FC = () => {
   const [editingBaoCao, setEditingBaoCao] = useState<BaoCaoTienDo | null>(null);
   const [loaiBaoCao, setLoaiBaoCao] = useState<LoaiBaoCao>('Theo mốc');
 
-  // ---- Loại tài liệu (danh mục) ----
-  const [loaiTaiLieuOptions, setLoaiTaiLieuOptions] = useState<(LoaiTaiLieu & { BatBuoc: boolean })[]>([]);
-  const [uploadLoaiTaiLieu, setUploadLoaiTaiLieu] = useState<string | undefined>();   // modal "Nộp file minh chứng"
-  const [baoCaoLoaiTaiLieu, setBaoCaoLoaiTaiLieu] = useState<string | undefined>();   // modal "Báo cáo tiến độ"
-
   const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
   const user: JwtPayload | null = token ? jwtDecode<JwtPayload>(token) : null;
   const isCommitteeRole = (user?.VaiTro || '').toLowerCase().includes('hội đồng')
     || (user?.VaiTro || '').toLowerCase().includes('hoidong');
-
-  useEffect(() => {
-    getLoaiTaiLieuByNghiepVu('theo_doi')
-      .then(setLoaiTaiLieuOptions)
-      .catch(() => setLoaiTaiLieuOptions([]));
-  }, []);
-
-  const loaiTaiLieuSelectOptions = loaiTaiLieuOptions.map((item) => ({
-    value: item.TenLoaiTL,
-    label: item.BatBuoc ? `${item.TenLoaiTL} (bắt buộc)` : item.TenLoaiTL,
-  }));
-
 
   useEffect(() => {
     if (isCommitteeRole && activeTab === 'baocao') {
@@ -136,15 +118,10 @@ const ProgressManagement: React.FC = () => {
     setBaoCaoFiles([]);
     setEditingBaoCao(null);
     setLoaiBaoCao('Theo mốc');
-    setBaoCaoLoaiTaiLieu(undefined);
   };
 
   const handleLuuBaoCao = async (values: any) => {
     if (!maDTToUse) return;
-    if (baoCaoFiles.length > 0 && !baoCaoLoaiTaiLieu) {
-      message.warning('Vui lòng chọn loại tài liệu cho file minh chứng!');
-      return;
-    }
     try {
       setSubmittingBaoCao(true);
       const report = editingBaoCao
@@ -159,7 +136,10 @@ const ProgressManagement: React.FC = () => {
             DeXuat: values.DeXuat,
           });
       await Promise.all(baoCaoFiles.map((file) => uploadDocument({
-        file, maDT: maDTToUse, maBaoCaoTienDo: report.Id, loaiTaiLieu: baoCaoLoaiTaiLieu,
+        file,
+        maDT: maDTToUse,
+        maBaoCaoTienDo: report.Id,
+        loaiTaiLieu: 'Tài liệu tiến độ',
       })));
       message.success(editingBaoCao ? 'Đã cập nhật báo cáo nháp' : 'Đã tạo báo cáo ở trạng thái Nháp');
       resetBaoCaoModal();
@@ -577,18 +557,12 @@ const ProgressManagement: React.FC = () => {
 
     setSelectedMoc(moc);
     setSelectedFile(null);
-    setUploadLoaiTaiLieu(undefined);
     setIsUploadModalVisible(true);
   };
 
   const handleSubmitFile = async () => {
     if (!selectedFile) {
       message.warning("Vui lòng chọn file!");
-      return;
-    }
-
-    if (!uploadLoaiTaiLieu) {
-      message.warning("Vui lòng chọn loại tài liệu!");
       return;
     }
 
@@ -604,14 +578,13 @@ const ProgressManagement: React.FC = () => {
         file: selectedFile,
         maDT: String(maDTToUse),
         maMoc: selectedMoc.MaMoc,
-        loaiTaiLieu: uploadLoaiTaiLieu,
+        loaiTaiLieu: 'Tài liệu tiến độ',
       });
 
       message.success("Nộp tài liệu thành công!");
       console.log(result);
 
       setSelectedFile(null);
-      setUploadLoaiTaiLieu(undefined);
       createForm.resetFields();
 
       setIsUploadModalVisible(false);
@@ -701,7 +674,7 @@ const ProgressManagement: React.FC = () => {
           file: selectedFile,
           maDT: selectedMoc.MaDT || maDTToUse || '',
           maMoc: selectedMoc.MaMoc,
-          loaiTaiLieu: 'Tài liệu mốc tiến độ',
+          loaiTaiLieu: 'Tài liệu tiến độ',
         });
       }
 
@@ -1183,20 +1156,10 @@ const ProgressManagement: React.FC = () => {
         onCancel={() => {
           setIsUploadModalVisible(false);
           setSelectedFile(null);
-          setUploadLoaiTaiLieu(undefined);
         }}
         footer={null}
       >
         <Form layout="vertical" onFinish={handleSubmitFile}>
-          <Form.Item label="Loại tài liệu" required>
-            <Select
-              placeholder="Chọn loại tài liệu"
-              options={loaiTaiLieuSelectOptions}
-              value={uploadLoaiTaiLieu}
-              onChange={setUploadLoaiTaiLieu}
-            />
-          </Form.Item>
-
           <Form.Item name="TepDinhKem" label="File minh chứng">
             <Upload
               beforeUpload={(file) => {
@@ -1232,7 +1195,7 @@ const ProgressManagement: React.FC = () => {
             <Button
               type="primary"
               htmlType="submit"
-              disabled={!selectedFile || !uploadLoaiTaiLieu}
+              disabled={!selectedFile}
             >
               Nộp
             </Button>
@@ -1281,15 +1244,6 @@ const ProgressManagement: React.FC = () => {
           </Form.Item>
           <Form.Item name="DeXuat" label="Đề xuất">
             <TextArea rows={2} />
-          </Form.Item>
-
-          <Form.Item label="Loại tài liệu minh chứng" required>
-            <Select
-              placeholder="Chọn loại tài liệu"
-              options={loaiTaiLieuSelectOptions}
-              value={baoCaoLoaiTaiLieu}
-              onChange={setBaoCaoLoaiTaiLieu}
-            />
           </Form.Item>
 
           <Form.Item label="Tài liệu minh chứng">

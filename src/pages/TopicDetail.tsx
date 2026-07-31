@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { CollapseProps } from 'antd';
-import { Collapse, Spin, Button, Tag, Card, Row, Col, List, message, Modal, Input, Divider, Form, Upload, Space, Popconfirm } from 'antd';
+import { Collapse, Spin, Button, Tag, Card, Row, Col, List, message, Modal, Input, Divider, Form, Upload, Space, Popconfirm, Segmented } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import { DownloadOutlined, ArrowLeftOutlined, EditOutlined, SaveOutlined, CloseOutlined, SendOutlined, UploadOutlined, BarChartOutlined } from '@ant-design/icons';
@@ -51,6 +51,10 @@ const TopicDetail: React.FC = () => {
     const PAGE_SIZE = 5; // số lượng hiển thị mỗi lần bấm "Tải thêm"
     const [docsVisibleCount, setDocsVisibleCount] = useState(PAGE_SIZE);
     const [commentsVisibleCount, setCommentsVisibleCount] = useState(PAGE_SIZE);
+    const [activeView, setActiveView] = useState<'detail' | 'council'>('detail');
+    const [resendModalOpen, setResendModalOpen] = useState(false);
+    const [resendTarget, setResendTarget] = useState<ReviewerApproval | null>(null);
+    const [resendNotes, setResendNotes] = useState('');
 
     const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
     const user: JwtPayload | null = token ? jwtDecode<JwtPayload>(token) : null;
@@ -71,7 +75,7 @@ const TopicDetail: React.FC = () => {
         member.TaiKhoan === user?.TaiKhoan && member.VaiTroDT === 'Nhóm trưởng',
     );
     const canEditProject = (topic?.TrangThai === 'Nháp' || isRejected) && isTopicLeader;
-    const canSendToCouncil = isTopicLeader && (!hasSubmittedForApproval || isRejected);
+    const canSendToCouncil = isTopicLeader && !hasSubmittedForApproval;
     const [form] = Form.useForm();
 
     useEffect(() => {
@@ -243,6 +247,24 @@ const TopicDetail: React.FC = () => {
             message.error(error?.response?.data?.message || error.message || 'Không thể upload tài liệu');
         }
     };
+
+    const handleResendToReviewer = async () => {
+        if (!MaDT || !resendTarget) return;
+        try {
+            // Gửi lại yêu cầu xét duyệt; API hiện tại không hỗ trợ truyền danh sách tài khoản đích
+            await submitProjectForApproval(MaDT, 'approval', resendNotes);
+
+            message.success(`Đã gửi lại cho ${resendTarget.name}`);
+            setResendModalOpen(false);
+            setResendNotes('');
+            setResendTarget(null);
+            await fetchApprovalStatus(MaDT);
+            await fetchApprovalHistory(MaDT);
+        } catch (error: any) {
+            message.error(error?.response?.data?.message || 'Không thể gửi lại');
+        }
+    };
+
 
     const fetchApprovalStatus = async (maDT: string) => {
         try {
@@ -418,7 +440,27 @@ const TopicDetail: React.FC = () => {
                                 Quay lại
                             </Button>
                         </div>
-
+                        {!editing && (
+                            <div style={{ display: 'flex', justifyContent: 'center', margin: '16px 0' }}>
+                                <Segmented
+                                    size="large"
+                                    value={activeView}
+                                    onChange={(value) => setActiveView(value as 'detail' | 'council')}
+                                    options={[
+                                        { label: 'Đề tài', value: 'detail' },
+                                        { label: 'Hội đồng', value: 'council' },
+                                    ]}
+                                    block
+                                    style={{
+                                        width: '100%',
+                                        maxWidth: 320,
+                                        padding: 4,
+                                        borderRadius: 999,
+                                        background: '#f0f0f0',
+                                    }}
+                                />
+                            </div>
+                        )}
                         <Card style={{ marginBottom: 16 }}>
                             <Row gutter={[16, 16]}>
                                 <Col xs={24} md={18}>
@@ -458,11 +500,7 @@ const TopicDetail: React.FC = () => {
                                                 disabled={!canSendToCouncil}
                                                 onClick={() => setSubmitModalOpen(true)}
                                             >
-                                                {isRejected
-                                                    ? 'Gửi lại cho người từ chối'
-                                                    : canSendToCouncil
-                                                        ? 'Gửi hội đồng'
-                                                        : 'Đã gửi đủ hội đồng'}
+                                                {canSendToCouncil ? 'Gửi hội đồng' : 'Đã gửi hội đồng'}
                                             </Button>
                                             {topic?.TrangThai === 'Đã phê duyệt' && (
                                                 <Button
@@ -479,6 +517,8 @@ const TopicDetail: React.FC = () => {
                                 )}
                             </Row>
                         </Card>
+
+
 
                         {editing ? (
                             <Form form={form} onFinish={handleEditSubmit} layout="vertical">
@@ -499,16 +539,10 @@ const TopicDetail: React.FC = () => {
                                             >
                                                 <Input />
                                             </Form.Item>
-                                            <Form.Item
-                                                label="Ngày bắt đầu"
-                                                name="NgayBatDau"
-                                            >
+                                            <Form.Item label="Ngày bắt đầu" name="NgayBatDau">
                                                 <Input type="date" disabled />
                                             </Form.Item>
-                                            <Form.Item
-                                                label="Hạn chót"
-                                                name="NgayKetThuc"
-                                            >
+                                            <Form.Item label="Hạn chót" name="NgayKetThuc">
                                                 <Input type="date" disabled />
                                             </Form.Item>
                                         </Card>
@@ -523,14 +557,10 @@ const TopicDetail: React.FC = () => {
                                 </Row>
 
                                 <Card title="Mô tả" style={{ marginTop: 16 }}>
-                                    <Form.Item
-                                        label="Mô tả"
-                                        name="MoTa"
-                                    >
+                                    <Form.Item label="Mô tả" name="MoTa">
                                         <Input.TextArea rows={3} />
                                     </Form.Item>
                                 </Card>
-
 
                                 <Row gutter={16} style={{ marginTop: 16 }}>
                                     <Col>
@@ -545,71 +575,144 @@ const TopicDetail: React.FC = () => {
                                     </Col>
                                 </Row>
                             </Form>
+                        ) : activeView === 'detail' ? (
+                            <>
+                                <Card title="Thông tin cơ bản">
+                                    <p><strong>Mã đề tài:</strong> #{topic.MaDT}</p>
+                                    <p><strong>Danh mục:</strong> {topic.PhanLoai}</p>
+                                    <p>
+                                        <strong>Ngày bắt đầu:</strong>{' '}
+                                        {topic.NgayBatDau ? new Date(topic.NgayBatDau).toLocaleDateString('vi-VN') : '-'}
+                                    </p>
+                                    <p>
+                                        <strong>Hạn chót:</strong>{' '}
+                                        {topic.NgayKetThuc ? new Date(topic.NgayKetThuc).toLocaleDateString('vi-VN') : '-'}
+                                    </p>
+                                </Card>
+
+                                <Card title="Mô tả" style={{ marginTop: 16 }}>
+                                    <p>{topic.MoTa || 'Chưa có mô tả'}</p>
+                                </Card>
+
+                                <Card title="Tổng hợp tài liệu dự án" style={{ marginTop: 16 }}>
+                                    {progressDocsLoading ? (
+                                        <p>Đang tải tài liệu...</p>
+                                    ) : projectDocuments.length > 0 ? (
+                                        <>
+                                            <List
+                                                dataSource={projectDocuments.slice(0, docsVisibleCount)}
+                                                renderItem={(doc) => (
+                                                    <List.Item>
+                                                        <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+                                                            <div>
+                                                                <strong>{doc.name}</strong>
+                                                                <div style={{ color: '#666', fontSize: 12 }}>
+                                                                    {doc.source}{doc.date ? ` · ${doc.date}` : ''}
+                                                                </div>
+                                                            </div>
+                                                            <div style={{ gap: 8, display: 'flex' }}>
+                                                                <Button
+                                                                    type="primary"
+                                                                    icon={<DownloadOutlined />}
+                                                                    className="btn-see-upload"
+                                                                    onClick={() => downloadDocument(doc.id, doc.name)}
+                                                                >
+                                                                    Tải xuống
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    </List.Item>
+                                                )}
+                                            />
+                                            {docsVisibleCount < projectDocuments.length && (
+                                                <div style={{ textAlign: 'center', marginTop: 12 }}>
+                                                    <Button block onClick={() => setDocsVisibleCount((prev) => prev + PAGE_SIZE)}>
+                                                        Tải thêm tài liệu ({projectDocuments.length - docsVisibleCount} còn lại)
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <p>Chưa có tài liệu dự án từ tiến độ.</p>
+                                    )}
+                                </Card>
+
+                                <Card title="Thành viên nhóm" style={{ marginTop: 16 }}>
+                                    {members && members.length > 0 ? (
+                                        <List
+                                            dataSource={members}
+                                            renderItem={(member, index) => (
+                                                <List.Item>
+                                                    <span>{index + 1}. {member.TaiKhoan} - {member.VaiTroDT}</span>
+                                                </List.Item>
+                                            )}
+                                        />
+                                    ) : (
+                                        <p>Chưa có thành viên</p>
+                                    )}
+                                </Card>
+
+
+                            </>
                         ) : (
                             <>
-                                <Row gutter={[16, 16]} align="top">
-                                    <Col xs={24} md={12}>
-                                        <Card title="Thông tin cơ bản">
+                                <Card title="Trạng thái phê duyệt">
+                                    {approvalStatus.length > 0 ? (
+                                        <>
                                             <p>
-                                                <strong>Mã đề tài:</strong> #{topic.MaDT}
+                                                <strong>Hội đồng xét duyệt đã đồng ý:</strong> {approvedCount}/{approvalReviewers.length}
                                             </p>
-                                            <p>
-                                                <strong>Danh mục:</strong> {topic.PhanLoai}
-                                            </p>
-                                            <p>
-                                                <strong>Ngày bắt đầu:</strong> {topic.NgayBatDau ? new Date(topic.NgayBatDau).toLocaleDateString('vi-VN') : '-'}
-                                            </p>
-                                            <p>
-                                                <strong>Hạn chót:</strong> {topic.NgayKetThuc ? new Date(topic.NgayKetThuc).toLocaleDateString('vi-VN') : '-'}
-                                            </p>
-                                        </Card>
-
-                                    </Col>
-                                    <Col xs={24} md={12}>
-                                        <Card title="Trạng thái" style={{ height: 'fit-content' }}>
-                                            {approvalStatus.length > 0 ? (
-                                                <>
-                                                    <p>
-                                                        <strong>Hội đồng xét duyệt đã đồng ý:</strong> {approvedCount}/{approvalReviewers.length}
-                                                    </p>
-                                                    <List
-                                                        dataSource={approvalStatus}
-                                                        renderItem={(reviewer, index) => (
-                                                            <List.Item>
-                                                                <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, width: '100%' }}>
-                                                                    <span>
-                                                                        {index + 1}. {reviewer.name}
-                                                                        <Tag style={{ marginLeft: 8 }} color={reviewer.councilType === 'Xét duyệt' ? 'purple' : 'cyan'}>
-                                                                            Hội đồng {reviewer.councilType.toLowerCase()}
-                                                                        </Tag>
-                                                                        {reviewer.name !== reviewer.account && (
-                                                                            <span style={{ color: '#8c8c8c' }}> ({reviewer.account})</span>
-                                                                        )}
-                                                                        {reviewer.responseDate && (
-                                                                            <span style={{ color: '#8c8c8c', display: 'block', fontSize: 12 }}>
-                                                                                Phản hồi: {new Date(reviewer.responseDate).toLocaleString('vi-VN')}
-                                                                            </span>
-                                                                        )}
-                                                                        {reviewer.status === 'Từ chối' && reviewer.note && (
-                                                                            <span style={{ color: '#cf1322', display: 'block', fontSize: 12, marginTop: 4 }}>
-                                                                                Lý do từ chối: {reviewer.note}
-                                                                            </span>
-                                                                        )}
+                                            <List
+                                                dataSource={approvalStatus}
+                                                renderItem={(reviewer, index) => (
+                                                    <List.Item>
+                                                        <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, width: '100%' }}>
+                                                            
+                                                            <span>
+                                                                {index + 1}. {reviewer.name}
+                                                                <Tag style={{ marginLeft: 8 }} color={reviewer.councilType === 'Xét duyệt' ? 'purple' : 'cyan'}>
+                                                                    Hội đồng {reviewer.councilType.toLowerCase()}
+                                                                </Tag>
+                                                                {reviewer.name !== reviewer.account && (
+                                                                    <span style={{ color: '#8c8c8c' }}> ({reviewer.account})</span>
+                                                                )}
+                                                                {reviewer.responseDate && (
+                                                                    <span style={{ color: '#8c8c8c', display: 'block', fontSize: 12 }}>
+                                                                        Phản hồi: {new Date(reviewer.responseDate).toLocaleString('vi-VN')}
                                                                     </span>
-                                                                    <span style={{ flex: '0 0 auto', lineHeight: 1 }}>
-                                                                        {getApprovalStatusTag(reviewer.status)}
+                                                                )}
+                                                                {reviewer.status === 'Từ chối' && reviewer.note && (
+                                                                    <span style={{ color: '#cf1322', display: 'block', fontSize: 12, marginTop: 4 }}>
+                                                                        Lý do từ chối: {reviewer.note}
                                                                     </span>
-                                                                </span>
-                                                            </List.Item>
-                                                        )}
-                                                    />
-                                                </>
-                                            ) : (
-                                                <p>Chưa có trạng thái phê duyệt nào. Vui lòng gửi cho hội đồng để được phê duyệt.</p>
-                                            )}
-                                        </Card>
-                                    </Col>
-                                </Row>
+                                                                )}
+                                                            </span>
+                                                            <span style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8, lineHeight: 1 }}>
+                                                                {reviewer.status === 'Từ chối' && isTopicLeader && (
+                                                                    <Button
+                                                                        style={{ marginRight: 16 }}
+                                                                        type="primary"
+                                                                        className="btn-see-upload"
+                                                                        icon={<SendOutlined />}
+                                                                        onClick={() => {
+                                                                            setResendTarget(reviewer);
+                                                                            setResendModalOpen(true);
+                                                                        }}
+                                                                    >
+                                                                        Gửi lại
+                                                                    </Button>
+                                                                )}
+                                                                {getApprovalStatusTag(reviewer.status)}
+                                                            </span>
+                                                        </span>
+                                                    </List.Item>
+                                                )}
+                                            />
+                                        </>
+                                    ) : (
+                                        <p>Chưa có trạng thái phê duyệt nào. Vui lòng gửi cho hội đồng để được phê duyệt.</p>
+                                    )}
+                                </Card>
 
                                 {approvalHistory.length > 0 && (
                                     <Card title="Lịch sử phản hồi xét duyệt" size="small" style={{ marginTop: 16 }}>
@@ -636,87 +739,17 @@ const TopicDetail: React.FC = () => {
                                     </Card>
                                 )}
 
-                                <Card title="Mô tả" style={{ marginTop: 16 }}>
-                                    <p>{topic.MoTa || 'Chưa có mô tả'}</p>
-                                </Card>
-
-                                <Card title="Tổng hợp tài liệu dự án" style={{ marginTop: 16 }}>
-                                    {progressDocsLoading ? (
-                                        <p>Đang tải tài liệu...</p>
-                                    ) : projectDocuments.length > 0 ? (
-                                        <>
-                                            <List
-                                                dataSource={projectDocuments.slice(0, docsVisibleCount)}
-                                                renderItem={(doc) => (
-                                                    <List.Item>
-                                                        <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', gap: 16 }}>
-                                                            <div>
-                                                                <strong>{doc.name}</strong>
-                                                                <div style={{ color: '#666', fontSize: 12 }}>{doc.source}{doc.date ? ` · ${doc.date}` : ''}</div>
-                                                            </div>
-                                                            <div style={{ gap: 8, display: 'flex' }}>
-                                                                <Button
-                                                                    type="primary"
-                                                                    icon={<DownloadOutlined />}
-                                                                    className="btn-see-upload"
-                                                                    onClick={() => downloadDocument(doc.id, doc.name)}
-                                                                >
-                                                                    Tải xuống
-                                                                </Button>
-                                                            </div>
-                                                        </div>
-                                                    </List.Item>
-                                                )}
-                                            />
-                                            {docsVisibleCount < projectDocuments.length && (
-                                                <div style={{ textAlign: 'center', marginTop: 12 }}>
-                                                    <Button
-                                                        block
-                                                        onClick={() => setDocsVisibleCount((prev) => prev + PAGE_SIZE)}
-                                                    >
-                                                        Tải thêm tài liệu ({projectDocuments.length - docsVisibleCount} còn lại)
-                                                    </Button>
-                                                </div>
-                                            )}
-                                        </>
-                                    ) : (
-                                        <p>Chưa có tài liệu dự án từ tiến độ.</p>
-                                    )}
+                                <Card
+                                    title="Tổng hợp điểm"
+                                    style={{ marginTop: 16, marginBottom: 24 }}
+                                    extra={isTopicLeader && ['Chờ nghiệm thu', 'Đang nghiệm thu', 'Đã nghiệm thu', 'Không đạt nghiệm thu'].includes(topic?.TrangThai || '') ? (
+                                        <Button type="primary" onClick={() => navigate(`/mainhome/acceptance/${MaDT}`)}>Hồ sơ nghiệm thu</Button>
+                                    ) : null}
+                                >
+                                    <Collapse items={collapseItems} defaultActiveKey={['hoidong-cham']} />
                                 </Card>
                             </>
                         )}
-
-                        {!editing && (
-                            <>
-
-
-                                <Card title="Thành viên nhóm" style={{ marginTop: 16 }}>
-                                    {members && members.length > 0 ? (
-                                        <List
-                                            dataSource={members}
-                                            renderItem={(member, index) => (
-                                                <List.Item>
-                                                    <span>{index + 1}. {member.TaiKhoan} - {member.VaiTroDT}</span>
-                                                </List.Item>
-                                            )}
-                                        />
-                                    ) : (
-                                        <p>Chưa có thành viên</p>
-                                    )}
-                                </Card>
-
-                            </>
-                        )}
-                        <Card
-                            title="Tổng hợp điểm"
-                            style={{ marginTop: 16 }}
-                            extra={isTopicLeader && ['Chờ nghiệm thu', 'Đang nghiệm thu', 'Đã nghiệm thu', 'Không đạt nghiệm thu'].includes(topic?.TrangThai || '') ? (
-                                <Button type="primary" onClick={() => navigate(`/mainhome/acceptance/${MaDT}`)}>Hồ sơ nghiệm thu</Button>
-                            ) : null}
-                        >
-                            <Collapse items={collapseItems} defaultActiveKey={['hoidong-cham']} />
-                        </Card>
-
                         <Card title="Nhận xét" style={{ marginTop: 16, marginBottom: 24 }}>
                             {canComment && (
                                 <div style={{ marginBottom: 16 }}>
@@ -756,7 +789,11 @@ const TopicDetail: React.FC = () => {
                                         >
                                             <div style={{ width: '100%' }}>
                                                 <strong>{comment.NguoiDung?.TenDayDu || comment.TaiKhoan}</strong>
-                                                {comment.HoiDongs?.length ? <span style={{ color: '#1677ff' }}> · {comment.HoiDongs.join(', ')}</span> : <span style={{ color: '#8c8c8c' }}> · {comment.NguoiDung?.VaiTro || ''}</span>}
+                                                {comment.HoiDongs?.length ? (
+                                                    <span style={{ color: '#1677ff' }}> · {comment.HoiDongs.join(', ')}</span>
+                                                ) : (
+                                                    <span style={{ color: '#8c8c8c' }}> · {comment.NguoiDung?.VaiTro || ''}</span>
+                                                )}
                                                 {isEditingComment ? (
                                                     <div style={{ marginTop: 8 }}>
                                                         <Input.TextArea value={editingCommentContent} onChange={(event) => setEditingCommentContent(event.target.value)} rows={3} />
@@ -766,7 +803,9 @@ const TopicDetail: React.FC = () => {
                                                         </Space>
                                                     </div>
                                                 ) : <p style={{ margin: '8px 0 0' }}>{comment.NoiDung}</p>}
-                                                <div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 6 }}>{new Date(comment.NgayTao).toLocaleString('vi-VN')}</div>
+                                                <div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 6 }}>
+                                                    {new Date(comment.NgayTao).toLocaleString('vi-VN')}
+                                                </div>
                                             </div>
                                         </List.Item>
                                     );
@@ -774,16 +813,12 @@ const TopicDetail: React.FC = () => {
                             />
                             {commentsVisibleCount < projectComments.length && (
                                 <div style={{ textAlign: 'center', marginTop: 12 }}>
-                                    <Button
-                                        block
-                                        onClick={() => setCommentsVisibleCount((prev) => prev + PAGE_SIZE)}
-                                    >
+                                    <Button block onClick={() => setCommentsVisibleCount((prev) => prev + PAGE_SIZE)}>
                                         Tải thêm bình luận ({projectComments.length - commentsVisibleCount} còn lại)
                                     </Button>
                                 </div>
                             )}
                         </Card>
-
                         <Modal
                             title={isRejected ? 'GỬI LẠI PHIẾU XÉT DUYỆT' : 'GỬI ĐỀ TÀI LÊN HỘI ĐỒNG ĐÁNH GIÁ'}
                             open={submitModalOpen}
@@ -827,9 +862,9 @@ const TopicDetail: React.FC = () => {
                                             <strong>Trạng thái:</strong> {topic.TrangThai}
                                         </p>
                                         <p style={{ marginBottom: 8 }}>
-                                            <strong>Hạn chót:</strong> {topic.NgayKetThuc ? new Date(topic.NgayKetThuc).toLocaleDateString('vi-VN') : '-'}
+                                            <strong>Hạn chót:</strong>{' '}
+                                            {topic.NgayKetThuc ? new Date(topic.NgayKetThuc).toLocaleDateString('vi-VN') : '-'}
                                         </p>
-
                                     </div>
 
                                     <Divider />
@@ -895,6 +930,52 @@ const TopicDetail: React.FC = () => {
                                             </p>
                                         )}
                                     </div>
+                                </div>
+                            )}
+                        </Modal>
+                        <Modal
+                            title={`GỬI LẠI CHO ${resendTarget?.name?.toUpperCase() || ''}`}
+                            open={resendModalOpen}
+                            onCancel={() => {
+                                setResendModalOpen(false);
+                                setResendNotes('');
+                                setResendTarget(null);
+                            }}
+                            footer={[
+                                <Button
+                                    key="cancel"
+                                    danger
+                                    onClick={() => {
+                                        setResendModalOpen(false);
+                                        setResendNotes('');
+                                        setResendTarget(null);
+                                    }}
+                                >
+                                    Đóng
+                                </Button>,
+                                <Button key="submit" type="primary" onClick={handleResendToReviewer}>
+                                    Gửi lại
+                                </Button>,
+                            ]}
+                            width={600}
+                        >
+                            {resendTarget && (
+                                <div>
+                                    <p style={{ marginBottom: 12 }}>
+                                        <strong>Người nhận:</strong> {resendTarget.name} ({resendTarget.account})
+                                    </p>
+                                    {resendTarget.note && (
+                                        <p style={{ color: '#cf1322', marginBottom: 12 }}>
+                                            <strong>Lý do từ chối trước đó:</strong> {resendTarget.note}
+                                        </p>
+                                    )}
+                                    <p style={{ marginBottom: 8, fontWeight: 'bold' }}>Ghi chú (Tùy chọn):</p>
+                                    <Input.TextArea
+                                        rows={4}
+                                        placeholder="Nhập ghi chú giải thích lý do gửi lại..."
+                                        value={resendNotes}
+                                        onChange={(e) => setResendNotes(e.target.value)}
+                                    />
                                 </div>
                             )}
                         </Modal>

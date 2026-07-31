@@ -206,12 +206,19 @@ const RegisterTopic = () => {
               rules={[requiredRuleDrop("Chuyên ngành")]}
             >
               <Select
+                showSearch
                 placeholder="Chọn chuyên ngành"
                 onChange={handleChuyenNganhchange}
-                options={chuyenNganh.map(item => ({
-                  value: item.idChuyenNganh,
-                  label: item.TenChuyenNganh
-                }))}
+                optionFilterProp="label"
+                filterOption={(input, option) =>
+                  (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+                options={[...chuyenNganh]
+                  .sort((a, b) => a.TenChuyenNganh.localeCompare(b.TenChuyenNganh, 'vi'))
+                  .map(item => ({
+                    value: item.idChuyenNganh,
+                    label: item.TenChuyenNganh
+                  }))}
               />
             </Form.Item>
           </Col>
@@ -318,7 +325,7 @@ const RegisterTopic = () => {
             >
               Hủy
             </Button>
-            
+
           </Space>
         </Form.Item>
       </Form>

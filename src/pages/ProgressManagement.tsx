@@ -127,14 +127,14 @@ const ProgressManagement: React.FC = () => {
       const report = editingBaoCao
         ? await capNhatBaoCaoTienDo(editingBaoCao.Id, values)
         : await taoBaoCaoTienDo(maDTToUse, {
-            LoaiBaoCao: values.LoaiBaoCao,
-            MaMoc: values.LoaiBaoCao === 'Theo mốc' ? values.MaMoc : undefined,
-            KyBaoCao: values.LoaiBaoCao === 'Theo mốc' ? undefined : values.KyBaoCao,
-            NoiDungBaoCao: values.NoiDungBaoCao,
-            TienDoBaoCao: values.TienDoBaoCao,
-            KhoKhan: values.KhoKhan,
-            DeXuat: values.DeXuat,
-          });
+          LoaiBaoCao: values.LoaiBaoCao,
+          MaMoc: values.LoaiBaoCao === 'Theo mốc' ? values.MaMoc : undefined,
+          KyBaoCao: values.LoaiBaoCao === 'Theo mốc' ? undefined : values.KyBaoCao,
+          NoiDungBaoCao: values.NoiDungBaoCao,
+          TienDoBaoCao: values.TienDoBaoCao,
+          KhoKhan: values.KhoKhan,
+          DeXuat: values.DeXuat,
+        });
       await Promise.all(baoCaoFiles.map((file) => uploadDocument({
         file,
         maDT: maDTToUse,
@@ -801,7 +801,9 @@ const ProgressManagement: React.FC = () => {
                       <span style={{ fontWeight: 500 }}>{bc.KyBaoCao}</span>
                       <Tag color={bc.LoaiBaoCao === 'Theo mốc' ? 'blue' : 'purple'}>{bc.LoaiBaoCao}</Tag>
                       <span>{bc.TienDoBaoCao}%</span>
-                      <span style={{ color: '#888' }}>{dayjs(bc.NgayGui).format('DD/MM/YYYY')}</span>
+                      <span style={{ color: '#888' }}>
+                        {bc.NgayGui ? dayjs(bc.NgayGui).format('DD/MM/YYYY') : 'Chưa gửi'}
+                      </span>
                       <Tag color={
                         bc.TrangThai === 'Đạt' ? 'success' :
                           bc.TrangThai === 'Đã gửi' ? 'processing' :

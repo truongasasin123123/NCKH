@@ -6,20 +6,23 @@ import {
     message, Modal, Input, Divider, Form, Space, Popconfirm
 } from 'antd';
 import {
-    ArrowLeftOutlined, BarChartOutlined, CheckCircleOutlined, CloseCircleOutlined, DownloadOutlined,
+    ArrowLeftOutlined, BarChartOutlined, CheckCircleOutlined, CloseCircleOutlined,
 } from '@ant-design/icons';
 import {
     getTopicById,
     getMemberByTopic,
     getProjectApprovals,
     reviewProject,
-} from './ThongTinDeTai/TopicService';
-import type { TopicLoad, ThanhVienDT } from './ThongTinDeTai/TopicService';
-import { downloadDocument, getDocumentsByTopic } from './ThongTinDeTai/DocumentsService';
-import { createProjectComment, deleteProjectComment, getProjectComments, updateProjectComment } from './ThongTinDeTai/CommentsService';
-import type { ProjectComment } from './ThongTinDeTai/CommentsService';
-import { getAcceptanceByProject } from './ThongTinDeTai/AcceptanceService';
-import type { HoSoNghiemThu } from './ThongTinDeTai/AcceptanceService';
+} from '../services/topic/TopicService';
+import type { TopicLoad, ThanhVienDT } from '../services/topic/TopicService';
+import { downloadDocument, getDocumentsByTopic } from '../services/topic/DocumentsService';
+import { createProjectComment, deleteProjectComment, getProjectComments, updateProjectComment } from '../services/topic/CommentsService';
+import type { ProjectComment } from '../services/topic/CommentsService';
+import { getAcceptanceByProject } from '../services/topic/AcceptanceService';
+import type { HoSoNghiemThu } from '../services/topic/AcceptanceService';
+import TopicInformationPanel from '../components/topic-detail/TopicInformationPanel';
+import ApprovalReviewActions from '../components/topic-detail/ApprovalReviewActions';
+import type { ProjectDocumentItem } from '../components/topic-detail/types';
 
 interface JwtPayload {
     TaiKhoan?: string;
@@ -45,7 +48,7 @@ const TopicDetailCommittee: React.FC = () => {
     const [projectComments, setProjectComments] = useState<ProjectComment[]>([]);
     const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
     const [editingCommentContent, setEditingCommentContent] = useState('');
-    const [projectDocuments, setProjectDocuments] = useState<Array<{ id: number; name: string; source: string; date?: string }>>([]);
+    const [projectDocuments, setProjectDocuments] = useState<ProjectDocumentItem[]>([]);
     const [documentsLoading, setDocumentsLoading] = useState(false);
     const [acceptanceDossier, setAcceptanceDossier] = useState<HoSoNghiemThu | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -269,91 +272,26 @@ const TopicDetailCommittee: React.FC = () => {
                                         {getStatusTag(topic.TrangThai)}
                                     </div>
                                 </Col>
-                                {myApprovalStatus === 'Chờ phê duyệt' && (
-                                    <Col xs={24} md={6}>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-
-                                            <Button
-                                                type="primary"
-                                                icon={<CheckCircleOutlined />}
-                                                block
-                                                onClick={() => setApproveModalOpen(true)}
-                                            >
-                                                Phê duyệt đề tài
-                                            </Button>
-
-
-                                            <Button
-                                                danger
-                                                icon={<CloseCircleOutlined />}
-                                                block
-                                                onClick={() => setRejectModalOpen(true)}
-                                            >
-                                                Từ chối phê duyệt
-                                            </Button>
-                                        </div>
-                                    </Col>
-                                )}
+                                <Col xs={24} md={6}>
+                                    <ApprovalReviewActions
+                                        canReview={myApprovalStatus === 'Chờ phê duyệt'}
+                                        onApprove={() => setApproveModalOpen(true)}
+                                        onReject={() => setRejectModalOpen(true)}
+                                    />
+                                </Col>
                             </Row>
                         </Card>
 
 
-                        <Row gutter={[16, 16]}>
-                            <Col xs={24} md={12}>
-                                <Card title="Thông tin cơ bản">
-                                    <p><strong>Mã đề tài:</strong> #{topic.MaDT}</p>
-                                    <p><strong>Danh mục:</strong> {topic.PhanLoai}</p>
-
-                                </Card>
-                            </Col>
-                            <Col xs={24} md={12}>
-                                <Card title="Mô tả" >
-                                    <p>{topic.MoTa || 'Chưa có mô tả'}</p>
-                                </Card>
-                            </Col>
-                        </Row>
-
-
-
-                        <Card title="Thành viên nhóm" style={{ marginTop: 16 }}>
-                            {members && members.length > 0 ? (
-                                <List
-                                    dataSource={members}
-                                    renderItem={(member, index) => (
-                                        <List.Item>
-                                            <span>{index + 1}. {member.TaiKhoan} - {member.VaiTroDT}</span>
-                                        </List.Item>
-                                    )}
-                                />
-                            ) : (
-                                <p>Chưa có thành viên</p>
-                            )}
-                        </Card>
-
-                        <Card title="Tài liệu đề tài" style={{ marginTop: 16 }}>
-                            {documentsLoading ? (
-                                <p>Đang tải tài liệu...</p>
-                            ) : projectDocuments.length > 0 ? (
-                                <List
-                                    dataSource={projectDocuments}
-                                    renderItem={(document) => (
-                                        <List.Item>
-                                            <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', gap: 16 }}>
-                                                <div>
-                                                    <strong>{document.name}</strong>
-                                                    <div style={{ color: '#666', fontSize: 12 }}>{document.source}{document.date ? ` · ${document.date}` : ''}</div>
-                                                </div>
-                                                <Space>
-                                                    <Button type="primary" icon={<DownloadOutlined />} onClick={() => downloadDocument(document.id, document.name)}>Tải xuống</Button>
-                                                </Space>
-                                            </div>
-                                        </List.Item>
-                                    )}
-                                />
-                            ) : (
-                                <p>Chưa có tài liệu.</p>
-                            )}
-                        </Card>
+                        <TopicInformationPanel
+                            topic={topic}
+                            members={members}
+                            documents={projectDocuments}
+                            documentsLoading={documentsLoading}
+                            visibleDocumentCount={projectDocuments.length}
+                            onShowMoreDocuments={() => undefined}
+                            onDownloadDocument={downloadDocument}
+                        />
 
                         {acceptanceDossier && (
                             <Card title="Tổng hợp điểm nghiệm thu" style={{ marginTop: 16 }}>

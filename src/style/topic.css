@@ -1,0 +1,63 @@
+.custom-segmented {
+    width: 100%;
+    max-width: 320px;
+    padding: 2px;
+    border-radius: 999px;
+    background: #f3f3f3;
+}
+
+.custom-segmented .ant-segmented-group {
+    display: flex;
+}
+
+.custom-segmented .ant-segmented-item {
+    flex: 1;
+    min-height: 36px;
+    border-radius: 999px;
+    text-align: center;
+    color: #666;
+
+}
+
+.custom-segmented .ant-segmented-item-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    padding: 0 16px;
+}
+
+/* Phần nền trắng chạy qua lại */
+.custom-segmented .ant-segmented-thumb {
+    border-radius: 999px;
+    background: #fff;
+    border: 1px solid #dedede;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+}
+
+.custom-segmented .ant-segmented-item-selected {
+    color: #111;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+}
+
+/* Item chưa được chọn */
+.custom-segmented .ant-segmented-item:not(.ant-segmented-item-selected):hover {
+    background-color: transparent !important;
+    color: #666 !important;
+}
+
+.custom-segmented .ant-segmented-item:not(.ant-segmented-item-selected):hover::after {
+    background-color: transparent !important;
+}
+
+/* Item đang được chọn */
+.custom-segmented .ant-segmented-item-selected:hover {
+    background-color: #fff !important;
+    color: #111 !important;
+}
+
+.custom-segmented .ant-segmented-item-selected:hover .ant-segmented-item-label {
+    color: #111 !important;
+}

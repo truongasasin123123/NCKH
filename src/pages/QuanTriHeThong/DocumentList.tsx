@@ -6,8 +6,8 @@ import {
   deleteLoaiTaiLieu,
   getLoaiTaiLieuList,
   updateLoaiTaiLieu,
-} from '../ThongTinDeTai/DocumentsService';
-import type { LoaiTaiLieu, NghiepVuLoai } from '../ThongTinDeTai/DocumentsService';
+} from '../../services/topic/DocumentsService';
+import type { LoaiTaiLieu, NghiepVuLoai } from '../../services/topic/DocumentsService';
 
 const nghiepVuOptions: Array<{ value: NghiepVuLoai; label: string }> = [
   { value: 'dang_ky', label: 'Đăng ký' },

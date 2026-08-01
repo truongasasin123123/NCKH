@@ -3,10 +3,10 @@ import { jwtDecode } from 'jwt-decode';
 import { Table, Tag, Space, Button, message, Spin, Popconfirm, Input, Select } from 'antd';
 import { EyeOutlined, DeleteOutlined, FileTextOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { deleteProject, getMyTopics, getPendingTopics } from './ThongTinDeTai/TopicService';
-import type { TopicLoad } from './ThongTinDeTai/TopicService';
+import { deleteProject, getMyTopics, getPendingTopics } from '../services/topic/TopicService';
+import type { TopicLoad } from '../services/topic/TopicService';
 import { useNavigate } from 'react-router-dom';
-import { getTopicProgress } from './ThongTinDeTai/ProgressService';
+import { getTopicProgress } from '../services/progress/ProgressService';
 
 interface JwtPayload {
     TaiKhoan?: string;

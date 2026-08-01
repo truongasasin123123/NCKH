@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Table, Tag, Progress, Button, message, Input, Select, Space } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { getDeTaiDuocGan } from '../ThongTinDeTai/ProgressService';
-import type { DeTaiTheoDoi } from '../ThongTinDeTai/ProgressService';
+import { getDeTaiDuocGan } from '../../services/progress/ProgressService';
+import type { DeTaiTheoDoi } from '../../services/progress/ProgressService';
 
 const mauTrangThai: Record<string, string> = {
   'Bắt đầu': 'processing',

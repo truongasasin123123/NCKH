@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { jwtDecode } from 'jwt-decode';
 import ApiAxios from "../axios.config";
 import type { UploadFile } from 'antd/es/upload/interface';
-import { uploadDocument } from './ThongTinDeTai/DocumentsService';
+import { uploadDocument } from '../services/topic/DocumentsService';
 
 const { Title } = Typography;
 const { TextArea } = Input;

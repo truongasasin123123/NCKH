@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout, Button, Typography, Space, Row, Col } from 'antd';
 import { ArrowRightOutlined } from '@ant-design/icons';
-import { getCouncilMembership } from './ThongTinDeTai/ProgressService';
+import { getCouncilMembership } from '../services/progress/ProgressService';
 
 const { Content } = Layout;
 const { Title, Paragraph } = Typography;

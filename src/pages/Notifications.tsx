@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Table, Button, message, Spin, Badge, Modal, Input, Divider, Select, Row, Col } from 'antd';
 import { EyeOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { getNotifications } from './ThongTinDeTai/NotificationService';
-import type { Notification } from './ThongTinDeTai/NotificationService';
+import { getNotifications } from '../services/notification/NotificationService';
+import type { Notification } from '../services/notification/NotificationService';
 import ApiAxios from '../axios.config';
 
 const Notifications: React.FC = () => {

@@ -90,6 +90,18 @@ export const getProjectApprovals = async (id: string) => {
     return response.data;
 };
 
+export const resendProjectApproval = async (
+    id: string,
+    reviewerAccount: string,
+    note?: string,
+) => {
+    const response = await ApiAxios.post(
+        `/project/${id}/approvals/${encodeURIComponent(reviewerAccount)}/resend`,
+        { note },
+    );
+    return response.data;
+};
+
 export const getProjectApprovalHistory = async (id: string) => {
     const response = await ApiAxios.get(`/project/${id}/approval-history`);
     return response.data;

@@ -1,26 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import type { CollapseProps } from 'antd';
-import { Collapse, Spin, Button, Tag, Card, Row, Col, List, message, Modal, Input, Divider, Form, Upload, Space, Popconfirm, Segmented } from 'antd';
+import { Collapse, Spin, Button, Tag, Card, Row, Col, message, Form, Segmented } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
-import { DownloadOutlined, ArrowLeftOutlined, EditOutlined, SaveOutlined, CloseOutlined, SendOutlined, UploadOutlined, BarChartOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, EditOutlined, CloseOutlined, SendOutlined, BarChartOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
-import { getTopicById, getMemberByTopic, getProjectApprovals, getProjectApprovalHistory, submitProjectForApproval, updateProject } from './ThongTinDeTai/TopicService';
-import type { TopicLoad, ThanhVienDT } from './ThongTinDeTai/TopicService';
-import { downloadDocument, getDocumentsByTopic, uploadDocument } from './ThongTinDeTai/DocumentsService';
-import { createProjectComment, deleteProjectComment, getProjectComments, updateProjectComment } from './ThongTinDeTai/CommentsService';
-import type { ProjectComment } from './ThongTinDeTai/CommentsService';
-import { getAcceptanceByProject } from './ThongTinDeTai/AcceptanceService';
-import type { HoSoNghiemThu } from './ThongTinDeTai/AcceptanceService';
-
-interface ReviewerApproval {
-    account: string
-    name: string
-    status: string
-    responseDate?: string
-    note?: string
-    councilType: 'Xét duyệt' | 'Chấm điểm'
-}
+import { getTopicById, resendProjectApproval, submitProjectForApproval, updateProject } from '../services/topic/TopicService';
+import { downloadDocument, uploadDocument } from '../services/topic/DocumentsService';
+import TopicInformationPanel from '../components/topic-detail/TopicInformationPanel';
+import CouncilPanel from '../components/topic-detail/CouncilPanel';
+import TopicEditForm from '../components/topic-detail/TopicEditForm';
+import ApprovalSubmitModal from '../components/topic-detail/ApprovalSubmitModal';
+import ResendApprovalModal from '../components/topic-detail/ResendApprovalModal';
+import CommentsPanel from '../components/topic-detail/CommentsPanel';
+import {
+    useTopicApprovals,
+    useTopicComments,
+    useTopicDetails,
+    useTopicDocuments,
+} from '../hooks/topic-detail';
+import type { ReviewerApproval } from '../components/topic-detail/types';
+import "../style/topic.css";
 
 interface JwtPayload {
     TaiKhoan?: string;
@@ -31,23 +31,10 @@ interface JwtPayload {
 const TopicDetail: React.FC = () => {
     const { MaDT } = useParams<{ MaDT: string }>(); // Sử dụng MaDT thay vì id
     const navigate = useNavigate();
-    const [topic, setTopic] = useState<TopicLoad | null>(null);
-    const [members, setMembers] = useState<ThanhVienDT[]>([]); // Thêm state cho members
-    const [loading, setLoading] = useState(true);
     const [submitModalOpen, setSubmitModalOpen] = useState(false);
     const [submitNotes, setSubmitNotes] = useState('');
     const [attachedFiles, setAttachedFiles] = useState<UploadFile[]>([]);
-    const [projectDocuments, setProjectDocuments] = useState<Array<{ id: number; name: string; source: string; date?: string }>>([]);
-    const [progressDocsLoading, setProgressDocsLoading] = useState(false);
     const [editing, setEditing] = useState(false);
-    const [approvalStatus, setApprovalStatus] = useState<ReviewerApproval[]>([]);
-    const [approvalHistory, setApprovalHistory] = useState<ReviewerApproval[]>([]);
-    const [submittedCouncilTypes, setSubmittedCouncilTypes] = useState<Array<'Xét duyệt' | 'Chấm điểm'>>([]);
-    const [projectComments, setProjectComments] = useState<ProjectComment[]>([]);
-    const [commentInput, setCommentInput] = useState('');
-    const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
-    const [editingCommentContent, setEditingCommentContent] = useState('');
-    const [acceptanceDossier, setAcceptanceDossier] = useState<HoSoNghiemThu | null>(null);
     const PAGE_SIZE = 5; // số lượng hiển thị mỗi lần bấm "Tải thêm"
     const [docsVisibleCount, setDocsVisibleCount] = useState(PAGE_SIZE);
     const [commentsVisibleCount, setCommentsVisibleCount] = useState(PAGE_SIZE);
@@ -55,6 +42,17 @@ const TopicDetail: React.FC = () => {
     const [resendModalOpen, setResendModalOpen] = useState(false);
     const [resendTarget, setResendTarget] = useState<ReviewerApproval | null>(null);
     const [resendNotes, setResendNotes] = useState('');
+    const topicComments = useTopicComments(MaDT);
+    const topicApprovals = useTopicApprovals(MaDT);
+    const topicDetails = useTopicDetails();
+    const topicDocuments = useTopicDocuments();
+    const {
+        topic,
+        setTopic,
+        members,
+        acceptanceDossier,
+        loading,
+    } = topicDetails;
 
     const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
     const user: JwtPayload | null = token ? jwtDecode<JwtPayload>(token) : null;
@@ -67,9 +65,9 @@ const TopicDetail: React.FC = () => {
         .replace(/đ/g, 'd');
     const canComment = normalizedRole.includes('hoi dong') || normalizedRole.includes('nguoi huong dan');
 
-    const approvalReviewers = approvalStatus.filter((reviewer) => reviewer.councilType === 'Xét duyệt');
+    const approvalReviewers = topicApprovals.approvalStatus.filter((reviewer) => reviewer.councilType === 'Xét duyệt');
     const approvedCount = approvalReviewers.filter((reviewer) => reviewer.status === 'Đã phê duyệt').length;
-    const hasSubmittedForApproval = submittedCouncilTypes.includes('Xét duyệt');
+    const hasSubmittedForApproval = topicApprovals.submittedCouncilTypes.includes('Xét duyệt');
     const isRejected = topic?.TrangThai === 'Từ chối';
     const isTopicLeader = members.some((member) =>
         member.TaiKhoan === user?.TaiKhoan && member.VaiTroDT === 'Nhóm trưởng',
@@ -89,9 +87,8 @@ const TopicDetail: React.FC = () => {
             try {
                 const [latestTopic] = await Promise.all([
                     getTopicById(MaDT),
-                    fetchApprovalStatus(MaDT),
-                    fetchApprovalHistory(MaDT),
-                    fetchComments(MaDT),
+                    topicApprovals.refresh(),
+                    topicComments.refresh(),
                 ]);
                 setTopic(latestTopic);
             } catch (error) {
@@ -110,31 +107,17 @@ const TopicDetail: React.FC = () => {
         }
 
         try {
-            setLoading(true);
-            const data = await getTopicById(MaDT);
-            const memData = await getMemberByTopic(MaDT); // Lấy members
+            const data = await topicDetails.load(MaDT);
             if (data) {
-                setTopic(data);
-                setMembers(memData);
-                await fetchApprovalStatus(MaDT);
-                await fetchApprovalHistory(MaDT);
-                await fetchComments(MaDT);
-                await fetchProjectDocuments(MaDT);
-                try {
-                    const dossiers = await getAcceptanceByProject(MaDT);
-                    setAcceptanceDossier(dossiers[0] || null);
-                } catch (acceptanceError) {
-                    // Đề tài cũ chưa có hồ sơ nghiệm thu vẫn phải mở được trang chi tiết.
-                    console.warn('Chưa tải được hồ sơ nghiệm thu:', acceptanceError);
-                    setAcceptanceDossier(null);
-                }
+                await topicApprovals.refresh();
+                await topicComments.refresh();
+                await topicDocuments.refresh(MaDT);
                 form.setFieldsValue({
                     TenDT: data.TenDT,
                     PhanLoai: data.PhanLoai,
                     NgayBatDau: data.NgayBatDau ? new Date(data.NgayBatDau).toISOString().split('T')[0] : '',
                     NgayKetThuc: data.NgayKetThuc ? new Date(data.NgayKetThuc).toISOString().split('T')[0] : '',
                     MoTa: data.MoTa,
-                    // objectives, methods, progress không có trong API, nên bỏ qua
                 });
             } else {
                 message.error('Không tìm thấy đề tài');
@@ -143,8 +126,6 @@ const TopicDetail: React.FC = () => {
         } catch (error) {
             message.error('Lỗi khi tải chi tiết đề tài');
             console.error(error);
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -166,26 +147,6 @@ const TopicDetail: React.FC = () => {
             ) : <p>Hồ sơ chưa được gửi đến hội đồng nghiệm thu.</p>,
         },
     ];
-
-    const fetchProjectDocuments = async (maDT: string) => {
-        try {
-            setProgressDocsLoading(true);
-            const documents = await getDocumentsByTopic(maDT);
-            setProjectDocuments(documents.map((document) => ({
-                id: document.MaTL,
-                name: document.TenFile,
-                source: document.LoaiTaiLieu || 'Tài liệu đề tài',
-                date: document.NgayTaiLen
-                    ? new Date(document.NgayTaiLen).toLocaleDateString('vi-VN')
-                    : undefined,
-            })));
-        } catch (error) {
-            console.error('Lỗi khi tải tài liệu đề tài:', error);
-            message.error('Không thể tải tài liệu đề tài');
-        } finally {
-            setProgressDocsLoading(false);
-        }
-    };
 
     const handleSubmitTopic = async () => {
         const councilType = 'approval';
@@ -225,15 +186,15 @@ const TopicDetail: React.FC = () => {
                 status: reviewer.status,
                 councilType: reviewer.LoaiHoiDong || 'Xét duyệt',
             }));
-            setApprovalStatus((current) => [
+            topicApprovals.setApprovalStatus((current) => [
                 ...current.filter((reviewer) => reviewer.councilType !== 'Xét duyệt'),
                 ...newReviewers,
             ]);
-            setSubmittedCouncilTypes((current) => Array.from(new Set([
+            topicApprovals.setSubmittedCouncilTypes((current) => Array.from(new Set([
                 ...current,
                 'Xét duyệt',
             ])) as Array<'Xét duyệt' | 'Chấm điểm'>);
-            await fetchProjectDocuments(MaDT);
+            await topicDocuments.refresh(MaDT);
 
             message.success(
                 isResubmission
@@ -251,118 +212,18 @@ const TopicDetail: React.FC = () => {
     const handleResendToReviewer = async () => {
         if (!MaDT || !resendTarget) return;
         try {
-            // Gửi lại yêu cầu xét duyệt; API hiện tại không hỗ trợ truyền danh sách tài khoản đích
-            await submitProjectForApproval(MaDT, 'approval', resendNotes);
+            await resendProjectApproval(MaDT, resendTarget.account, resendNotes);
 
             message.success(`Đã gửi lại cho ${resendTarget.name}`);
             setResendModalOpen(false);
             setResendNotes('');
             setResendTarget(null);
-            await fetchApprovalStatus(MaDT);
-            await fetchApprovalHistory(MaDT);
+            await topicApprovals.refresh();
         } catch (error: any) {
             message.error(error?.response?.data?.message || 'Không thể gửi lại');
         }
     };
 
-
-    const fetchApprovalStatus = async (maDT: string) => {
-        try {
-            const approvals = await getProjectApprovals(maDT);
-            setSubmittedCouncilTypes(Array.from(new Set(approvals.map((approval: {
-                LoaiHoiDong?: 'Xét duyệt' | 'Chấm điểm';
-            }) => approval.LoaiHoiDong || 'Xét duyệt'))) as Array<'Xét duyệt' | 'Chấm điểm'>);
-            setApprovalStatus(approvals.map((approval: {
-                TaiKhoanHoiDong: string;
-                TrangThai: string;
-                NgayPhanHoi?: string;
-                GhiChu?: string;
-                NguoiDung?: { TenDayDu?: string };
-                LoaiHoiDong?: 'Xét duyệt' | 'Chấm điểm';
-            }) => ({
-                account: approval.TaiKhoanHoiDong,
-                name: approval.NguoiDung?.TenDayDu || approval.TaiKhoanHoiDong,
-                status: approval.TrangThai,
-                responseDate: approval.NgayPhanHoi,
-                note: approval.GhiChu,
-                councilType: approval.LoaiHoiDong || 'Xét duyệt',
-            })));
-        } catch (error) {
-            console.error('Lỗi khi tải trạng thái xét duyệt:', error);
-        }
-    };
-
-    const fetchApprovalHistory = async (maDT: string) => {
-        try {
-            const history = await getProjectApprovalHistory(maDT);
-            setApprovalHistory(history.map((approval: {
-                TaiKhoanHoiDong: string;
-                TrangThai: string;
-                NgayPhanHoi?: string;
-                GhiChu?: string;
-                NguoiDung?: { TenDayDu?: string };
-                LoaiHoiDong?: 'Xét duyệt' | 'Chấm điểm';
-            }) => ({
-                account: approval.TaiKhoanHoiDong,
-                name: approval.NguoiDung?.TenDayDu || approval.TaiKhoanHoiDong,
-                status: approval.TrangThai,
-                responseDate: approval.NgayPhanHoi,
-                note: approval.GhiChu,
-                councilType: approval.LoaiHoiDong || 'Xét duyệt',
-            })));
-        } catch (error) {
-            console.error('Lỗi khi tải lịch sử xét duyệt:', error);
-        }
-    };
-
-    const fetchComments = async (maDT: string) => {
-        try {
-            setProjectComments(await getProjectComments(maDT));
-        } catch (error) {
-            console.error('Lỗi khi tải nhận xét:', error);
-        }
-    };
-
-    const handleCreateComment = async () => {
-        if (!MaDT || !commentInput.trim()) {
-            message.warning('Vui lòng nhập nội dung nhận xét');
-            return;
-        }
-        try {
-            const created = await createProjectComment(MaDT, commentInput);
-            setProjectComments((current) => [created, ...current]);
-            setCommentInput('');
-            message.success('Đã thêm nhận xét');
-        } catch (error: any) {
-            message.error(error?.response?.data?.message || 'Không thể thêm nhận xét');
-        }
-    };
-
-    const handleUpdateComment = async (id: number) => {
-        if (!editingCommentContent.trim()) {
-            message.warning('Nội dung nhận xét không được để trống');
-            return;
-        }
-        try {
-            const updated = await updateProjectComment(id, editingCommentContent);
-            setProjectComments((current) => current.map((comment) => comment.Id === id ? updated : comment));
-            setEditingCommentId(null);
-            setEditingCommentContent('');
-            message.success('Đã sửa nhận xét');
-        } catch (error: any) {
-            message.error(error?.response?.data?.message || 'Không thể sửa nhận xét');
-        }
-    };
-
-    const handleDeleteComment = async (id: number) => {
-        try {
-            await deleteProjectComment(id);
-            setProjectComments((current) => current.filter((comment) => comment.Id !== id));
-            message.success('Đã xóa nhận xét');
-        } catch (error: any) {
-            message.error(error?.response?.data?.message || 'Không thể xóa nhận xét');
-        }
-    };
 
     const getStatusTag = (status: string) => {
         const statusMap: Record<string, { color: string; label: string }> = {
@@ -441,9 +302,9 @@ const TopicDetail: React.FC = () => {
                             </Button>
                         </div>
                         {!editing && (
-                            <div style={{ display: 'flex', justifyContent: 'center', margin: '16px 0' }}>
+                            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 40, fontWeight: 600 }}>
                                 <Segmented
-                                    size="large"
+                                    className="custom-segmented"
                                     value={activeView}
                                     onChange={(value) => setActiveView(value as 'detail' | 'council')}
                                     options={[
@@ -451,13 +312,6 @@ const TopicDetail: React.FC = () => {
                                         { label: 'Hội đồng', value: 'council' },
                                     ]}
                                     block
-                                    style={{
-                                        width: '100%',
-                                        maxWidth: 320,
-                                        padding: 4,
-                                        borderRadius: 999,
-                                        background: '#f0f0f0',
-                                    }}
                                 />
                             </div>
                         )}
@@ -521,464 +375,81 @@ const TopicDetail: React.FC = () => {
 
 
                         {editing ? (
-                            <Form form={form} onFinish={handleEditSubmit} layout="vertical">
-                                <Row gutter={[16, 16]} align="top">
-                                    <Col xs={24} md={12}>
-                                        <Card title="Thông tin cơ bản">
-                                            <Form.Item
-                                                label="Tên đề tài"
-                                                name="TenDT"
-                                                rules={[{ required: true, message: 'Vui lòng nhập tên đề tài' }]}
-                                            >
-                                                <Input />
-                                            </Form.Item>
-                                            <Form.Item
-                                                label="Danh mục"
-                                                name="PhanLoai"
-                                                rules={[{ required: true, message: 'Vui lòng nhập danh mục' }]}
-                                            >
-                                                <Input />
-                                            </Form.Item>
-                                            <Form.Item label="Ngày bắt đầu" name="NgayBatDau">
-                                                <Input type="date" disabled />
-                                            </Form.Item>
-                                            <Form.Item label="Hạn chót" name="NgayKetThuc">
-                                                <Input type="date" disabled />
-                                            </Form.Item>
-                                        </Card>
-                                    </Col>
-                                    <Col xs={24} md={12}>
-                                        <Card title="Trạng thái" style={{ height: 'fit-content' }}>
-                                            <Form.Item label="Trạng thái" name="TrangThai">
-                                                <Input disabled />
-                                            </Form.Item>
-                                        </Card>
-                                    </Col>
-                                </Row>
-
-                                <Card title="Mô tả" style={{ marginTop: 16 }}>
-                                    <Form.Item label="Mô tả" name="MoTa">
-                                        <Input.TextArea rows={3} />
-                                    </Form.Item>
-                                </Card>
-
-                                <Row gutter={16} style={{ marginTop: 16 }}>
-                                    <Col>
-                                        <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>
-                                            Lưu thay đổi
-                                        </Button>
-                                    </Col>
-                                    <Col>
-                                        <Button danger icon={<CloseOutlined />} onClick={handleCancelEdit}>
-                                            Hủy
-                                        </Button>
-                                    </Col>
-                                </Row>
-                            </Form>
+                            <TopicEditForm form={form} onSubmit={handleEditSubmit} onCancel={handleCancelEdit} />
                         ) : activeView === 'detail' ? (
-                            <>
-                                <Card title="Thông tin cơ bản">
-                                    <p><strong>Mã đề tài:</strong> #{topic.MaDT}</p>
-                                    <p><strong>Danh mục:</strong> {topic.PhanLoai}</p>
-                                    <p>
-                                        <strong>Ngày bắt đầu:</strong>{' '}
-                                        {topic.NgayBatDau ? new Date(topic.NgayBatDau).toLocaleDateString('vi-VN') : '-'}
-                                    </p>
-                                    <p>
-                                        <strong>Hạn chót:</strong>{' '}
-                                        {topic.NgayKetThuc ? new Date(topic.NgayKetThuc).toLocaleDateString('vi-VN') : '-'}
-                                    </p>
-                                </Card>
-
-                                <Card title="Mô tả" style={{ marginTop: 16 }}>
-                                    <p>{topic.MoTa || 'Chưa có mô tả'}</p>
-                                </Card>
-
-                                <Card title="Tổng hợp tài liệu dự án" style={{ marginTop: 16 }}>
-                                    {progressDocsLoading ? (
-                                        <p>Đang tải tài liệu...</p>
-                                    ) : projectDocuments.length > 0 ? (
-                                        <>
-                                            <List
-                                                dataSource={projectDocuments.slice(0, docsVisibleCount)}
-                                                renderItem={(doc) => (
-                                                    <List.Item>
-                                                        <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', gap: 16 }}>
-                                                            <div>
-                                                                <strong>{doc.name}</strong>
-                                                                <div style={{ color: '#666', fontSize: 12 }}>
-                                                                    {doc.source}{doc.date ? ` · ${doc.date}` : ''}
-                                                                </div>
-                                                            </div>
-                                                            <div style={{ gap: 8, display: 'flex' }}>
-                                                                <Button
-                                                                    type="primary"
-                                                                    icon={<DownloadOutlined />}
-                                                                    className="btn-see-upload"
-                                                                    onClick={() => downloadDocument(doc.id, doc.name)}
-                                                                >
-                                                                    Tải xuống
-                                                                </Button>
-                                                            </div>
-                                                        </div>
-                                                    </List.Item>
-                                                )}
-                                            />
-                                            {docsVisibleCount < projectDocuments.length && (
-                                                <div style={{ textAlign: 'center', marginTop: 12 }}>
-                                                    <Button block onClick={() => setDocsVisibleCount((prev) => prev + PAGE_SIZE)}>
-                                                        Tải thêm tài liệu ({projectDocuments.length - docsVisibleCount} còn lại)
-                                                    </Button>
-                                                </div>
-                                            )}
-                                        </>
-                                    ) : (
-                                        <p>Chưa có tài liệu dự án từ tiến độ.</p>
-                                    )}
-                                </Card>
-
-                                <Card title="Thành viên nhóm" style={{ marginTop: 16 }}>
-                                    {members && members.length > 0 ? (
-                                        <List
-                                            dataSource={members}
-                                            renderItem={(member, index) => (
-                                                <List.Item>
-                                                    <span>{index + 1}. {member.TaiKhoan} - {member.VaiTroDT}</span>
-                                                </List.Item>
-                                            )}
-                                        />
-                                    ) : (
-                                        <p>Chưa có thành viên</p>
-                                    )}
-                                </Card>
-
-
-                            </>
-                        ) : (
-                            <>
-                                <Card title="Trạng thái phê duyệt">
-                                    {approvalStatus.length > 0 ? (
-                                        <>
-                                            <p>
-                                                <strong>Hội đồng xét duyệt đã đồng ý:</strong> {approvedCount}/{approvalReviewers.length}
-                                            </p>
-                                            <List
-                                                dataSource={approvalStatus}
-                                                renderItem={(reviewer, index) => (
-                                                    <List.Item>
-                                                        <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, width: '100%' }}>
-                                                            
-                                                            <span>
-                                                                {index + 1}. {reviewer.name}
-                                                                <Tag style={{ marginLeft: 8 }} color={reviewer.councilType === 'Xét duyệt' ? 'purple' : 'cyan'}>
-                                                                    Hội đồng {reviewer.councilType.toLowerCase()}
-                                                                </Tag>
-                                                                {reviewer.name !== reviewer.account && (
-                                                                    <span style={{ color: '#8c8c8c' }}> ({reviewer.account})</span>
-                                                                )}
-                                                                {reviewer.responseDate && (
-                                                                    <span style={{ color: '#8c8c8c', display: 'block', fontSize: 12 }}>
-                                                                        Phản hồi: {new Date(reviewer.responseDate).toLocaleString('vi-VN')}
-                                                                    </span>
-                                                                )}
-                                                                {reviewer.status === 'Từ chối' && reviewer.note && (
-                                                                    <span style={{ color: '#cf1322', display: 'block', fontSize: 12, marginTop: 4 }}>
-                                                                        Lý do từ chối: {reviewer.note}
-                                                                    </span>
-                                                                )}
-                                                            </span>
-                                                            <span style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8, lineHeight: 1 }}>
-                                                                {reviewer.status === 'Từ chối' && isTopicLeader && (
-                                                                    <Button
-                                                                        style={{ marginRight: 16 }}
-                                                                        type="primary"
-                                                                        className="btn-see-upload"
-                                                                        icon={<SendOutlined />}
-                                                                        onClick={() => {
-                                                                            setResendTarget(reviewer);
-                                                                            setResendModalOpen(true);
-                                                                        }}
-                                                                    >
-                                                                        Gửi lại
-                                                                    </Button>
-                                                                )}
-                                                                {getApprovalStatusTag(reviewer.status)}
-                                                            </span>
-                                                        </span>
-                                                    </List.Item>
-                                                )}
-                                            />
-                                        </>
-                                    ) : (
-                                        <p>Chưa có trạng thái phê duyệt nào. Vui lòng gửi cho hội đồng để được phê duyệt.</p>
-                                    )}
-                                </Card>
-
-                                {approvalHistory.length > 0 && (
-                                    <Card title="Lịch sử phản hồi xét duyệt" size="small" style={{ marginTop: 16 }}>
-                                        <List
-                                            dataSource={approvalHistory}
-                                            renderItem={(reviewer) => (
-                                                <List.Item>
-                                                    <div>
-                                                        <strong>{reviewer.name}</strong> {getApprovalStatusTag(reviewer.status)}
-                                                        {reviewer.note && (
-                                                            <div style={{ color: '#cf1322', marginTop: 4 }}>
-                                                                Lý do: {reviewer.note}
-                                                            </div>
-                                                        )}
-                                                        {reviewer.responseDate && (
-                                                            <div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 4 }}>
-                                                                Phản hồi lúc: {new Date(reviewer.responseDate).toLocaleString('vi-VN')}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </List.Item>
-                                            )}
-                                        />
-                                    </Card>
-                                )}
-
-                                <Card
-                                    title="Tổng hợp điểm"
-                                    style={{ marginTop: 16, marginBottom: 24 }}
-                                    extra={isTopicLeader && ['Chờ nghiệm thu', 'Đang nghiệm thu', 'Đã nghiệm thu', 'Không đạt nghiệm thu'].includes(topic?.TrangThai || '') ? (
-                                        <Button type="primary" onClick={() => navigate(`/mainhome/acceptance/${MaDT}`)}>Hồ sơ nghiệm thu</Button>
-                                    ) : null}
-                                >
-                                    <Collapse items={collapseItems} defaultActiveKey={['hoidong-cham']} />
-                                </Card>
-                            </>
-                        )}
-                        <Card title="Nhận xét" style={{ marginTop: 16, marginBottom: 24 }}>
-                            {canComment && (
-                                <div style={{ marginBottom: 16 }}>
-                                    <Input.TextArea
-                                        rows={4}
-                                        placeholder="Nhập nhận xét..."
-                                        value={commentInput}
-                                        onChange={(e) => setCommentInput(e.target.value)}
-                                    />
-                                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
-                                        <Button type="primary" onClick={handleCreateComment}>Thêm nhận xét</Button>
-                                    </div>
-                                </div>
-                            )}
-                            <List
-                                locale={{ emptyText: 'Chưa có nhận xét' }}
-                                dataSource={projectComments.slice(0, commentsVisibleCount)}
-                                renderItem={(comment) => {
-                                    const isAuthor = comment.TaiKhoan === user?.TaiKhoan;
-                                    const isEditingComment = editingCommentId === comment.Id;
-                                    return (
-                                        <List.Item
-                                            actions={isAuthor && canComment ? [
-                                                <Button key="edit" type="link" onClick={() => { setEditingCommentId(comment.Id); setEditingCommentContent(comment.NoiDung); }}>Sửa</Button>,
-                                                <Popconfirm
-                                                    key="delete"
-                                                    title="Xóa nhận xét"
-                                                    description="Bạn có chắc muốn xóa nhận xét này?"
-                                                    okText="Xóa"
-                                                    cancelText="Hủy"
-                                                    okButtonProps={{ danger: true }}
-                                                    onConfirm={() => handleDeleteComment(comment.Id)}
-                                                >
-                                                    <Button type="link" danger>Xóa</Button>
-                                                </Popconfirm>,
-                                            ] : undefined}
-                                        >
-                                            <div style={{ width: '100%' }}>
-                                                <strong>{comment.NguoiDung?.TenDayDu || comment.TaiKhoan}</strong>
-                                                {comment.HoiDongs?.length ? (
-                                                    <span style={{ color: '#1677ff' }}> · {comment.HoiDongs.join(', ')}</span>
-                                                ) : (
-                                                    <span style={{ color: '#8c8c8c' }}> · {comment.NguoiDung?.VaiTro || ''}</span>
-                                                )}
-                                                {isEditingComment ? (
-                                                    <div style={{ marginTop: 8 }}>
-                                                        <Input.TextArea value={editingCommentContent} onChange={(event) => setEditingCommentContent(event.target.value)} rows={3} />
-                                                        <Space style={{ marginTop: 8 }}>
-                                                            <Button type="primary" size="small" onClick={() => handleUpdateComment(comment.Id)}>Lưu</Button>
-                                                            <Button size="small" onClick={() => setEditingCommentId(null)}>Hủy</Button>
-                                                        </Space>
-                                                    </div>
-                                                ) : <p style={{ margin: '8px 0 0' }}>{comment.NoiDung}</p>}
-                                                <div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 6 }}>
-                                                    {new Date(comment.NgayTao).toLocaleString('vi-VN')}
-                                                </div>
-                                            </div>
-                                        </List.Item>
-                                    );
-                                }}
+                            <TopicInformationPanel
+                                topic={topic}
+                                members={members}
+                                documents={topicDocuments.documents}
+                                documentsLoading={topicDocuments.loading}
+                                visibleDocumentCount={docsVisibleCount}
+                                onShowMoreDocuments={() => setDocsVisibleCount((current) => current + PAGE_SIZE)}
+                                onDownloadDocument={downloadDocument}
                             />
-                            {commentsVisibleCount < projectComments.length && (
-                                <div style={{ textAlign: 'center', marginTop: 12 }}>
-                                    <Button block onClick={() => setCommentsVisibleCount((prev) => prev + PAGE_SIZE)}>
-                                        Tải thêm bình luận ({projectComments.length - commentsVisibleCount} còn lại)
-                                    </Button>
-                                </div>
-                            )}
-                        </Card>
-                        <Modal
-                            title={isRejected ? 'GỬI LẠI PHIẾU XÉT DUYỆT' : 'GỬI ĐỀ TÀI LÊN HỘI ĐỒNG ĐÁNH GIÁ'}
+                        ) : (
+                            <CouncilPanel
+                                reviewers={topicApprovals.approvalStatus}
+                                history={topicApprovals.approvalHistory}
+                                approvedCount={approvedCount}
+                                totalReviewers={approvalReviewers.length}
+                                isTopicLeader={isTopicLeader}
+                                canOpenAcceptance={['Chờ nghiệm thu', 'Đang nghiệm thu', 'Đã nghiệm thu', 'Không đạt nghiệm thu'].includes(topic.TrangThai)}
+                                acceptanceItems={collapseItems}
+                                onResend={(reviewer) => {
+                                    setResendTarget(reviewer);
+                                    setResendModalOpen(true);
+                                }}
+                                onOpenAcceptance={() => navigate(`/mainhome/acceptance/${MaDT}`)}
+                                renderStatus={getApprovalStatusTag}
+                            />
+                        )}
+                        <CommentsPanel
+                            comments={topicComments.comments}
+                            visibleCount={commentsVisibleCount}
+                            currentAccount={user?.TaiKhoan}
+                            canComment={canComment}
+                            value={topicComments.input}
+                            editingId={topicComments.editingId}
+                            editingValue={topicComments.editingContent}
+                            onValueChange={topicComments.setInput}
+                            onCreate={topicComments.create}
+                            onStartEdit={(comment) => {
+                                topicComments.setEditingId(comment.Id);
+                                topicComments.setEditingContent(comment.NoiDung);
+                            }}
+                            onEditingValueChange={topicComments.setEditingContent}
+                            onSaveEdit={topicComments.update}
+                            onCancelEdit={() => topicComments.setEditingId(null)}
+                            onDelete={topicComments.remove}
+                            onShowMore={() => setCommentsVisibleCount((count) => count + PAGE_SIZE)}
+                        />
+                        <ApprovalSubmitModal
+                            topic={topic}
                             open={submitModalOpen}
-                            onCancel={() => {
+                            isResubmission={isRejected}
+                            note={submitNotes}
+                            files={attachedFiles}
+                            onNoteChange={setSubmitNotes}
+                            onFilesChange={setAttachedFiles}
+                            onClose={() => {
                                 setSubmitModalOpen(false);
                                 setSubmitNotes('');
                                 setAttachedFiles([]);
                             }}
-                            footer={[
-                                <Button
-                                    key="cancel"
-                                    danger
-                                    onClick={() => {
-                                        setSubmitModalOpen(false);
-                                        setSubmitNotes('');
-                                        setAttachedFiles([]);
-                                    }}
-                                >
-                                    Đóng
-                                </Button>,
-                                <Button
-                                    key="submit"
-                                    type="primary"
-                                    onClick={handleSubmitTopic}
-                                >
-                                    Gửi
-                                </Button>,
-                            ]}
-                            width={900}
-                        >
-                            {topic && (
-                                <div>
-                                    <div style={{ marginBottom: 24 }}>
-                                        <p style={{ marginBottom: 8 }}>
-                                            <strong>Tên đề tài:</strong> {topic.TenDT}
-                                        </p>
-                                        <p style={{ marginBottom: 8 }}>
-                                            <strong>Danh mục:</strong> {topic.PhanLoai}
-                                        </p>
-                                        <p style={{ marginBottom: 8 }}>
-                                            <strong>Trạng thái:</strong> {topic.TrangThai}
-                                        </p>
-                                        <p style={{ marginBottom: 8 }}>
-                                            <strong>Hạn chót:</strong>{' '}
-                                            {topic.NgayKetThuc ? new Date(topic.NgayKetThuc).toLocaleDateString('vi-VN') : '-'}
-                                        </p>
-                                    </div>
-
-                                    <Divider />
-
-                                    <div style={{ marginBottom: 24 }}>
-                                        <p style={{ marginBottom: 12, fontWeight: 'bold' }}>Mô tả:</p>
-                                        <div
-                                            style={{
-                                                padding: 12,
-                                                backgroundColor: '#f5f5f5',
-                                                borderRadius: 4,
-                                                minHeight: 80,
-                                                whiteSpace: 'pre-wrap',
-                                                wordWrap: 'break-word',
-                                                lineHeight: 1.6,
-                                            }}
-                                        >
-                                            {topic.MoTa}
-                                        </div>
-                                    </div>
-
-                                    <Divider />
-
-                                    <div style={{ marginBottom: 24 }}>
-                                        <p style={{ marginBottom: 12, fontWeight: 'bold' }}>Loại hội đồng</p>
-                                        <Tag color="purple">Hội đồng xét duyệt</Tag>
-                                        <p style={{ marginTop: 12, marginBottom: 0 }}>
-                                            {isRejected
-                                                ? 'Hệ thống chỉ gửi lại cho các thành viên đã từ chối ở vòng trước.'
-                                                : 'Hệ thống sẽ tự động gửi đến toàn bộ thành viên của hội đồng xét duyệt.'}
-                                        </p>
-                                    </div>
-
-                                    <div style={{ marginBottom: 24 }}>
-                                        <p style={{ marginBottom: 12, fontWeight: 'bold' }}>Ghi chú (Tùy chọn):</p>
-                                        <Input.TextArea
-                                            rows={5}
-                                            placeholder="Nhập ghi chú hoặc lý do gửi đề tài..."
-                                            value={submitNotes}
-                                            onChange={(e) => setSubmitNotes(e.target.value)}
-                                            style={{ borderRadius: 4 }}
-                                        />
-                                    </div>
-
-                                    <Divider />
-
-                                    <div>
-                                        <p style={{ marginBottom: 12, fontWeight: 'bold' }}>Đính kèm tài liệu:</p>
-                                        <Upload
-                                            listType="picture"
-                                            multiple
-                                            accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xlsx,.pptx"
-                                            onChange={(info: any) => setAttachedFiles(info.fileList)}
-                                            beforeUpload={() => false}
-                                        >
-                                            <Button icon={<UploadOutlined />}>
-                                                Chọn tệp
-                                            </Button>
-                                        </Upload>
-                                        {attachedFiles.length > 0 && (
-                                            <p style={{ marginTop: 12, color: '#666', fontSize: 12 }}>
-                                                Số tệp đã chọn: {attachedFiles.length}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </Modal>
-                        <Modal
-                            title={`GỬI LẠI CHO ${resendTarget?.name?.toUpperCase() || ''}`}
+                            onSubmit={handleSubmitTopic}
+                        />
+                        <ResendApprovalModal
                             open={resendModalOpen}
-                            onCancel={() => {
+                            target={resendTarget}
+                            note={resendNotes}
+                            onChangeNote={setResendNotes}
+                            onClose={() => {
                                 setResendModalOpen(false);
                                 setResendNotes('');
                                 setResendTarget(null);
                             }}
-                            footer={[
-                                <Button
-                                    key="cancel"
-                                    danger
-                                    onClick={() => {
-                                        setResendModalOpen(false);
-                                        setResendNotes('');
-                                        setResendTarget(null);
-                                    }}
-                                >
-                                    Đóng
-                                </Button>,
-                                <Button key="submit" type="primary" onClick={handleResendToReviewer}>
-                                    Gửi lại
-                                </Button>,
-                            ]}
-                            width={600}
-                        >
-                            {resendTarget && (
-                                <div>
-                                    <p style={{ marginBottom: 12 }}>
-                                        <strong>Người nhận:</strong> {resendTarget.name} ({resendTarget.account})
-                                    </p>
-                                    {resendTarget.note && (
-                                        <p style={{ color: '#cf1322', marginBottom: 12 }}>
-                                            <strong>Lý do từ chối trước đó:</strong> {resendTarget.note}
-                                        </p>
-                                    )}
-                                    <p style={{ marginBottom: 8, fontWeight: 'bold' }}>Ghi chú (Tùy chọn):</p>
-                                    <Input.TextArea
-                                        rows={4}
-                                        placeholder="Nhập ghi chú giải thích lý do gửi lại..."
-                                        value={resendNotes}
-                                        onChange={(e) => setResendNotes(e.target.value)}
-                                    />
-                                </div>
-                            )}
-                        </Modal>
+                            onSubmit={handleResendToReviewer}
+                        />
                     </>
                 )}
             </Spin>

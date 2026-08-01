@@ -24,8 +24,8 @@ import {
   removeCouncilMember,
   searchAccounts,
   updateCouncil,
-} from '../ThongTinDeTai/CouncilService';
-import type { Council, CouncilMember, CouncilPosition, CouncilType } from '../ThongTinDeTai/CouncilService';
+} from '../../services/council/CouncilService';
+import type { Council, CouncilMember, CouncilPosition, CouncilType } from '../../services/council/CouncilService';
 
 const positions: CouncilPosition[] = ['Chủ tịch', 'Thư ký', 'Ủy viên', 'Phản biện'];
 

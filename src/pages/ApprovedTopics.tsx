@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { Button, Space, Spin, Table, Tag, message } from 'antd';
 import { EyeOutlined, FileTextOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { getDeTaiTheoHoiDong } from './ThongTinDeTai/ProgressService';
-import type { DeTaiTheoDoi } from './ThongTinDeTai/ProgressService';
+import { getDeTaiTheoHoiDong } from '../services/progress/ProgressService';
+import type { DeTaiTheoDoi } from '../services/progress/ProgressService';
 
 export default function ApprovedTopics() {
   const [topics, setTopics] = useState<DeTaiTheoDoi[]>([]);

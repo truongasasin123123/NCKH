@@ -2,9 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { Button, Card, Collapse, Empty, Form, Input, Modal, Radio, Space, Spin, Tag, Typography, message } from 'antd';
 import { ArrowLeftOutlined, DownloadOutlined, FileTextOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
-import { downloadDocument } from '../ThongTinDeTai/DocumentsService';
-import { getBaoCaoTheoDeTai, nhanXetBaoCao } from '../ThongTinDeTai/ProgressService';
-import type { BaoCaoTienDo } from '../ThongTinDeTai/ProgressService';
+import { downloadDocument } from '../../services/topic/DocumentsService';
+import { getBaoCaoTheoDeTai, nhanXetBaoCao } from '../../services/progress/ProgressService';
+import type { BaoCaoTienDo } from '../../services/progress/ProgressService';
 
 const statusColor: Record<string, string> = { 'Nháp': 'default', 'Đã gửi': 'processing', 'Yêu cầu bổ sung': 'warning', 'Đạt': 'success', 'Không đạt': 'error' };
 

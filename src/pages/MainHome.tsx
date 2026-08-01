@@ -3,8 +3,8 @@ import { Navigate, Outlet, NavLink, useLocation } from "react-router-dom";
 import { UserOutlined, EditOutlined, BellOutlined, ProfileOutlined, FileOutlined, BarChartOutlined, TeamOutlined, AuditOutlined, FileTextOutlined } from "@ant-design/icons";
 import { useState, useEffect } from "react";
 import { jwtDecode } from 'jwt-decode';
-import { getNotifications } from "./ThongTinDeTai/NotificationService";
-import { getCouncilMembership } from './ThongTinDeTai/ProgressService';
+import { getNotifications } from "../services/notification/NotificationService";
+import { getCouncilMembership } from '../services/progress/ProgressService';
 import "../style/content.css";
 
 const { Content } = Layout;

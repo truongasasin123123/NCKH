@@ -2,19 +2,19 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Layout, Card, Timeline, Table, Button, Modal, Form, Input, DatePicker, InputNumber, Upload, message, Badge, Space, Tabs, Divider, Select, Row, Col, Tag, Collapse } from 'antd';
 import { CheckOutlined, PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined, EyeOutlined, ClockCircleOutlined, CheckCircleOutlined, ExclamationCircleOutlined, CloseCircleOutlined, DownloadOutlined, SendOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getMemberByTopic, getMyTopics } from './ThongTinDeTai/TopicService';
-import type { ThanhVienDT, TopicLoad } from './ThongTinDeTai/TopicService';
+import { getMemberByTopic, getMyTopics } from '../services/topic/TopicService';
+import type { ThanhVienDT, TopicLoad } from '../services/topic/TopicService';
 import {
   deleteDocument, downloadDocument, getDocumentsByMilestone, submitMilestone, uploadDocument,
-} from './ThongTinDeTai/DocumentsService';
-import type { TaiLieu } from './ThongTinDeTai/DocumentsService';
+} from '../services/topic/DocumentsService';
+import type { TaiLieu } from '../services/topic/DocumentsService';
 import { jwtDecode } from 'jwt-decode';
 import dayjs from 'dayjs';
 import {
   getTopicProgress, createMocTienDo, updateMocTienDo, deleteMocTienDo, getMemberById,
   capNhatBaoCaoTienDo, getBaoCaoTheoDeTai, guiBaoCaoTienDo, taoBaoCaoTienDo, xoaBaoCaoTienDo, getDeTaiDuocGan,
-} from './ThongTinDeTai/ProgressService';
-import type { MocTienDo, CapNhatTienDo, ThanhVienMocDT, BaoCaoTienDo, LoaiBaoCao } from './ThongTinDeTai/ProgressService';
+} from '../services/progress/ProgressService';
+import type { MocTienDo, CapNhatTienDo, ThanhVienMocDT, BaoCaoTienDo, LoaiBaoCao } from '../services/progress/ProgressService';
 
 const { Content } = Layout;
 const { TabPane } = Tabs;

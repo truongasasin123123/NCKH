@@ -18,16 +18,16 @@ import {
 import { ArrowLeftOutlined, DownloadOutlined, FileAddOutlined } from '@ant-design/icons';
 import { jwtDecode } from 'jwt-decode';
 import { useNavigate, useParams } from 'react-router-dom';
-import { downloadDocument, uploadDocument } from './ThongTinDeTai/DocumentsService';
+import { downloadDocument, uploadDocument } from '../services/topic/DocumentsService';
 import {
   createAcceptanceDraft,
   finalizeAcceptance,
   getAcceptanceByProject,
   submitAcceptance,
   submitAcceptanceScore,
-} from './ThongTinDeTai/AcceptanceService';
-import type { HoSoNghiemThu } from './ThongTinDeTai/AcceptanceService';
-import { getTopicById } from './ThongTinDeTai/TopicService';
+} from '../services/topic/AcceptanceService';
+import type { HoSoNghiemThu } from '../services/topic/AcceptanceService';
+import { getTopicById } from '../services/topic/TopicService';
 
 const statusColor: Record<string, string> = {
   'Nháp': 'default',

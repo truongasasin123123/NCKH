@@ -8,8 +8,8 @@ import {
   deleteCouncil,
   getCouncilTypes,
   getCouncils,
-} from '../ThongTinDeTai/CouncilService';
-import type { Council, CouncilBusiness, CouncilType } from '../ThongTinDeTai/CouncilService';
+} from '../../services/council/CouncilService';
+import type { Council, CouncilBusiness, CouncilType } from '../../services/council/CouncilService';
 
 const businessOptions: Array<{ value: CouncilBusiness; label: string }> = [
   { value: 'approval', label: 'Xét duyệt đề tài' },

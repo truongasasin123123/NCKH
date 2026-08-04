@@ -10,7 +10,7 @@ import { downloadDocument, uploadDocument } from '../services/topic/DocumentsSer
 import TopicInformationPanel from '../components/topic-detail/TopicInformationPanel';
 import CouncilPanel from '../components/topic-detail/CouncilPanel';
 import TopicEditForm from '../components/topic-detail/TopicEditForm';
-import ApprovalSubmitModal from '../components/topic-detail/ApprovalSubmitModal';
+import CouncilCreateModal from '../components/topic-detail/CouncilCreatlModal';
 import ResendApprovalModal from '../components/topic-detail/ResendApprovalModal';
 import CommentsPanel from '../components/topic-detail/CommentsPanel';
 import {
@@ -32,6 +32,7 @@ const TopicDetail: React.FC = () => {
     const { MaDT } = useParams<{ MaDT: string }>(); // Sử dụng MaDT thay vì id
     const navigate = useNavigate();
     const [submitModalOpen, setSubmitModalOpen] = useState(false);
+    const [submitCouncilType, setSubmitCouncilType] = useState<'approval' | 'scoring'>('approval');
     const [submitNotes, setSubmitNotes] = useState('');
     const [attachedFiles, setAttachedFiles] = useState<UploadFile[]>([]);
     const [editing, setEditing] = useState(false);
@@ -149,7 +150,7 @@ const TopicDetail: React.FC = () => {
     ];
 
     const handleSubmitTopic = async () => {
-        const councilType = 'approval';
+        const councilType = submitCouncilType;
         const isResubmission = topic?.TrangThai === 'Từ chối';
         if (hasSubmittedForApproval && !isResubmission) {
             message.warning('Đề tài đã được gửi Hội đồng xét duyệt, không thể gửi lại');
@@ -202,6 +203,7 @@ const TopicDetail: React.FC = () => {
                     : `Đã gửi đề tài đến ${newReviewers.length} thành viên Hội đồng xét duyệt`,
             );
             setSubmitModalOpen(false);
+            setSubmitCouncilType('approval');
             setSubmitNotes('');
             setAttachedFiles([]);
         } catch (error: any) {
@@ -354,7 +356,7 @@ const TopicDetail: React.FC = () => {
                                                 disabled={!canSendToCouncil}
                                                 onClick={() => setSubmitModalOpen(true)}
                                             >
-                                                {canSendToCouncil ? 'Gửi hội đồng' : 'Đã gửi hội đồng'}
+                                                {canSendToCouncil ? 'Gửi yêu cầu tạo hội đồng' : 'Đã gửi yêu cầu'}
                                             </Button>
                                             {topic?.TrangThai === 'Đã phê duyệt' && (
                                                 <Button
@@ -423,16 +425,19 @@ const TopicDetail: React.FC = () => {
                             onDelete={topicComments.remove}
                             onShowMore={() => setCommentsVisibleCount((count) => count + PAGE_SIZE)}
                         />
-                        <ApprovalSubmitModal
+                        <CouncilCreateModal
                             topic={topic}
                             open={submitModalOpen}
                             isResubmission={isRejected}
+                            councilType={submitCouncilType}
                             note={submitNotes}
                             files={attachedFiles}
+                            onCouncilTypeChange={setSubmitCouncilType}
                             onNoteChange={setSubmitNotes}
                             onFilesChange={setAttachedFiles}
                             onClose={() => {
                                 setSubmitModalOpen(false);
+                                setSubmitCouncilType('approval');
                                 setSubmitNotes('');
                                 setAttachedFiles([]);
                             }}

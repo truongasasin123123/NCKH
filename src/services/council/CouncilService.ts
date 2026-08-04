@@ -2,6 +2,7 @@ import ApiAxios from '../../axios.config';
 
 export type CouncilBusiness = 'approval' | 'scoring' | 'monitoring' | 'liquidation' | 'other';
 export type CouncilPosition = 'Chủ tịch' | 'Thư ký' | 'Ủy viên' | 'Phản biện';
+export type CouncilRequestStatus = 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối';
 
 export interface CouncilType {
   MaLoaiHoiDong: number;
@@ -27,6 +28,32 @@ export interface Council {
   NamKetThuc?: number;
   LoaiHoiDong?: CouncilType;
   ThanhVienHoiDong?: CouncilMember[];
+}
+
+export interface CouncilRequestDocument {
+  TenTaiLieu: string;
+  DuongDan: string;
+}
+
+export interface CouncilRequest {
+  MaYeuCau: number;
+  MaDT: string;
+  TenDT: string;
+  NguoiGui: string;
+  NgayGui: string;
+  LyDo: string;
+  LoaiHoiDong: CouncilBusiness;
+  TaiLieu: CouncilRequestDocument[];
+  TrangThai: CouncilRequestStatus;
+  LyDoTuChoi?: string;
+}
+
+export interface ApproveCouncilRequestPayload {
+  TenHoiDong: string;
+  MaLoaiHoiDong: number;
+  NamBatDau: number;
+  NamKetThuc: number;
+  MoTa?: string;
 }
 
 export const getCouncilTypes = async (): Promise<CouncilType[]> =>
@@ -63,3 +90,20 @@ export const removeCouncilMember = async (councilId: number, TaiKhoan: string) =
 
 export const assignCouncilToTopic = async (maDT: string, MaHoiDong: number) =>
   (await ApiAxios.post(`/admin/councils/projects/${maDT}`, { MaHoiDong })).data;
+
+/**
+ * ==== YÊU CẦU TẠO HỘI ĐỒNG TỪ SINH VIÊN ====
+ * Các endpoint /admin/councils/requests/* là endpoint MỚI, chưa có ở backend — cần dựng thêm.
+ */
+
+export const getCouncilRequests = async (): Promise<CouncilRequest[]> =>
+  (await ApiAxios.get('/admin/councils/requests')).data;
+
+export const getCouncilRequestById = async (id: number): Promise<CouncilRequest> =>
+  (await ApiAxios.get(`/admin/councils/requests/${id}`)).data;
+
+export const approveCouncilRequest = async (id: number, payload: ApproveCouncilRequestPayload): Promise<Council> =>
+  (await ApiAxios.post(`/admin/councils/requests/${id}/approve`, payload)).data;
+
+export const rejectCouncilRequest = async (id: number, reason: string): Promise<void> =>
+  (await ApiAxios.post(`/admin/councils/requests/${id}/reject`, { reason })).data;

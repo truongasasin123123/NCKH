@@ -8,7 +8,7 @@ import BaoCaoTab from '../components/progress-management/BaoCaoTab';
 import CreateMocModal from '../components/progress-management/CreateMocModal';
 import EditMocModal from '../components/progress-management/EditMocModal';
 import ViewMocModal from '../components/progress-management/ViewMocModal';
-import UploadMocModal from '../components/progress-management/UpLoadMocModal';
+import UploadMocModal from '../components/progress-management/UploadMocModal';
 import BaoCaoModal from '../components/progress-management/BaoCaoModal';
 
 const { Content } = Layout;

@@ -25,10 +25,20 @@ export default function TopicInformationPanel({
   return (
     <>
       <Card title="Thông tin cơ bản">
-        <p><strong>Mã đề tài:</strong> #{topic.MaDT}</p>
-        <p><strong>Danh mục:</strong> {topic.PhanLoai}</p>
-        <p><strong>Ngày bắt đầu:</strong> {topic.NgayBatDau ? new Date(topic.NgayBatDau).toLocaleDateString('vi-VN') : '-'}</p>
-        <p><strong>Hạn chót:</strong> {topic.NgayKetThuc ? new Date(topic.NgayKetThuc).toLocaleDateString('vi-VN') : '-'}</p>
+        <p>
+          <strong>Mã đề tài:</strong> #{topic.MaDT}
+        </p>
+        <p>
+          <strong>Danh mục:</strong> {topic.PhanLoai}
+        </p>
+        <p>
+          <strong>Ngày bắt đầu:</strong>{' '}
+          {topic.NgayBatDau ? new Date(topic.NgayBatDau).toLocaleDateString('vi-VN') : '-'}
+        </p>
+        <p>
+          <strong>Hạn chót:</strong>{' '}
+          {topic.NgayKetThuc ? new Date(topic.NgayKetThuc).toLocaleDateString('vi-VN') : '-'}
+        </p>
       </Card>
 
       <Card title="Mô tả" style={{ marginTop: 16 }}>
@@ -36,17 +46,27 @@ export default function TopicInformationPanel({
       </Card>
 
       <Card title="Tổng hợp tài liệu dự án" style={{ marginTop: 16 }}>
-        {documentsLoading ? <p>Đang tải tài liệu...</p> : documents.length > 0 ? (
+        {documentsLoading ? (
+          <p>Đang tải tài liệu...</p>
+        ) : documents.length > 0 ? (
           <>
             <List
               dataSource={documents.slice(0, visibleDocumentCount)}
               renderItem={(document) => (
                 <List.Item>
-                  <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+                  <div
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      gap: 16,
+                    }}
+                  >
                     <div>
                       <strong>{document.name}</strong>
                       <div style={{ color: '#666', fontSize: 12 }}>
-                        {document.source}{document.date ? ` · ${document.date}` : ''}
+                        {document.source}
+                        {document.date ? ` · ${document.date}` : ''}
                       </div>
                     </div>
                     <Button
@@ -69,7 +89,9 @@ export default function TopicInformationPanel({
               </div>
             )}
           </>
-        ) : <p>Chưa có tài liệu dự án từ tiến độ.</p>}
+        ) : (
+          <p>Chưa có tài liệu dự án từ tiến độ.</p>
+        )}
       </Card>
 
       <Card title="Thành viên nhóm" style={{ marginTop: 16 }}>

@@ -100,10 +100,9 @@ const TopicDetail: React.FC = () => {
     const rejectedRequest = relatedRequests.find((request) => request.TrangThai === 'Từ chối');
     const acceptedRequest = relatedRequests.find((request) => request.TrangThai === 'Đã chấp nhận');
     const canRequestCouncil = isTopicLeader && !!requestBusiness && !pendingRequest && !acceptedRequest;
-    const canSubmitApproval = isTopicLeader && (
-        ['Chờ phê duyệt', 'Chờ xét duyệt'].includes(topic?.TrangThai || '')
-        || (isRejected && hasSubmittedForApproval)
-    );
+    const canSubmitApproval = isTopicLeader
+        && ['Chờ phê duyệt', 'Chờ xét duyệt'].includes(topic?.TrangThai || '')
+        && !hasSubmittedForApproval;
     const [form] = Form.useForm();
 
     useEffect(() => {
@@ -459,11 +458,13 @@ const TopicDetail: React.FC = () => {
                                                 </Button>
                                             )}
                                             {pendingRequest && (
-                                                <Tag color="blue">Đang chờ Admin phân công hội đồng</Tag>
+                                                <Tag color="blue" style={{ display: 'block', textAlign: 'center' }}>
+                                                    Đang chờ Admin phân công hội đồng
+                                                </Tag>
                                             )}
                                             {canSubmitApproval && (
                                                 <Button type="primary" icon={<SendOutlined />} block onClick={() => setApprovalModalOpen(true)}>
-                                                    {isRejected ? 'Gửi lại xét duyệt' : 'Gửi hồ sơ xét duyệt'}
+                                                    Gửi hồ sơ xét duyệt
                                                 </Button>
                                             )}
                                             {topic?.TrangThai === 'Đã phê duyệt' && (

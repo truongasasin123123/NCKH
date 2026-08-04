@@ -73,35 +73,63 @@ export default function CouncilCreateModal({
       ]}
       destroyOnClose
     >
-      {topic && <>
-        <p><strong>Tên đề tài:</strong> {topic.TenDT}</p>
-        <p><strong>Trạng thái hiện tại:</strong> {topic.TrangThai}</p>
-        <Form form={form} layout="vertical">
-          <Form.Item name="MaLoaiHoiDong" label="Loại hội đồng cần phân công" rules={[{ required: true, message: 'Vui lòng chọn loại hội đồng' }]}>
-            <Select
-              placeholder="Chọn loại hội đồng"
-              disabled={isResubmission}
-              options={councilTypes.map((item) => ({
-                value: item.MaLoaiHoiDong,
-                label: item.TenLoaiHoiDong,
-                disabled: !!allowedBusiness && item.NghiepVu !== allowedBusiness,
-              }))}
-              onChange={onCouncilTypeChange}
-            />
-          </Form.Item>
-          {allowedBusiness && businessHints[allowedBusiness] && (
-            <p style={{ marginTop: -12, color: '#8c8c8c' }}>{businessHints[allowedBusiness]}</p>
-          )}
-          <Form.Item name="LyDoYeuCau" label="Nội dung yêu cầu" rules={[{ required: true, message: 'Vui lòng nhập nội dung yêu cầu' }]}>
-            <TextArea rows={4} value={note} onChange={(event) => onNoteChange(event.target.value)} placeholder="Ví dụ: Đề nghị phân công hội đồng để xét duyệt hồ sơ đề tài." />
-          </Form.Item>
-          <Form.Item label="Tài liệu kèm theo (nếu có)">
-            <Upload listType="text" multiple fileList={files} accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xlsx,.pptx" onChange={(info) => onFilesChange(info.fileList)} beforeUpload={() => false}>
-              <Button icon={<UploadOutlined />}>Chọn tệp</Button>
-            </Upload>
-          </Form.Item>
-        </Form>
-      </>}
+      {topic && (
+        <>
+          <p>
+            <strong>Tên đề tài:</strong> {topic.TenDT}
+          </p>
+          <p>
+            <strong>Trạng thái hiện tại:</strong> {topic.TrangThai}
+          </p>
+          <Form form={form} layout="vertical">
+            <Form.Item
+              name="MaLoaiHoiDong"
+              label="Loại hội đồng cần phân công"
+              rules={[{ required: true, message: 'Vui lòng chọn loại hội đồng' }]}
+            >
+              <Select
+                placeholder="Chọn loại hội đồng"
+                disabled={isResubmission}
+                options={councilTypes.map((item) => ({
+                  value: item.MaLoaiHoiDong,
+                  label: item.TenLoaiHoiDong,
+                  disabled: !!allowedBusiness && item.NghiepVu !== allowedBusiness,
+                }))}
+                onChange={onCouncilTypeChange}
+              />
+            </Form.Item>
+            {allowedBusiness && businessHints[allowedBusiness] && (
+              <p style={{ marginTop: -12, color: '#8c8c8c' }}>
+                {businessHints[allowedBusiness]}
+              </p>
+            )}
+            <Form.Item
+              name="LyDoYeuCau"
+              label="Nội dung yêu cầu"
+              rules={[{ required: true, message: 'Vui lòng nhập nội dung yêu cầu' }]}
+            >
+              <TextArea
+                rows={4}
+                value={note}
+                onChange={(event) => onNoteChange(event.target.value)}
+                placeholder="Ví dụ: Đề nghị phân công hội đồng để xét duyệt hồ sơ đề tài."
+              />
+            </Form.Item>
+            <Form.Item label="Tài liệu kèm theo (nếu có)">
+              <Upload
+                listType="text"
+                multiple
+                fileList={files}
+                accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xlsx,.pptx"
+                onChange={(info) => onFilesChange(info.fileList)}
+                beforeUpload={() => false}
+              >
+                <Button icon={<UploadOutlined />}>Chọn tệp</Button>
+              </Upload>
+            </Form.Item>
+          </Form>
+        </>
+      )}
     </Modal>
   );
 }

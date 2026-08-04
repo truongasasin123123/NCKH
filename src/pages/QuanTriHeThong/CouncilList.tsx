@@ -7,16 +7,13 @@ import {
   createCouncilType,
   deleteCouncil,
   getCouncilRequests,
-  getCouncilTypes,
   getCouncils,
   rejectCouncilRequest,
 } from '../../services/council/CouncilService';
 import type {
-  ApproveCouncilRequestPayload,
   Council,
+  CouncilAssignmentRequest,
   CouncilBusiness,
-  CouncilRequest,
-  CouncilType,
 } from '../../services/council/CouncilService';
 import CouncilRequestDetailModal from './CouncilRequestDetailModal';
 
@@ -28,14 +25,10 @@ const businessOptions: Array<{ value: CouncilBusiness; label: string }> = [
   { value: 'other', label: 'Khác' },
 ];
 
-const businessLabels: Record<string, string> = Object.fromEntries(
-  businessOptions.map((option) => [option.value, option.label]),
-);
-
-const requestStatusTag = (status: CouncilRequest['TrangThai']) => {
+const requestStatusTag = (status: CouncilAssignmentRequest['TrangThai']) => {
   const map: Record<string, { color: string; label: string }> = {
     'Chờ duyệt': { color: 'blue', label: 'Chờ duyệt' },
-    'Đã duyệt': { color: 'green', label: 'Đã duyệt' },
+    'Đã chấp nhận': { color: 'green', label: 'Đã chấp nhận' },
     'Từ chối': { color: 'red', label: 'Từ chối' },
   };
   const info = map[status] || { color: 'default', label: status };
@@ -45,8 +38,7 @@ const requestStatusTag = (status: CouncilRequest['TrangThai']) => {
 const CouncilList = () => {
   const navigate = useNavigate();
   const [councils, setCouncils] = useState<Council[]>([]);
-  const [types, setTypes] = useState<CouncilType[]>([]);
-  const [requests, setRequests] = useState<CouncilRequest[]>([]);
+  const [requests, setRequests] = useState<CouncilAssignmentRequest[]>([]);
   const [loadingCouncils, setLoadingCouncils] = useState(false);
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [keyword, setKeyword] = useState('');
@@ -54,7 +46,7 @@ const CouncilList = () => {
   const [typeOpen, setTypeOpen] = useState(false);
   const [typeForm] = Form.useForm();
 
-  const [selectedRequest, setSelectedRequest] = useState<CouncilRequest | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<CouncilAssignmentRequest | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [approving, setApproving] = useState(false);
   const [rejecting, setRejecting] = useState(false);
@@ -62,9 +54,8 @@ const CouncilList = () => {
   const loadCouncils = async () => {
     try {
       setLoadingCouncils(true);
-      const [councilData, typeData] = await Promise.all([getCouncils(), getCouncilTypes()]);
+      const councilData = await getCouncils();
       setCouncils(councilData);
-      setTypes(typeData);
     } catch (error: any) {
       message.error(error?.response?.data?.message || 'Không thể tải danh sách hội đồng');
     } finally {
@@ -75,7 +66,7 @@ const CouncilList = () => {
   const loadRequests = async () => {
     try {
       setLoadingRequests(true);
-      const data = await getCouncilRequests();
+      const data = await getCouncilRequests('Chờ duyệt');
       setRequests(data);
     } catch (error: any) {
       message.error(error?.response?.data?.message || 'Không thể tải danh sách yêu cầu');
@@ -102,17 +93,17 @@ const CouncilList = () => {
     const search = requestKeyword.trim().toLowerCase();
     if (!search) return requests;
     return requests.filter((request) =>
-      request.TenDT.toLowerCase().includes(search) ||
-      request.NguoiGui.toLowerCase().includes(search),
+      (request.DeTai?.TenDT || request.MaDT).toLowerCase().includes(search) ||
+      (request.NguoiGui?.TenDayDu || request.TaiKhoanNguoiGui).toLowerCase().includes(search),
     );
   }, [requests, requestKeyword]);
 
   const submitType = async () => {
     try {
       const values = await typeForm.validateFields();
-      const created = await createCouncilType(values);
+      await createCouncilType(values);
       message.success('Đã thêm loại hội đồng');
-      setTypes((current) => [...current, created].sort((a, b) => a.TenLoaiHoiDong.localeCompare(b.TenLoaiHoiDong)));
+      await loadCouncils();
       setTypeOpen(false);
       typeForm.resetFields();
     } catch (error: any) {
@@ -130,17 +121,17 @@ const CouncilList = () => {
     }
   };
 
-  const openRequestDetail = (request: CouncilRequest) => {
+  const openRequestDetail = (request: CouncilAssignmentRequest) => {
     setSelectedRequest(request);
     setDetailOpen(true);
   };
 
-  const handleApproveRequest = async (payload: ApproveCouncilRequestPayload) => {
+  const handleApproveRequest = async (councilId: number) => {
     if (!selectedRequest) return;
     try {
       setApproving(true);
-      await approveCouncilRequest(selectedRequest.MaYeuCau, payload);
-      message.success('Đã phê duyệt yêu cầu và tạo hội đồng');
+      await approveCouncilRequest(selectedRequest.Id, councilId);
+      message.success('Đã chấp nhận yêu cầu và phân công hội đồng');
       setDetailOpen(false);
       setSelectedRequest(null);
       await Promise.all([loadCouncils(), loadRequests()]);
@@ -155,7 +146,7 @@ const CouncilList = () => {
     if (!selectedRequest) return;
     try {
       setRejecting(true);
-      await rejectCouncilRequest(selectedRequest.MaYeuCau, reason);
+      await rejectCouncilRequest(selectedRequest.Id, reason);
       message.success('Đã từ chối yêu cầu');
       setDetailOpen(false);
       setSelectedRequest(null);
@@ -179,19 +170,18 @@ const CouncilList = () => {
         />
       </Space>
 
-      <Table<CouncilRequest>
-        rowKey="MaYeuCau"
+      <Table<CouncilAssignmentRequest>
+        rowKey="Id"
         loading={loadingRequests}
         dataSource={filteredRequests}
         pagination={{ pageSize: 10 }}
         columns={[
-          { title: 'Đề tài', dataIndex: 'TenDT' },
+          { title: 'Đề tài', render: (_, request) => request.DeTai?.TenDT || request.MaDT },
           {
             title: 'Loại hội đồng yêu cầu',
-            dataIndex: 'LoaiHoiDong',
-            render: (value: string) => <Tag color="purple">{businessLabels[value] || value}</Tag>,
+            render: (_, request) => <Tag color="purple">{request.LoaiHoiDong?.TenLoaiHoiDong || `Loại #${request.MaLoaiHoiDong}`}</Tag>,
           },
-          { title: 'Người gửi', dataIndex: 'NguoiGui' },
+          { title: 'Người gửi', render: (_, request) => request.NguoiGui?.TenDayDu || request.TaiKhoanNguoiGui },
           {
             title: 'Ngày gửi',
             dataIndex: 'NgayGui',
@@ -200,7 +190,7 @@ const CouncilList = () => {
           {
             title: 'Trạng thái',
             dataIndex: 'TrangThai',
-            render: (value: CouncilRequest['TrangThai']) => requestStatusTag(value),
+            render: (value: CouncilAssignmentRequest['TrangThai']) => requestStatusTag(value),
           },
           {
             title: 'Thao tác',
@@ -266,7 +256,7 @@ const CouncilList = () => {
       <Tabs
         defaultActiveKey="requests"
         items={[
-          { key: 'requests', label: 'Yêu cầu tạo hội đồng', children: requestsTab },
+          { key: 'requests', label: 'Yêu cầu chờ xử lý', children: requestsTab },
           { key: 'councils', label: 'Danh sách hội đồng', children: councilsTab },
         ]}
       />
@@ -274,14 +264,13 @@ const CouncilList = () => {
       <CouncilRequestDetailModal
         open={detailOpen}
         request={selectedRequest}
-        types={types}
+        councils={councils}
         approving={approving}
         rejecting={rejecting}
         onClose={() => {
           setDetailOpen(false);
           setSelectedRequest(null);
         }}
-        onAddType={() => setTypeOpen(true)}
         onApprove={handleApproveRequest}
         onReject={handleRejectRequest}
       />

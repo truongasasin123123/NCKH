@@ -7,10 +7,18 @@ import { ArrowLeftOutlined, EditOutlined, CloseOutlined, SendOutlined, BarChartO
 import type { UploadFile } from 'antd/es/upload/interface';
 import { getTopicById, resendProjectApproval, submitProjectForApproval, updateProject } from '../services/topic/TopicService';
 import { downloadDocument, uploadDocument } from '../services/topic/DocumentsService';
+import {
+    createCouncilAssignmentRequest,
+    getAvailableCouncilTypes,
+    getMyCouncilRequests,
+    resubmitCouncilAssignmentRequest,
+} from '../services/council/CouncilService';
+import type { CouncilAssignmentRequest, CouncilBusiness, CouncilType } from '../services/council/CouncilService';
 import TopicInformationPanel from '../components/topic-detail/TopicInformationPanel';
 import CouncilPanel from '../components/topic-detail/CouncilPanel';
 import TopicEditForm from '../components/topic-detail/TopicEditForm';
 import CouncilCreateModal from '../components/topic-detail/CouncilCreatlModal';
+import ApprovalSubmitModal from '../components/topic-detail/ApprovalSubmitModal';
 import ResendApprovalModal from '../components/topic-detail/ResendApprovalModal';
 import CommentsPanel from '../components/topic-detail/CommentsPanel';
 import {
@@ -32,7 +40,10 @@ const TopicDetail: React.FC = () => {
     const { MaDT } = useParams<{ MaDT: string }>(); // Sử dụng MaDT thay vì id
     const navigate = useNavigate();
     const [submitModalOpen, setSubmitModalOpen] = useState(false);
-    const [submitCouncilType, setSubmitCouncilType] = useState<'approval' | 'scoring'>('approval');
+    const [councilTypes, setCouncilTypes] = useState<CouncilType[]>([]);
+    const [councilRequests, setCouncilRequests] = useState<CouncilAssignmentRequest[]>([]);
+    const [selectedCouncilTypeId, setSelectedCouncilTypeId] = useState<number>();
+    const [approvalModalOpen, setApprovalModalOpen] = useState(false);
     const [submitNotes, setSubmitNotes] = useState('');
     const [attachedFiles, setAttachedFiles] = useState<UploadFile[]>([]);
     const [editing, setEditing] = useState(false);
@@ -74,12 +85,55 @@ const TopicDetail: React.FC = () => {
         member.TaiKhoan === user?.TaiKhoan && member.VaiTroDT === 'Nhóm trưởng',
     );
     const canEditProject = (topic?.TrangThai === 'Nháp' || isRejected) && isTopicLeader;
-    const canSendToCouncil = isTopicLeader && !hasSubmittedForApproval;
+    const requestBusiness: CouncilBusiness | undefined = (() => {
+        if (['Nháp', 'Chờ phân công hội đồng xét duyệt'].includes(topic?.TrangThai || '')) return 'approval';
+        if (['Đã phê duyệt', 'Bắt đầu'].includes(topic?.TrangThai || '')) return 'monitoring';
+        if (['Chờ nghiệm thu', 'Chờ phân công hội đồng nghiệm thu'].includes(topic?.TrangThai || '')) return 'scoring';
+        return undefined;
+    })();
+    const requestTypes = councilTypes.filter((type) => type.NghiepVu === requestBusiness);
+    const relatedRequests = councilRequests.filter((request) =>
+        request.MaDT === MaDT && request.LoaiHoiDong?.NghiepVu === requestBusiness,
+    );
+    const latestCouncilRequest = councilRequests.find((request) => request.MaDT === MaDT);
+    const pendingRequest = relatedRequests.find((request) => request.TrangThai === 'Chờ duyệt');
+    const rejectedRequest = relatedRequests.find((request) => request.TrangThai === 'Từ chối');
+    const acceptedRequest = relatedRequests.find((request) => request.TrangThai === 'Đã chấp nhận');
+    const canRequestCouncil = isTopicLeader && !!requestBusiness && !pendingRequest && !acceptedRequest;
+    const canSubmitApproval = isTopicLeader && (
+        ['Chờ phê duyệt', 'Chờ xét duyệt'].includes(topic?.TrangThai || '')
+        || (isRejected && hasSubmittedForApproval)
+    );
     const [form] = Form.useForm();
 
     useEffect(() => {
         fetchTopicDetail();
     }, [MaDT]);
+
+    useEffect(() => {
+        const loadCouncilRequestData = async () => {
+            const [typesResult, requestsResult] = await Promise.allSettled([
+                getAvailableCouncilTypes(),
+                getMyCouncilRequests(),
+            ]);
+
+            if (typesResult.status === 'fulfilled') {
+                setCouncilTypes(typesResult.value);
+            } else {
+                console.warn('Không tải được danh mục loại hội đồng:', typesResult.reason);
+            }
+
+            if (requestsResult.status === 'fulfilled') {
+                setCouncilRequests(requestsResult.value);
+            } else {
+                // Đề tài cũ không có yêu cầu phân công vẫn phải mở và dùng được luồng cũ.
+                console.warn('Không tải được lịch sử yêu cầu hội đồng:', requestsResult.reason);
+                setCouncilRequests([]);
+            }
+        };
+
+        void loadCouncilRequestData();
+    }, []);
 
     useEffect(() => {
         if (!MaDT) return;
@@ -150,7 +204,7 @@ const TopicDetail: React.FC = () => {
     ];
 
     const handleSubmitTopic = async () => {
-        const councilType = submitCouncilType;
+        const councilType = 'approval';
         const isResubmission = topic?.TrangThai === 'Từ chối';
         if (hasSubmittedForApproval && !isResubmission) {
             message.warning('Đề tài đã được gửi Hội đồng xét duyệt, không thể gửi lại');
@@ -202,12 +256,49 @@ const TopicDetail: React.FC = () => {
                     ? 'Đã gửi lại phiếu xét duyệt cho các thành viên đã từ chối'
                     : `Đã gửi đề tài đến ${newReviewers.length} thành viên Hội đồng xét duyệt`,
             );
-            setSubmitModalOpen(false);
-            setSubmitCouncilType('approval');
+            setApprovalModalOpen(false);
             setSubmitNotes('');
             setAttachedFiles([]);
         } catch (error: any) {
             message.error(error?.response?.data?.message || error.message || 'Không thể upload tài liệu');
+        }
+    };
+
+    const handleSubmitCouncilRequest = async () => {
+        if (!MaDT || !selectedCouncilTypeId) {
+            message.warning('Vui lòng chọn loại hội đồng');
+            return;
+        }
+
+        try {
+            await Promise.all(attachedFiles.map((uploadFile) => {
+                if (!uploadFile.originFileObj) throw new Error(`Không đọc được file ${uploadFile.name}`);
+                return uploadDocument({
+                    file: uploadFile.originFileObj,
+                    maDT: MaDT,
+                    loaiTaiLieu: 'Tài liệu gửi đánh giá',
+                });
+            }));
+
+            const payload = {
+                MaLoaiHoiDong: selectedCouncilTypeId,
+                LyDoYeuCau: submitNotes,
+            };
+            if (rejectedRequest) {
+                await resubmitCouncilAssignmentRequest(rejectedRequest.Id, payload);
+            } else {
+                await createCouncilAssignmentRequest(MaDT, payload);
+            }
+
+            message.success(rejectedRequest ? 'Đã gửi lại yêu cầu phân công hội đồng' : 'Đã gửi yêu cầu phân công hội đồng');
+            setSubmitModalOpen(false);
+            setSubmitNotes('');
+            setAttachedFiles([]);
+            setSelectedCouncilTypeId(undefined);
+            const [requests] = await Promise.all([getMyCouncilRequests(), fetchTopicDetail()]);
+            setCouncilRequests(requests);
+        } catch (error: any) {
+            message.error(error?.response?.data?.message || error.message || 'Không thể gửi yêu cầu phân công hội đồng');
         }
     };
 
@@ -231,9 +322,14 @@ const TopicDetail: React.FC = () => {
         const statusMap: Record<string, { color: string; label: string }> = {
             "Nháp": { color: 'default', label: 'Nháp' },
             "Đã phê duyệt": { color: 'green', label: 'Bắt đầu' },
+            "Bắt đầu": { color: 'green', label: 'Bắt đầu' },
             "Sắp hạn": { color: 'orange', label: 'Sắp hạn' },
             "Khẩn cấp": { color: 'red', label: 'Khẩn cấp' },
             "Chờ phê duyệt": { color: 'blue', label: 'Chờ phê duyệt' },
+            "Chờ xét duyệt": { color: 'blue', label: 'Chờ phê duyệt' },
+            "Chờ phân công hội đồng xét duyệt": { color: 'gold', label: 'Chờ phân công hội đồng xét duyệt' },
+            "Chờ phân công hội đồng nghiệm thu": { color: 'gold', label: 'Chờ phân công hội đồng nghiệm thu' },
+            "Chờ phân công hội đồng theo dõi": { color: 'gold', label: 'Chờ phân công hội đồng theo dõi' },
             "Từ chối": { color: 'red', label: 'Từ chối' },
             "Chờ nghiệm thu": { color: 'gold', label: 'Chờ nghiệm thu' },
             "Đang nghiệm thu": { color: 'processing', label: 'Đang nghiệm thu' },
@@ -349,15 +445,27 @@ const TopicDetail: React.FC = () => {
                                                     Hủy chỉnh sửa
                                                 </Button>
                                             ) : null}
-                                            <Button
-                                                type="dashed"
-                                                icon={<SendOutlined />}
-                                                block
-                                                disabled={!canSendToCouncil}
-                                                onClick={() => setSubmitModalOpen(true)}
-                                            >
-                                                {canSendToCouncil ? 'Gửi yêu cầu tạo hội đồng' : 'Đã gửi yêu cầu'}
-                                            </Button>
+                                            {canRequestCouncil && (
+                                                <Button
+                                                    type="dashed"
+                                                    icon={<SendOutlined />}
+                                                    block
+                                                    onClick={() => {
+                                                        setSelectedCouncilTypeId(rejectedRequest?.MaLoaiHoiDong || requestTypes[0]?.MaLoaiHoiDong);
+                                                        setSubmitModalOpen(true);
+                                                    }}
+                                                >
+                                                    {rejectedRequest ? 'Gửi lại yêu cầu hội đồng' : 'Yêu cầu phân công hội đồng'}
+                                                </Button>
+                                            )}
+                                            {pendingRequest && (
+                                                <Tag color="blue">Đang chờ Admin phân công hội đồng</Tag>
+                                            )}
+                                            {canSubmitApproval && (
+                                                <Button type="primary" icon={<SendOutlined />} block onClick={() => setApprovalModalOpen(true)}>
+                                                    {isRejected ? 'Gửi lại xét duyệt' : 'Gửi hồ sơ xét duyệt'}
+                                                </Button>
+                                            )}
                                             {topic?.TrangThai === 'Đã phê duyệt' && (
                                                 <Button
                                                     type="default"
@@ -373,6 +481,22 @@ const TopicDetail: React.FC = () => {
                                 )}
                             </Row>
                         </Card>
+
+                        {latestCouncilRequest && (
+                            <Card size="small" title="Yêu cầu phân công hội đồng" style={{ marginBottom: 16 }}>
+                                <p style={{ marginBottom: 8 }}>
+                                    <strong>Loại hội đồng:</strong> {latestCouncilRequest.LoaiHoiDong?.TenLoaiHoiDong || `Loại #${latestCouncilRequest.MaLoaiHoiDong}`}
+                                </p>
+                                <p style={{ marginBottom: 8 }}>
+                                    <strong>Trạng thái:</strong>{' '}
+                                    <Tag color={latestCouncilRequest.TrangThai === 'Đã chấp nhận' ? 'green' : latestCouncilRequest.TrangThai === 'Từ chối' ? 'red' : 'blue'}>
+                                        {latestCouncilRequest.TrangThai}
+                                    </Tag>
+                                </p>
+                                {latestCouncilRequest.HoiDong && <p style={{ marginBottom: 8 }}><strong>Hội đồng được phân công:</strong> {latestCouncilRequest.HoiDong.TenHoiDong}</p>}
+                                {latestCouncilRequest.LyDoTuChoi && <p style={{ marginBottom: 0, color: '#cf1322' }}><strong>Lý do từ chối:</strong> {latestCouncilRequest.LyDoTuChoi}</p>}
+                            </Card>
+                        )}
 
 
 
@@ -428,16 +552,33 @@ const TopicDetail: React.FC = () => {
                         <CouncilCreateModal
                             topic={topic}
                             open={submitModalOpen}
-                            isResubmission={isRejected}
-                            councilType={submitCouncilType}
+                            isResubmission={!!rejectedRequest}
+                            councilTypes={councilTypes}
+                            allowedBusiness={requestBusiness}
+                            councilTypeId={selectedCouncilTypeId}
                             note={submitNotes}
                             files={attachedFiles}
-                            onCouncilTypeChange={setSubmitCouncilType}
+                            onCouncilTypeChange={setSelectedCouncilTypeId}
                             onNoteChange={setSubmitNotes}
                             onFilesChange={setAttachedFiles}
                             onClose={() => {
                                 setSubmitModalOpen(false);
-                                setSubmitCouncilType('approval');
+                                setSelectedCouncilTypeId(undefined);
+                                setSubmitNotes('');
+                                setAttachedFiles([]);
+                            }}
+                            onSubmit={handleSubmitCouncilRequest}
+                        />
+                        <ApprovalSubmitModal
+                            topic={topic}
+                            open={approvalModalOpen}
+                            isResubmission={isRejected}
+                            note={submitNotes}
+                            files={attachedFiles}
+                            onNoteChange={setSubmitNotes}
+                            onFilesChange={setAttachedFiles}
+                            onClose={() => {
+                                setApprovalModalOpen(false);
                                 setSubmitNotes('');
                                 setAttachedFiles([]);
                             }}

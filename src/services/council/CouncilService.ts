@@ -2,7 +2,7 @@ import ApiAxios from '../../axios.config';
 
 export type CouncilBusiness = 'approval' | 'scoring' | 'monitoring' | 'liquidation' | 'other';
 export type CouncilPosition = 'Chủ tịch' | 'Thư ký' | 'Ủy viên' | 'Phản biện';
-export type CouncilRequestStatus = 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối';
+export type CouncilRequestStatus = 'Chờ duyệt' | 'Đã chấp nhận' | 'Từ chối';
 
 export interface CouncilType {
   MaLoaiHoiDong: number;
@@ -30,34 +30,36 @@ export interface Council {
   ThanhVienHoiDong?: CouncilMember[];
 }
 
-export interface CouncilRequestDocument {
-  TenTaiLieu: string;
-  DuongDan: string;
-}
-
-export interface CouncilRequest {
-  MaYeuCau: number;
+export interface CouncilAssignmentRequest {
+  Id: number;
   MaDT: string;
-  TenDT: string;
-  NguoiGui: string;
+  MaLoaiHoiDong: number;
+  MaHoiDong?: number;
+  TaiKhoanNguoiGui: string;
+  TaiKhoanNguoiXuLy?: string;
   NgayGui: string;
-  LyDo: string;
-  LoaiHoiDong: CouncilBusiness;
-  TaiLieu: CouncilRequestDocument[];
   TrangThai: CouncilRequestStatus;
+  LyDoYeuCau?: string;
   LyDoTuChoi?: string;
+  YeuCauGocId?: number;
+  NgayXuLy?: string;
+  DeTai?: { MaDT: string; TenDT?: string; TrangThai?: string };
+  LoaiHoiDong?: CouncilType;
+  HoiDong?: Council;
+  NguoiGui?: { TaiKhoan: string; TenDayDu?: string };
+  NguoiXuLy?: { TaiKhoan: string; TenDayDu?: string };
 }
 
-export interface ApproveCouncilRequestPayload {
-  TenHoiDong: string;
+export interface CreateCouncilAssignmentRequestPayload {
   MaLoaiHoiDong: number;
-  NamBatDau: number;
-  NamKetThuc: number;
-  MoTa?: string;
+  LyDoYeuCau?: string;
 }
 
 export const getCouncilTypes = async (): Promise<CouncilType[]> =>
   (await ApiAxios.get('/admin/councils/types')).data;
+
+export const getAvailableCouncilTypes = async (): Promise<CouncilType[]> =>
+  (await ApiAxios.get('/council-requests/types')).data;
 
 export const createCouncilType = async (payload: Pick<CouncilType, 'TenLoaiHoiDong'> & Partial<Pick<CouncilType, 'NghiepVu' | 'MoTa'>>) =>
   (await ApiAxios.post('/admin/councils/types', payload)).data;
@@ -91,19 +93,30 @@ export const removeCouncilMember = async (councilId: number, TaiKhoan: string) =
 export const assignCouncilToTopic = async (maDT: string, MaHoiDong: number) =>
   (await ApiAxios.post(`/admin/councils/projects/${maDT}`, { MaHoiDong })).data;
 
-/**
- * ==== YÊU CẦU TẠO HỘI ĐỒNG TỪ SINH VIÊN ====
- * Các endpoint /admin/councils/requests/* là endpoint MỚI, chưa có ở backend — cần dựng thêm.
- */
+export const getCouncilRequests = async (status?: CouncilRequestStatus): Promise<CouncilAssignmentRequest[]> =>
+  (await ApiAxios.get('/admin/councils/requests', { params: { status } })).data;
 
-export const getCouncilRequests = async (): Promise<CouncilRequest[]> =>
+export const getMyCouncilRequests = async (): Promise<CouncilAssignmentRequest[]> =>
+  (await ApiAxios.get('/council-requests/my')).data;
+
+export const createCouncilAssignmentRequest = async (
+  maDT: string,
+  payload: CreateCouncilAssignmentRequestPayload,
+): Promise<CouncilAssignmentRequest> =>
+  (await ApiAxios.post(`/council-requests/projects/${maDT}`, payload)).data;
+
+export const resubmitCouncilAssignmentRequest = async (
+  id: number,
+  payload: CreateCouncilAssignmentRequestPayload,
+): Promise<CouncilAssignmentRequest> =>
+  (await ApiAxios.post(`/council-requests/${id}/resubmit`, payload)).data;
+
+export const approveCouncilRequest = async (id: number, MaHoiDong: number): Promise<CouncilAssignmentRequest> =>
+  (await ApiAxios.patch(`/admin/councils/requests/${id}/approve`, { MaHoiDong })).data;
+
+export const rejectCouncilRequest = async (id: number, LyDoTuChoi: string): Promise<CouncilAssignmentRequest> =>
+  (await ApiAxios.patch(`/admin/councils/requests/${id}/reject`, { LyDoTuChoi })).data;
+
+/* API cũ đã được thay bằng các endpoint phân công hội đồng theo từng đề tài. */
+export const getLegacyCouncilRequests = async () =>
   (await ApiAxios.get('/admin/councils/requests')).data;
-
-export const getCouncilRequestById = async (id: number): Promise<CouncilRequest> =>
-  (await ApiAxios.get(`/admin/councils/requests/${id}`)).data;
-
-export const approveCouncilRequest = async (id: number, payload: ApproveCouncilRequestPayload): Promise<Council> =>
-  (await ApiAxios.post(`/admin/councils/requests/${id}/approve`, payload)).data;
-
-export const rejectCouncilRequest = async (id: number, reason: string): Promise<void> =>
-  (await ApiAxios.post(`/admin/councils/requests/${id}/reject`, { reason })).data;

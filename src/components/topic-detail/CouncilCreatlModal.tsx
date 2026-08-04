@@ -3,35 +3,39 @@ import { Button, Form, Input, Modal, Select, Upload } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
 import type { TopicLoad } from '../../services/topic/TopicService';
+import type { CouncilBusiness, CouncilType } from '../../services/council/CouncilService';
 
 const { TextArea } = Input;
 
-export type CouncilType = 'approval' | 'scoring';
+const businessHints: Partial<Record<CouncilBusiness, string>> = {
+  approval: 'Đề tài ở trạng thái Nháp chỉ được yêu cầu hội đồng xét duyệt.',
+  monitoring: 'Đề tài đã Bắt đầu chỉ được yêu cầu hội đồng theo dõi.',
+  scoring: 'Đề tài ở trạng thái Chờ nghiệm thu chỉ được yêu cầu hội đồng nghiệm thu.',
+};
 
 interface Props {
   topic: TopicLoad | null;
   open: boolean;
   isResubmission: boolean;
-  councilType: CouncilType;
+  councilTypes: CouncilType[];
+  allowedBusiness?: CouncilBusiness;
+  councilTypeId?: number;
   note: string;
   files: UploadFile[];
-  onCouncilTypeChange: (value: CouncilType) => void;
+  onCouncilTypeChange: (value: number) => void;
   onNoteChange: (value: string) => void;
   onFilesChange: (files: UploadFile[]) => void;
   onClose: () => void;
   onSubmit: () => void;
 }
 
-const COUNCIL_TYPE_OPTIONS: { label: string; value: CouncilType }[] = [
-  { label: 'Hội đồng xét duyệt', value: 'approval' },
-  { label: 'Hội đồng nghiệm thu', value: 'scoring' },
-];
-
 export default function CouncilCreateModal({
   topic,
   open,
   isResubmission,
-  councilType,
+  councilTypes,
+  allowedBusiness,
+  councilTypeId,
   note,
   files,
   onCouncilTypeChange,
@@ -44,95 +48,60 @@ export default function CouncilCreateModal({
 
   useEffect(() => {
     if (open) {
-      form.setFieldsValue({ councilType, note });
+      form.setFieldsValue({ MaLoaiHoiDong: councilTypeId, LyDoYeuCau: note });
     }
-  }, [open, councilType, note, form]);
+  }, [open, councilTypeId, note, form]);
 
-  const handleSend = async () => {
+  const handleSubmit = async () => {
     try {
       await form.validateFields();
       onSubmit();
     } catch {
-      // lỗi validate đã hiển thị trên form, không cần xử lý thêm
+      // Form tự hiển thị lỗi validate.
     }
-  };
-
-  const handleCancel = () => {
-    form.resetFields();
-    onClose();
   };
 
   return (
     <Modal
-      title={isResubmission ? 'GỬI LẠI YÊU CẦU HỘI ĐỒNG' : 'TẠO HỘI ĐỒNG'}
+      title={isResubmission ? 'GỬI LẠI YÊU CẦU PHÂN CÔNG HỘI ĐỒNG' : 'YÊU CẦU PHÂN CÔNG HỘI ĐỒNG'}
       open={open}
-      onCancel={handleCancel}
-      width={900}
+      onCancel={onClose}
+      width={760}
       footer={[
-        <Button key="cancel" onClick={handleCancel}>
-          Hủy
-        </Button>,
-        <Button key="submit" type="primary" onClick={handleSend}>
-          Gửi
-        </Button>,
+        <Button key="cancel" onClick={onClose}>Hủy</Button>,
+        <Button key="submit" type="primary" onClick={handleSubmit}>Gửi yêu cầu</Button>,
       ]}
+      destroyOnClose
     >
-      {topic && (
-        <>
-          <p><strong>Tên đề tài:</strong> {topic.TenDT}</p>
-          <p><strong>Danh mục:</strong> {topic.PhanLoai}</p>
-          <p><strong>Trạng thái:</strong> {topic.TrangThai}</p>
-          
-          <Form form={form} layout="vertical" initialValues={{ councilType, note }}>
-            <Form.Item
-              label="Loại hội đồng"
-              name="councilType"
-              rules={[{ required: true, message: 'Vui lòng chọn loại hội đồng' }]}
-            >
-              <Select
-                options={COUNCIL_TYPE_OPTIONS}
-                disabled={isResubmission}
-                onChange={(value: CouncilType) => onCouncilTypeChange(value)}
-              />
-            </Form.Item>
-
-            {isResubmission && (
-              <p style={{ marginTop: -12, color: '#8c8c8c' }}>
-                Hệ thống chỉ gửi lại cho các thành viên hội đồng đã từ chối ở vòng trước.
-              </p>
-            )}
-
-            <Form.Item
-              label="Lý do tạo"
-              name="note"
-              rules={[{ required: true, message: 'Vui lòng nhập lý do tạo hội đồng' }]}
-            >
-              <TextArea
-                rows={5}
-                value={note}
-                onChange={(event) => onNoteChange(event.target.value)}
-                placeholder="Nhập lý do gửi đề tài đến hội đồng..."
-              />
-            </Form.Item>
-
-            <Form.Item label="Đính kèm tài liệu">
-              <Upload
-                listType="picture"
-                multiple
-                fileList={files}
-                accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xlsx,.pptx"
-                onChange={(info) => onFilesChange(info.fileList)}
-                beforeUpload={() => false}
-              >
-                <Button icon={<UploadOutlined />}>Chọn tệp</Button>
-              </Upload>
-              {files.length > 0 && (
-                <p style={{ marginTop: 12, marginBottom: 0 }}>Số tệp đã chọn: {files.length}</p>
-              )}
-            </Form.Item>
-          </Form>
-        </>
-      )}
+      {topic && <>
+        <p><strong>Tên đề tài:</strong> {topic.TenDT}</p>
+        <p><strong>Trạng thái hiện tại:</strong> {topic.TrangThai}</p>
+        <Form form={form} layout="vertical">
+          <Form.Item name="MaLoaiHoiDong" label="Loại hội đồng cần phân công" rules={[{ required: true, message: 'Vui lòng chọn loại hội đồng' }]}>
+            <Select
+              placeholder="Chọn loại hội đồng"
+              disabled={isResubmission}
+              options={councilTypes.map((item) => ({
+                value: item.MaLoaiHoiDong,
+                label: item.TenLoaiHoiDong,
+                disabled: !!allowedBusiness && item.NghiepVu !== allowedBusiness,
+              }))}
+              onChange={onCouncilTypeChange}
+            />
+          </Form.Item>
+          {allowedBusiness && businessHints[allowedBusiness] && (
+            <p style={{ marginTop: -12, color: '#8c8c8c' }}>{businessHints[allowedBusiness]}</p>
+          )}
+          <Form.Item name="LyDoYeuCau" label="Nội dung yêu cầu" rules={[{ required: true, message: 'Vui lòng nhập nội dung yêu cầu' }]}>
+            <TextArea rows={4} value={note} onChange={(event) => onNoteChange(event.target.value)} placeholder="Ví dụ: Đề nghị phân công hội đồng để xét duyệt hồ sơ đề tài." />
+          </Form.Item>
+          <Form.Item label="Tài liệu kèm theo (nếu có)">
+            <Upload listType="text" multiple fileList={files} accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xlsx,.pptx" onChange={(info) => onFilesChange(info.fileList)} beforeUpload={() => false}>
+              <Button icon={<UploadOutlined />}>Chọn tệp</Button>
+            </Upload>
+          </Form.Item>
+        </Form>
+      </>}
     </Modal>
   );
 }

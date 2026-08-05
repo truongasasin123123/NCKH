@@ -458,11 +458,13 @@ const TopicDetail: React.FC = () => {
                                                 </Button>
                                             )}
                                             {pendingRequest && (
-                                                <Tag color="blue">Đang chờ Admin phân công hội đồng</Tag>
+                                                <Tag color="blue" style={{ display: 'block', textAlign: 'center' }}>
+                                                    Đang chờ Admin phân công hội đồng
+                                                </Tag>
                                             )}
                                             {canSubmitApproval && (
                                                 <Button type="primary" icon={<SendOutlined />} block onClick={() => setApprovalModalOpen(true)}>
-                                                    {isRejected ? 'Gửi lại xét duyệt' : 'Gửi hồ sơ xét duyệt'}
+                                                    Gửi hồ sơ xét duyệt
                                                 </Button>
                                             )}
                                             {topic?.TrangThai === 'Đã phê duyệt' && (

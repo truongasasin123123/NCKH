@@ -100,10 +100,9 @@ const TopicDetail: React.FC = () => {
     const rejectedRequest = relatedRequests.find((request) => request.TrangThai === 'Từ chối');
     const acceptedRequest = relatedRequests.find((request) => request.TrangThai === 'Đã chấp nhận');
     const canRequestCouncil = isTopicLeader && !!requestBusiness && !pendingRequest && !acceptedRequest;
-    const canSubmitApproval = isTopicLeader && (
-        ['Chờ phê duyệt', 'Chờ xét duyệt'].includes(topic?.TrangThai || '')
-        || (isRejected && hasSubmittedForApproval)
-    );
+    const canSubmitApproval = isTopicLeader
+        && ['Chờ phê duyệt', 'Chờ xét duyệt'].includes(topic?.TrangThai || '')
+        && !hasSubmittedForApproval;
     const [form] = Form.useForm();
 
     useEffect(() => {

@@ -45,13 +45,43 @@ export default function CouncilPanel({
                       <Tag style={{ marginLeft: 8 }} color={reviewer.councilType === 'Xét duyệt' ? 'purple' : 'cyan'}>
                         Hội đồng {reviewer.councilType.toLowerCase()}
                       </Tag>
-                      {reviewer.name !== reviewer.account && <span style={{ color: '#8c8c8c' }}> ({reviewer.account})</span>}
-                      {reviewer.responseDate && <div style={{ color: '#8c8c8c', fontSize: 12 }}>Phản hồi: {new Date(reviewer.responseDate).toLocaleString('vi-VN')}</div>}
-                      {reviewer.status === 'Từ chối' && reviewer.note && <div style={{ color: '#cf1322', fontSize: 12, marginTop: 4 }}>Lý do từ chối: {reviewer.note}</div>}
+                                      {reviewer.name !== reviewer.account && (
+                        <span style={{ color: '#8c8c8c' }}>
+                          ({reviewer.account})
+                        </span>
+                      )}
+                      {reviewer.responseDate && (
+                        <div style={{ color: '#8c8c8c', fontSize: 12 }}>
+                          Phản hồi: {new Date(reviewer.responseDate).toLocaleString('vi-VN')}
+                        </div>
+                      )}
+                      {reviewer.status === 'Từ chối' && reviewer.note && (
+                        <div
+                          style={{
+                            color: '#cf1322',
+                            fontSize: 12,
+                            marginTop: 4,
+                          }}
+                        >
+                          Lý do từ chối: {reviewer.note}
+                        </div>
+                      )}
                     </div>
-                    <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div
+                      style={{
+                        flex: '0 0 auto',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                      }}
+                    >
                       {reviewer.status === 'Từ chối' && isTopicLeader && (
-                        <Button type="primary" className="btn-see-upload" icon={<SendOutlined />} onClick={() => onResend(reviewer)}>
+                        <Button
+                          type="primary"
+                          className="btn-see-upload"
+                          icon={<SendOutlined />}
+                          onClick={() => onResend(reviewer)}
+                        >
                           Gửi lại
                         </Button>
                       )}
@@ -62,7 +92,11 @@ export default function CouncilPanel({
               )}
             />
           </>
-        ) : <p>Chưa có trạng thái phê duyệt nào. Vui lòng gửi cho hội đồng để được phê duyệt.</p>}
+        ) : (
+        <p>
+          Chưa có trạng thái phê duyệt nào. Vui lòng gửi cho hội đồng để được phê duyệt.
+        </p>
+      )}
       </Card>
 
       {history.length > 0 && (

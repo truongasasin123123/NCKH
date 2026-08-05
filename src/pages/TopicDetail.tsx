@@ -528,6 +528,12 @@ const TopicDetail: React.FC = () => {
                                 }}
                                 onOpenAcceptance={() => navigate(`/mainhome/acceptance/${MaDT}`)}
                                 renderStatus={getApprovalStatusTag}
+                                // --- thêm mới ---
+                                documents={topicDocuments.documents}
+                                documentsLoading={topicDocuments.loading}
+                                visibleDocumentCount={docsVisibleCount}
+                                onShowMoreDocuments={() => setDocsVisibleCount((current) => current + PAGE_SIZE)}
+                                onDownloadDocument={downloadDocument}
                             />
                         )}
                         <CommentsPanel

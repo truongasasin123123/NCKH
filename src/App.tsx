@@ -23,7 +23,7 @@ import CouncilList from "./pages/QuanTriHeThong/CouncilList";
 import CouncilDetail from "./pages/QuanTriHeThong/CouncilDetail";
 import DanhSachDeTai from "./pages/QuanTriHeThong/MonitoringCommittee";
 import ChiTietBaoCao from "./pages/QuanTriHeThong/ReportDetail";
-import LoaiTaiLieuList from "./pages/QuanTriHeThong/DocumentList";
+
 import Acceptance from "./pages/Acceptance";
 
 interface JwtPayload {
@@ -126,7 +126,7 @@ function App() {
             <Route path="admin/councils/:maHoiDong" element={<CouncilDetail />} />
             <Route path="hoi-dong-theo-doi" element={<DanhSachDeTai />} />
             <Route path="hoi-dong-theo-doi/:maDT" element={<ChiTietBaoCao />} />
-            <Route path="admin/document-types" element={<LoaiTaiLieuList />} />
+
             <Route path="acceptance/:maDT" element={<Acceptance />} />
           </Route>
         </Routes>

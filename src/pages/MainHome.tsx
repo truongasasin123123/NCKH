@@ -1,6 +1,6 @@
 import { Layout, Row, Col, Badge } from "antd";
 import { Navigate, Outlet, NavLink, useLocation } from "react-router-dom";
-import { UserOutlined, EditOutlined, BellOutlined, ProfileOutlined, FileOutlined, BarChartOutlined, TeamOutlined, AuditOutlined, FileTextOutlined } from "@ant-design/icons";
+import { UserOutlined, EditOutlined, BellOutlined, ProfileOutlined, FileOutlined, BarChartOutlined, TeamOutlined, AuditOutlined } from "@ant-design/icons";
 import { useState, useEffect } from "react";
 import { jwtDecode } from 'jwt-decode';
 import { getNotifications } from "../services/notification/NotificationService";
@@ -30,7 +30,7 @@ const MainHome: React.FC = () => {
     .replace(/\s/g, '');
   const isCommitteeRole = normalizedRole.includes('hoidong');
   const isAdmin = normalizedRole === 'admin' || normalizedRole === 'quantri';
-  const canAccessCouncil = isAdmin || isCommitteeRole || isCouncilMember;
+  const canAccessCouncil =  isCommitteeRole || isCouncilMember;
 
 
 
@@ -125,12 +125,7 @@ const MainHome: React.FC = () => {
                       <span>Quản lý hội đồng</span>
                     </NavLink>
                   </li>
-                  <li>
-                    <NavLink to="/mainhome/admin/document-types" className="li-link">
-                      <FileTextOutlined style={{ fontSize: 18, marginRight: 5 }} />
-                      <span>Quản lý loại tài liệu</span>
-                    </NavLink>
-                  </li>
+                  
                 </>
               )}
               {(!isAdmin || canAccessCouncil) && (

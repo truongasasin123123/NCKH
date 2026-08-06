@@ -23,8 +23,8 @@ import CouncilList from "./pages/QuanTriHeThong/CouncilList";
 import CouncilDetail from "./pages/QuanTriHeThong/CouncilDetail";
 import DanhSachDeTai from "./pages/QuanTriHeThong/MonitoringCommittee";
 import ChiTietBaoCao from "./pages/QuanTriHeThong/ReportDetail";
-
 import Acceptance from "./pages/Acceptance";
+import TopicManagement from "./pages/QuanTriHeThong/TopicManagement";
 
 interface JwtPayload {
   TaiKhoan: string;
@@ -32,7 +32,7 @@ interface JwtPayload {
 }
 
 function App() {
-  
+
   const token = localStorage.getItem("access_token") || sessionStorage.getItem("access_token");
   const user: JwtPayload | null = token ? jwtDecode(token) : null;
   const navigate = useNavigate();
@@ -82,7 +82,7 @@ function App() {
             />
           </Link>
 
-          
+
         </div>
 
         <div className="user-nvarbar">
@@ -126,8 +126,9 @@ function App() {
             <Route path="admin/councils/:maHoiDong" element={<CouncilDetail />} />
             <Route path="hoi-dong-theo-doi" element={<DanhSachDeTai />} />
             <Route path="hoi-dong-theo-doi/:maDT" element={<ChiTietBaoCao />} />
-
             <Route path="acceptance/:maDT" element={<Acceptance />} />
+            <Route path="admin/councils/:maHoiDong" element={<CouncilDetail />} />
+            <Route path="admin/topics" element={<TopicManagement />} />   {/* thêm dòng này */}
           </Route>
         </Routes>
       </Layout>

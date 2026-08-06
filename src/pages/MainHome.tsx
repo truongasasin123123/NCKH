@@ -1,6 +1,6 @@
 import { Layout, Row, Col, Badge } from "antd";
 import { Navigate, Outlet, NavLink, useLocation } from "react-router-dom";
-import { UserOutlined, EditOutlined, BellOutlined, ProfileOutlined, FileOutlined, BarChartOutlined, TeamOutlined, AuditOutlined } from "@ant-design/icons";
+import { UserOutlined, EditOutlined, BellOutlined, ProfileOutlined, FileOutlined, BarChartOutlined, TeamOutlined, AuditOutlined, FileSearchOutlined } from "@ant-design/icons";
 import { useState, useEffect } from "react";
 import { jwtDecode } from 'jwt-decode';
 import { getNotifications } from "../services/notification/NotificationService";
@@ -30,7 +30,7 @@ const MainHome: React.FC = () => {
     .replace(/\s/g, '');
   const isCommitteeRole = normalizedRole.includes('hoidong');
   const isAdmin = normalizedRole === 'admin' || normalizedRole === 'quantri';
-  const canAccessCouncil =  isCommitteeRole || isCouncilMember;
+  const canAccessCouncil = isCommitteeRole || isCouncilMember;
 
 
 
@@ -61,6 +61,9 @@ const MainHome: React.FC = () => {
 
   if (user?.DaHoanThienHoSo === false && location.pathname !== '/mainhome/profile') {
     return <Navigate to="/mainhome/profile" replace />;
+  }
+  if (isAdmin && location.pathname === '/mainhome') {
+    return <Navigate to="/mainhome/admin/topics" replace />;
   }
   if (canAccessCouncil && location.pathname === '/mainhome') {
     return <Navigate to="/mainhome/approvedtopics" replace />;
@@ -125,7 +128,12 @@ const MainHome: React.FC = () => {
                       <span>Quản lý hội đồng</span>
                     </NavLink>
                   </li>
-                  
+                  <li>
+                    <NavLink to="/mainhome/admin/topics" className="li-link">
+                      <FileSearchOutlined style={{ fontSize: 18, marginRight: 5 }} />
+                      <span>Quản lý đề tài</span>
+                    </NavLink>
+                  </li>
                 </>
               )}
               {(!isAdmin || canAccessCouncil) && (

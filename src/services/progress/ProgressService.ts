@@ -34,7 +34,7 @@ export interface CapNhatBaoCaoDto {
   KhoKhan?: string;
   DeXuat?: string;
 }
-export interface DeTaiTheoDoi { MaDT: string; TenDT: string; ChuNhiem: string; Khoa: string; TienDo: number; TrangThai: string; TenHoiDong?: string; NghiepVuHoiDong?: string; ThanhVienHoiDong?: Array<{ TaiKhoan: string; TenDayDu: string; ChucDanh: string }> }
+export interface DeTaiTheoDoi { MaDT: string; MaHoiDong?: number; TenDT: string; ChuNhiem: string; Khoa: string; TienDo: number; TrangThai: string; TenHoiDong?: string; NghiepVuHoiDong?: string; VaiTroTrongHoiDong?: string; ThanhVienHoiDong?: Array<{ TaiKhoan: string; TenDayDu: string; ChucDanh: string }> }
 
 export const getMocTienDoByTopic = async (maDT: string): Promise<MocTienDo[]> =>
   (await ApiAxios.get('/progress/getprogress', { params: { MaDT: maDT } })).data;

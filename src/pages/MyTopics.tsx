@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { jwtDecode } from 'jwt-decode';
-import { Table, Tag, Space, Button, message, Spin, Popconfirm, Input, Select } from 'antd';
-import { EyeOutlined, DeleteOutlined, FileTextOutlined } from '@ant-design/icons';
+import { Table, Tag, Space, Button, message, Spin, Popconfirm, Input, Popover, Select } from 'antd';
+import { EyeOutlined, DeleteOutlined, FileTextOutlined, FilterOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { deleteProject, getMyTopics, getPendingTopics } from '../services/topic/TopicService';
 import type { TopicLoad } from '../services/topic/TopicService';
@@ -123,19 +123,36 @@ const MyTopics: React.FC = () => {
     };
     const [keyword, setKeyword] = useState('');
     const [statusFilter, setStatusFilter] = useState<string | undefined>();
+    const [categoryFilter, setCategoryFilter] = useState<string | undefined>();
+    const [memberRoleFilter, setMemberRoleFilter] = useState<string | undefined>();
+    const [progressFilter, setProgressFilter] = useState<string | undefined>();
 
     // Lấy tên đề tài dù cấu trúc dữ liệu khác nhau giữa các role
     const getTopicName = (record: any): string => record?.DeTai?.TenDT || record?.TenDT || '';
     const getTopicStatus = (record: any): string => record?.DeTai?.TrangThai || record?.TrangThai || '';
+    const getTopicCategory = (record: any): string => record?.DeTai?.PhanLoai || record?.PhanLoai || '';
+    const getTopicRole = (record: any): string => record?.VaiTroDT || '';
+    const getTopicProgressValue = (record: any): number => Number(record?.progress ?? record?.DeTai?.TienDo ?? record?.TienDo ?? 0);
 
     const filteredTopics = useMemo(() => {
         const search = keyword.trim().toLowerCase();
         return topics.filter((topic) => {
-            const matchKeyword = !search || getTopicName(topic).toLowerCase().includes(search);
+            const matchKeyword = !search || [
+                topic.MaDT,
+                getTopicName(topic),
+                getTopicCategory(topic),
+            ].some((value) => value.toLowerCase().includes(search));
             const matchStatus = !statusFilter || getTopicStatus(topic) === statusFilter;
-            return matchKeyword && matchStatus;
+            const matchCategory = !categoryFilter || getTopicCategory(topic) === categoryFilter;
+            const matchMemberRole = !memberRoleFilter || getTopicRole(topic) === memberRoleFilter;
+            const progress = getTopicProgressValue(topic);
+            const matchProgress = !progressFilter
+                || (progressFilter === 'under50' && progress < 50)
+                || (progressFilter === 'from50to99' && progress >= 50 && progress < 100)
+                || (progressFilter === 'complete' && progress >= 100);
+            return matchKeyword && matchStatus && matchCategory && matchMemberRole && matchProgress;
         });
-    }, [topics, keyword, statusFilter]);
+    }, [topics, keyword, statusFilter, categoryFilter, memberRoleFilter, progressFilter]);
 
     // Danh sách trạng thái để đổ vào Select, tự rút ra từ dữ liệu đang có (tránh hard-code thiếu trạng thái)
     const statusOptions = useMemo(() => {
@@ -150,6 +167,77 @@ const MyTopics: React.FC = () => {
         const uniqueStatuses = Array.from(new Set(topics.map((topic) => getTopicStatus(topic)).filter(Boolean)));
         return uniqueStatuses.map((value) => ({ value, label: statusMap[value] || value }));
     }, [topics]);
+
+    const categoryOptions = useMemo(() => {
+        const categories = Array.from(new Set(topics.map((topic) => getTopicCategory(topic)).filter(Boolean)));
+        return categories.map((value) => ({ value, label: value }));
+    }, [topics]);
+
+    const memberRoleOptions = useMemo(() => {
+        const roles = Array.from(new Set(topics.map((topic) => getTopicRole(topic)).filter(Boolean)));
+        return roles.map((value) => ({ value, label: value }));
+    }, [topics]);
+
+    const resetFilters = () => {
+        setKeyword('');
+        setStatusFilter(undefined);
+        setCategoryFilter(undefined);
+        setMemberRoleFilter(undefined);
+        setProgressFilter(undefined);
+    };
+
+    const activeFilterCount = [
+        statusFilter,
+        categoryFilter,
+        memberRoleFilter,
+        progressFilter,
+    ].filter(Boolean).length;
+
+    const filterContent = (
+        <Space direction="vertical" size={12} style={{ width: 260 }}>
+            {!isCommitteeRole && (
+                <Select
+                    allowClear
+                    placeholder="Trạng thái"
+                    value={statusFilter}
+                    onChange={setStatusFilter}
+                    options={statusOptions}
+                />
+            )}
+            {!isCommitteeRole && (
+                <Select
+                    allowClear
+                    placeholder="Phân loại"
+                    value={categoryFilter}
+                    onChange={setCategoryFilter}
+                    options={categoryOptions}
+                />
+            )}
+            {!isCommitteeRole && !isAdvisorRole && (
+                <Select
+                    allowClear
+                    placeholder="Vai trò trong nhóm"
+                    value={memberRoleFilter}
+                    onChange={setMemberRoleFilter}
+                    options={memberRoleOptions}
+                />
+            )}
+            {!isCommitteeRole && (
+                <Select
+                    allowClear
+                    placeholder="Tiến độ"
+                    value={progressFilter}
+                    onChange={setProgressFilter}
+                    options={[
+                        { value: 'under50', label: 'Dưới 50%' },
+                        { value: 'from50to99', label: 'Từ 50% đến 99%' },
+                        { value: 'complete', label: 'Hoàn thành (100%)' },
+                    ]}
+                />
+            )}
+            <Button block onClick={resetFilters}>Đặt lại bộ lọc</Button>
+        </Space>
+    );
 
     const studentColumns: ColumnsType<TopicLoad> = [
         {
@@ -370,20 +458,17 @@ const MyTopics: React.FC = () => {
                 <Space style={{ marginBottom: 16, display: 'flex' }} wrap>
                     <Input.Search
                         allowClear
-                        placeholder="Tìm theo tên đề tài..."
+                        placeholder="Tìm theo mã, tên hoặc phân loại đề tài..."
                         value={keyword}
                         onChange={(e) => setKeyword(e.target.value)}
-                        style={{ width: 280 }}
+                        style={{ width: 320 }}
                     />
                     {!isCommitteeRole && (
-                        <Select
-                            allowClear
-                            placeholder="Trạng thái"
-                            style={{ width: 180 }}
-                            value={statusFilter}
-                            onChange={setStatusFilter}
-                            options={statusOptions}
-                        />
+                        <Popover content={filterContent} trigger="click" placement="bottomLeft">
+                            <Button icon={<FilterOutlined />}>
+                                Bộ lọc{activeFilterCount ? ` (${activeFilterCount})` : ''}
+                            </Button>
+                        </Popover>
                     )}
                 </Space>
 

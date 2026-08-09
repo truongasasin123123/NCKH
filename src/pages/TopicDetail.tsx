@@ -143,6 +143,7 @@ const TopicDetail: React.FC = () => {
                     getTopicById(MaDT),
                     topicApprovals.refresh(),
                     topicComments.refresh(),
+                    topicDetails.refreshAcceptanceDossier(MaDT),
                 ]);
                 setTopic(latestTopic);
             } catch (error) {

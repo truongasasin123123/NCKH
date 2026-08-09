@@ -1,8 +1,9 @@
-import type { ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import type { CollapseProps } from 'antd';
-import { Button, Card, Collapse, List, Tag } from 'antd';
-import { SendOutlined } from '@ant-design/icons';
-import type { ReviewerApproval } from './types';
+import { Button, Card, Collapse, List, Tag, Input, Select, Space, Empty } from 'antd';
+import { DownloadOutlined, SearchOutlined, SendOutlined } from '@ant-design/icons';
+import type { ProjectDocumentItem, ReviewerApproval } from './types';
+
 
 interface CouncilPanelProps {
   reviewers: ReviewerApproval[];
@@ -15,6 +16,12 @@ interface CouncilPanelProps {
   onResend: (reviewer: ReviewerApproval) => void;
   onOpenAcceptance: () => void;
   renderStatus: (status: string) => ReactNode;
+  // --- thêm mới: dữ liệu tài liệu dự án ---
+  documents: ProjectDocumentItem[];
+  documentsLoading: boolean;
+  visibleDocumentCount: number;
+  onShowMoreDocuments: () => void;
+  onDownloadDocument: (id: number, name: string) => void;
 }
 
 export default function CouncilPanel({
@@ -28,7 +35,34 @@ export default function CouncilPanel({
   onResend,
   onOpenAcceptance,
   renderStatus,
+  documents,
+  documentsLoading,
+  visibleDocumentCount,
+  onShowMoreDocuments,
+  onDownloadDocument,
 }: CouncilPanelProps) {
+  const [searchText, setSearchText] = useState('');
+  const [sourceFilter, setSourceFilter] = useState<string | undefined>(undefined);
+
+  const sourceOptions = useMemo(() => {
+    const sources = Array.from(
+      new Set(documents.map((doc) => doc.source).filter(Boolean)),
+    );
+    return sources.map((source) => ({ label: source, value: source }));
+  }, [documents]);
+
+  const filteredDocuments = useMemo(() => {
+    return documents.filter((doc) => {
+      const matchesSearch = searchText.trim()
+        ? doc.name.toLowerCase().includes(searchText.trim().toLowerCase())
+        : true;
+      const matchesSource = sourceFilter ? doc.source === sourceFilter : true;
+      return matchesSearch && matchesSource;
+    });
+  }, [documents, searchText, sourceFilter]);
+
+  const isFiltering = searchText.trim() !== '' || !!sourceFilter;
+
   return (
     <>
       <Card title="Trạng thái phê duyệt">
@@ -115,6 +149,81 @@ export default function CouncilPanel({
           />
         </Card>
       )}
+
+      <Card title="Tổng hợp tài liệu dự án" style={{ marginTop: 16 }}>
+        {documents.length > 0 && (
+          <Space style={{ width: '100%', marginBottom: 16 }} direction="horizontal" wrap>
+            <Input
+              allowClear
+              placeholder="Tìm kiếm theo tên tài liệu..."
+              prefix={<SearchOutlined />}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              style={{ width: 260 }}
+            />
+            <Select
+              allowClear
+              placeholder="Lọc theo nguồn"
+              options={sourceOptions}
+              value={sourceFilter}
+              onChange={(value) => setSourceFilter(value)}
+              style={{ width: 200 }}
+            />
+          </Space>
+        )}
+
+        {documentsLoading ? (
+          <p>Đang tải tài liệu...</p>
+        ) : documents.length > 0 ? (
+          <>
+            {filteredDocuments.length > 0 ? (
+              <List
+                dataSource={isFiltering ? filteredDocuments : filteredDocuments.slice(0, visibleDocumentCount)}
+                renderItem={(document) => (
+                  <List.Item>
+                    <div
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        gap: 16,
+                      }}
+                    >
+                      <div>
+                        <strong>{document.name}</strong>
+                        <div style={{ color: '#666', fontSize: 12 }}>
+                          <Tag style={{ marginRight: 4 }}>{document.source}</Tag>
+                          {document.date ? document.date : ''}
+                        </div>
+                      </div>
+                      <Button
+                        type="primary"
+                        icon={<DownloadOutlined />}
+                        className="btn-see-upload"
+                        onClick={() => onDownloadDocument(document.id, document.name)}
+                      >
+                        Tải xuống
+                      </Button>
+                    </div>
+                  </List.Item>
+                )}
+              />
+            ) : (
+              <Empty description="Không tìm thấy tài liệu phù hợp" />
+            )}
+
+            {!isFiltering && visibleDocumentCount < documents.length && (
+              <div style={{ textAlign: 'center', marginTop: 12 }}>
+                <Button block onClick={onShowMoreDocuments}>
+                  Tải thêm tài liệu ({documents.length - visibleDocumentCount} còn lại)
+                </Button>
+              </div>
+            )}
+          </>
+        ) : (
+          <p>Chưa có tài liệu dự án từ tiến độ.</p>
+        )}
+      </Card>
 
       <Card
         title="Tổng hợp điểm"

@@ -1,5 +1,6 @@
-import { Button, Card, List } from 'antd';
-import { DownloadOutlined } from '@ant-design/icons';
+import { useMemo, useState } from 'react';
+import { Button, Card, List, Input, Select, Space, Empty, Tag } from 'antd';
+import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ThanhVienDT, TopicLoad } from '../../services/topic/TopicService';
 import type { ProjectDocumentItem } from './types';
 
@@ -22,6 +23,30 @@ export default function TopicInformationPanel({
   onShowMoreDocuments,
   onDownloadDocument,
 }: TopicInformationPanelProps) {
+  const [searchText, setSearchText] = useState('');
+  const [sourceFilter, setSourceFilter] = useState<string | undefined>(undefined);
+
+  // Danh sách nguồn tài liệu duy nhất để đổ vào bộ lọc
+  const sourceOptions = useMemo(() => {
+    const sources = Array.from(
+      new Set(documents.map((doc) => doc.source).filter(Boolean)),
+    );
+    return sources.map((source) => ({ label: source, value: source }));
+  }, [documents]);
+
+  // Áp dụng tìm kiếm + lọc trước khi cắt theo visibleDocumentCount
+  const filteredDocuments = useMemo(() => {
+    return documents.filter((doc) => {
+      const matchesSearch = searchText.trim()
+        ? doc.name.toLowerCase().includes(searchText.trim().toLowerCase())
+        : true;
+      const matchesSource = sourceFilter ? doc.source === sourceFilter : true;
+      return matchesSearch && matchesSource;
+    });
+  }, [documents, searchText, sourceFilter]);
+
+  const isFiltering = searchText.trim() !== '' || !!sourceFilter;
+
   return (
     <>
       <Card title="Thông tin cơ bản">
@@ -46,42 +71,76 @@ export default function TopicInformationPanel({
       </Card>
 
       <Card title="Tổng hợp tài liệu dự án" style={{ marginTop: 16 }}>
+        {documents.length > 0 && (
+          <Space
+            style={{ width: '100%', marginBottom: 16 }}
+            direction="horizontal"
+            wrap
+          >
+            <Input
+              allowClear
+              placeholder="Tìm kiếm theo tên tài liệu..."
+              prefix={<SearchOutlined />}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              style={{ width: 260 }}
+            />
+            <Select
+              allowClear
+              placeholder="Lọc theo nguồn"
+              options={sourceOptions}
+              value={sourceFilter}
+              onChange={(value) => setSourceFilter(value)}
+              style={{ width: 200 }}
+            />
+          </Space>
+        )}
+
         {documentsLoading ? (
           <p>Đang tải tài liệu...</p>
         ) : documents.length > 0 ? (
           <>
-            <List
-              dataSource={documents.slice(0, visibleDocumentCount)}
-              renderItem={(document) => (
-                <List.Item>
-                  <div
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      gap: 16,
-                    }}
-                  >
-                    <div>
-                      <strong>{document.name}</strong>
-                      <div style={{ color: '#666', fontSize: 12 }}>
-                        {document.source}
-                        {document.date ? ` · ${document.date}` : ''}
-                      </div>
-                    </div>
-                    <Button
-                      type="primary"
-                      icon={<DownloadOutlined />}
-                      className="btn-see-upload"
-                      onClick={() => onDownloadDocument(document.id, document.name)}
+            {filteredDocuments.length > 0 ? (
+              <List
+                dataSource={
+                  isFiltering
+                    ? filteredDocuments
+                    : filteredDocuments.slice(0, visibleDocumentCount)
+                }
+                renderItem={(document) => (
+                  <List.Item>
+                    <div
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        gap: 16,
+                      }}
                     >
-                      Tải xuống
-                    </Button>
-                  </div>
-                </List.Item>
-              )}
-            />
-            {visibleDocumentCount < documents.length && (
+                      <div>
+                        <strong>{document.name}</strong>
+                        <div style={{ color: '#666', fontSize: 12 }}>
+                          <Tag style={{ marginRight: 4 }}>{document.source}</Tag>
+                          {document.date ? document.date : ''}
+                        </div>
+                      </div>
+                      <Button
+                        type="primary"
+                        icon={<DownloadOutlined />}
+                        className="btn-see-upload"
+                        onClick={() => onDownloadDocument(document.id, document.name)}
+                      >
+                        Tải xuống
+                      </Button>
+                    </div>
+                  </List.Item>
+                )}
+              />
+            ) : (
+              <Empty description="Không tìm thấy tài liệu phù hợp" />
+            )}
+
+            {!isFiltering && visibleDocumentCount < documents.length && (
               <div style={{ textAlign: 'center', marginTop: 12 }}>
                 <Button block onClick={onShowMoreDocuments}>
                   Tải thêm tài liệu ({documents.length - visibleDocumentCount} còn lại)

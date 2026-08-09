@@ -28,6 +28,9 @@ import {
     useTopicDocuments,
 } from '../hooks/topic-detail';
 import type { ReviewerApproval } from '../components/topic-detail/types';
+import { getBaoCaoTheoDeTai } from '../services/progress/ProgressService';
+import type { BaoCaoTienDo } from '../services/progress/ProgressService';
+import AdjustmentRequestModal from '../components/progress-management/AdjustmentRequestModal';
 import "../style/topic.css";
 
 interface JwtPayload {
@@ -104,7 +107,9 @@ const TopicDetail: React.FC = () => {
         && ['Chờ phê duyệt', 'Chờ xét duyệt'].includes(topic?.TrangThai || '')
         && !hasSubmittedForApproval;
     const [form] = Form.useForm();
-
+    const [pendingAdjustmentReports, setPendingAdjustmentReports] = useState<BaoCaoTienDo[]>([]);
+    const [adjustmentModalOpen, setAdjustmentModalOpen] = useState(false);
+    const [adjustmentTargetReport, setAdjustmentTargetReport] = useState<BaoCaoTienDo | null>(null);
     useEffect(() => {
         fetchTopicDetail();
     }, [MaDT]);
@@ -153,6 +158,21 @@ const TopicDetail: React.FC = () => {
 
         return () => window.clearInterval(refreshInterval);
     }, [MaDT]);
+
+    useEffect(() => {
+        if (!MaDT || !isTopicLeader) return;
+        if (topic?.TrangThai !== 'Đã phê duyệt' && topic?.TrangThai !== 'Bắt đầu') return;
+
+        getBaoCaoTheoDeTai(MaDT)
+            .then((reports) => {
+                // TODO: đổi 'Yêu cầu điều chỉnh' thành đúng giá trị TrangThai backend trả về
+                // khi bạn đã thêm trạng thái này vào TrangThaiBaoCao
+                setPendingAdjustmentReports(
+                    reports.filter((r) => r.TrangThai === ('Yêu cầu điều chỉnh' as any)),
+                );
+            })
+            .catch((err) => console.warn('Không tải được báo cáo tiến độ:', err));
+    }, [MaDT, isTopicLeader, topic?.TrangThai]);
 
     const fetchTopicDetail = async () => {
         if (!MaDT) {
@@ -478,6 +498,18 @@ const TopicDetail: React.FC = () => {
                                                     Quản lý tiến độ
                                                 </Button>
                                             )}
+                                            {pendingAdjustmentReports.length > 0 && (
+                                                <Button
+                                                    danger
+                                                    block
+                                                    onClick={() => {
+                                                        setAdjustmentTargetReport(pendingAdjustmentReports[0]);
+                                                        setAdjustmentModalOpen(true);
+                                                    }}
+                                                >
+                                                    Tạo phiếu điều chỉnh ({pendingAdjustmentReports.length})
+                                                </Button>
+                                            )}
                                         </div>
                                     </Col>
                                 )}
@@ -529,6 +561,12 @@ const TopicDetail: React.FC = () => {
                                 }}
                                 onOpenAcceptance={() => navigate(`/mainhome/acceptance/${MaDT}`)}
                                 renderStatus={getApprovalStatusTag}
+                                // --- thêm mới ---
+                                documents={topicDocuments.documents}
+                                documentsLoading={topicDocuments.loading}
+                                visibleDocumentCount={docsVisibleCount}
+                                onShowMoreDocuments={() => setDocsVisibleCount((current) => current + PAGE_SIZE)}
+                                onDownloadDocument={downloadDocument}
                             />
                         )}
                         <CommentsPanel
@@ -598,6 +636,22 @@ const TopicDetail: React.FC = () => {
                             }}
                             onSubmit={handleResendToReviewer}
                         />
+                        {adjustmentTargetReport && (
+                            <AdjustmentRequestModal
+                                open={adjustmentModalOpen}
+                                topicCode={MaDT || ''}
+                                reasonFromChair={adjustmentTargetReport.NhanXetHoiDong}
+                                onClose={() => {
+                                    setAdjustmentModalOpen(false);
+                                    setAdjustmentTargetReport(null);
+                                }}
+                                onSubmit={async (topicCode, payload) => {
+                                    console.log('Gửi phiếu điều chỉnh:', topicCode, payload.ghiChu, payload.files);
+                                    // TODO: await createAdjustmentRequest(topicCode, payload) + upload từng file trong payload.files
+                                    // khi backend có API — có thể tham khảo cách handleSubmitTopic() đang upload attachedFiles
+                                }}
+                            />
+                        )}
                     </>
                 )}
             </Spin>

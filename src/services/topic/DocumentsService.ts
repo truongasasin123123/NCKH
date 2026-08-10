@@ -10,6 +10,11 @@ export interface TaiLieu {
   NgayTaiLen?: string;
 }
 
+export interface DocumentQueryParams {
+  keyword?: string;
+  source?: string;
+}
+
 interface UploadDocumentParams {
   file: File;
   maDT: string;
@@ -55,8 +60,11 @@ export const submitMilestone = async ({
   return response.data.data;
 };
 
-export const getDocumentsByTopic = async (maDT: string): Promise<TaiLieu[]> => {
-  const response = await ApiAxios.get(`/documents/detai/${maDT}`);
+export const getDocumentsByTopic = async (
+  maDT: string,
+  params?: DocumentQueryParams,
+): Promise<TaiLieu[]> => {
+  const response = await ApiAxios.get(`/documents/detai/${maDT}`, { params });
   return response.data;
 };
 

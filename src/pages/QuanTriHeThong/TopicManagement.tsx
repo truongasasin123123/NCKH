@@ -1,23 +1,35 @@
 import { useEffect, useMemo, useState } from "react";
-import { Table, Input, Select, Space, Tag, Card, Typography, Button } from "antd";
-import { SearchOutlined, ReloadOutlined } from "@ant-design/icons";
+import { Table, Input, Select, Space, Tag, Card, Typography, Button, message, Popover } from "antd";
+import { SearchOutlined, ReloadOutlined, EyeOutlined, FilterOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
-import { getMyTopics } from "../../services/topic/TopicService";
+import { useNavigate } from "react-router-dom";
+import { getAdminTopics } from "../../services/topic/TopicService";
 import type { TopicLoad } from "../../services/topic/TopicService";
 
 const { Title } = Typography;
 
-// TODO: chỉnh lại màu theo đúng giá trị TrangThai thực tế trong DB
 const STATUS_COLOR_MAP: Record<string, string> = {
+  "Nháp": "default",
+  "Chờ phê duyệt": "gold",
+  "Chờ xét duyệt": "gold",
   "Chờ duyệt": "orange",
-  "Đang thực hiện": "blue",
-  "Hoàn thành": "green",
   "Từ chối": "red",
+  "Đã phê duyệt": "blue",
+  "Bắt đầu": "cyan",
+  "Đang thực hiện": "blue",
+  "Chờ nghiệm thu": "purple",
+  "Đang nghiệm thu": "purple",
+  "Đã nghiệm thu": "green",
+  "Hoàn thành": "green",
 };
 
 const TopicManagement = () => {
   const [topics, setTopics] = useState<TopicLoad[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
   const [phanLoai, setPhanLoai] = useState<string | undefined>();
@@ -26,10 +38,18 @@ const TopicManagement = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const data = await getMyTopics(); // BE trả toàn bộ đề tài khi gọi với token admin
-      setTopics(data);
+      const response = await getAdminTopics({
+        keyword: search.trim() || undefined,
+        phanLoai,
+        trangThai,
+        page,
+        limit: pageSize,
+      });
+      setTopics(response.data);
+      setTotal(response.total);
     } catch (error) {
       console.error("Lỗi khi tải danh sách đề tài:", error);
+      message.error("Không thể tải danh sách đề tài");
     } finally {
       setLoading(false);
     }
@@ -37,7 +57,7 @@ const TopicManagement = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [page, pageSize, phanLoai, trangThai]);
 
   // Build option lọc trực tiếp từ dữ liệu thật, tránh đoán sai giá trị enum
   const phanLoaiOptions = useMemo(() => {
@@ -50,23 +70,42 @@ const TopicManagement = () => {
     return Array.from(set).map((v) => ({ value: v, label: v }));
   }, [topics]);
 
-  const filteredData = useMemo(() => {
-    return topics.filter((t) => {
-      const matchSearch =
-        !search ||
-        t.MaDT?.toLowerCase().includes(search.toLowerCase()) ||
-        t.TenDT?.toLowerCase().includes(search.toLowerCase());
-      const matchPhanLoai = !phanLoai || t.PhanLoai === phanLoai;
-      const matchTrangThai = !trangThai || t.TrangThai === trangThai;
-      return matchSearch && matchPhanLoai && matchTrangThai;
-    });
-  }, [topics, search, phanLoai, trangThai]);
-
   const handleResetFilter = () => {
     setSearch("");
     setPhanLoai(undefined);
     setTrangThai(undefined);
+    setPage(1);
   };
+
+  const activeFilterCount = Number(Boolean(phanLoai)) + Number(Boolean(trangThai));
+  const filterContent = (
+    <Space direction="vertical" size="middle" style={{ width: 260 }}>
+      <Select
+        placeholder="Phân loại"
+        allowClear
+        value={phanLoai}
+        onChange={(value) => {
+          setPhanLoai(value);
+          setPage(1);
+        }}
+        options={phanLoaiOptions}
+        showSearch
+      />
+      <Select
+        placeholder="Trạng thái"
+        allowClear
+        value={trangThai}
+        onChange={(value) => {
+          setTrangThai(value);
+          setPage(1);
+        }}
+        options={trangThaiOptions}
+      />
+      <Button icon={<ReloadOutlined />} onClick={handleResetFilter} block>
+        Đặt lại bộ lọc
+      </Button>
+    </Space>
+  );
 
   const columns: ColumnsType<TopicLoad> = [
     { title: "Mã đề tài", dataIndex: "MaDT", key: "MaDT", width: 120 },
@@ -82,41 +121,47 @@ const TopicManagement = () => {
       ),
     },
     {
-      title: "Trưởng nhóm",
+      title: "Nhóm trưởng",
       key: "leader",
       width: 160,
       render: (_, record) => {
-        // TODO: đổi "Trưởng nhóm" theo đúng giá trị VaiTroDT trong DB
-        const leader = record.ThanhVienDT?.find((tv) => tv.VaiTroDT === "Trưởng nhóm");
-        return leader?.NguoiDung?.TenDayDu ?? "-";
+        if (record.NhomTruong) {
+          return record.NhomTruong.TenDayDu || record.NhomTruong.TaiKhoan;
+        }
+        const leader = record.ThanhVienDT?.find((tv) => {
+          const role = tv.VaiTroDT
+            ?.normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase()
+            .replace(/đ/g, "d");
+          return role?.includes("truong nhom") || role?.includes("nhom truong");
+        });
+        return leader?.NguoiDung?.TenDayDu || leader?.TaiKhoan || "-";
       },
     },
     {
-      title: "Kinh phí",
-      dataIndex: "TongKinhPhi",
-      key: "TongKinhPhi",
-      width: 140,
-      render: (value: number) => (value != null ? value.toLocaleString("vi-VN") + " đ" : "-"),
-    },
-    {
-      title: "Ngày bắt đầu",
-      dataIndex: "NgayBatDau",
-      key: "NgayBatDau",
-      width: 120,
-      render: (value: Date) => (value ? new Date(value).toLocaleDateString("vi-VN") : "-"),
-    },
-    {
-      title: "Ngày kết thúc",
-      dataIndex: "NgayKetThuc",
-      key: "NgayKetThuc",
-      width: 120,
-      render: (value: Date) => (value ? new Date(value).toLocaleDateString("vi-VN") : "-"),
+      title: "Thao tác",
+      key: "action",
+      width: 110,
+      align: "center",
+      render: (_, record) => (
+        <Button
+          type="primary"
+          icon={<EyeOutlined />}
+          onClick={() => navigate(`/mainhome/admin/topics/${record.MaDT}`)}
+        >
+          Chi tiết
+        </Button>
+      ),
     },
   ];
 
   return (
     <div style={{ padding: 24 }}>
-      <Title level={3}>Quản lý đề tài</Title>
+      <Title level={3} style={{ marginBottom: 4 }}>Quản lý đề tài toàn hệ thống</Title>
+      <p style={{ color: "#667085", marginBottom: 20 }}>
+        Tra cứu toàn bộ đề tài và xem chi tiết hồ sơ theo quyền quản trị.
+      </p>
 
       <Card style={{ marginBottom: 16 }}>
         <Space wrap size="middle">
@@ -126,42 +171,36 @@ const TopicManagement = () => {
             allowClear
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            onPressEnter={() => {
+              setPage(1);
+              fetchData();
+            }}
             style={{ width: 280 }}
           />
 
-          <Select
-            placeholder="Phân loại"
-            allowClear
-            style={{ width: 200 }}
-            value={phanLoai}
-            onChange={setPhanLoai}
-            options={phanLoaiOptions}
-            showSearch
-          />
-
-          <Select
-            placeholder="Trạng thái"
-            allowClear
-            style={{ width: 180 }}
-            value={trangThai}
-            onChange={setTrangThai}
-            options={trangThaiOptions}
-          />
-
-          <Button icon={<ReloadOutlined />} onClick={handleResetFilter}>
-            Xóa bộ lọc
-          </Button>
+          <Popover content={filterContent} trigger="click" placement="bottomLeft">
+            <Button icon={<FilterOutlined />}>
+              Bộ lọc{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+            </Button>
+          </Popover>
         </Space>
       </Card>
 
       <Table
         rowKey="MaDT"
         columns={columns}
-        dataSource={filteredData}
+        dataSource={topics}
         loading={loading}
         pagination={{
+          current: page,
+          pageSize,
+          total,
           showSizeChanger: true,
-          showTotal: (t) => `Tổng ${t} đề tài`,
+          showTotal: (count) => `Tổng ${count} đề tài`,
+          onChange: (nextPage, nextPageSize) => {
+            setPage(nextPage);
+            setPageSize(nextPageSize);
+          },
         }}
       />
     </div>

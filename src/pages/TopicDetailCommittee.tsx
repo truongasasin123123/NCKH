@@ -16,6 +16,7 @@ import {
 } from '../services/topic/TopicService';
 import type { TopicLoad, ThanhVienDT } from '../services/topic/TopicService';
 import { downloadDocument, getDocumentsByTopic } from '../services/topic/DocumentsService';
+import type { DocumentQueryParams } from '../services/topic/DocumentsService';
 import { createProjectComment, deleteProjectComment, getProjectComments, updateProjectComment } from '../services/topic/CommentsService';
 import type { ProjectComment } from '../services/topic/CommentsService';
 import { getAcceptanceByProject } from '../services/topic/AcceptanceService';
@@ -117,10 +118,10 @@ const TopicDetailCommittee: React.FC = () => {
         }
     };
 
-    const fetchProjectDocuments = async (maDT: string) => {
+    const fetchProjectDocuments = async (maDT: string, query?: DocumentQueryParams) => {
         try {
             setDocumentsLoading(true);
-            const documents = await getDocumentsByTopic(maDT);
+            const documents = await getDocumentsByTopic(maDT, query);
             setProjectDocuments(documents.map((document) => ({
                 id: document.MaTL,
                 name: document.TenFile,
@@ -297,6 +298,11 @@ const TopicDetailCommittee: React.FC = () => {
                             visibleDocumentCount={projectDocuments.length}
                             onShowMoreDocuments={() => undefined}
                             onDownloadDocument={downloadDocument}
+                            onFilterDocuments={(query) => {
+                                if (MaDT) {
+                                    void fetchProjectDocuments(MaDT, query);
+                                }
+                            }}
                         />
 
                         {acceptanceDossier && (

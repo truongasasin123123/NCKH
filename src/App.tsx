@@ -129,6 +129,7 @@ function App() {
             <Route path="acceptance/:maDT" element={<Acceptance />} />
             <Route path="admin/councils/:maHoiDong" element={<CouncilDetail />} />
             <Route path="admin/topics" element={<TopicManagement />} />   {/* thêm dòng này */}
+            <Route path="admin/topics/:MaDT" element={<TopicDetail />} />
           </Route>
         </Routes>
       </Layout>

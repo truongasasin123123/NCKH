@@ -3,6 +3,7 @@ import type { CollapseProps } from 'antd';
 import { Button, Card, Collapse, List, Tag, Input, Select, Space, Empty } from 'antd';
 import { DownloadOutlined, SearchOutlined, SendOutlined } from '@ant-design/icons';
 import type { ProjectDocumentItem, ReviewerApproval } from './types';
+import type { DocumentQueryParams } from '../../services/topic/DocumentsService';
 
 
 interface CouncilPanelProps {
@@ -22,6 +23,7 @@ interface CouncilPanelProps {
   visibleDocumentCount: number;
   onShowMoreDocuments: () => void;
   onDownloadDocument: (id: number, name: string) => void;
+  onFilterDocuments: (query: DocumentQueryParams) => void;
 }
 
 export default function CouncilPanel({
@@ -40,6 +42,7 @@ export default function CouncilPanel({
   visibleDocumentCount,
   onShowMoreDocuments,
   onDownloadDocument,
+  onFilterDocuments,
 }: CouncilPanelProps) {
   const [searchText, setSearchText] = useState('');
   const [sourceFilter, setSourceFilter] = useState<string | undefined>(undefined);
@@ -153,12 +156,22 @@ export default function CouncilPanel({
       <Card title="Tổng hợp tài liệu dự án" style={{ marginTop: 16 }}>
         {documents.length > 0 && (
           <Space style={{ width: '100%', marginBottom: 16 }} direction="horizontal" wrap>
-            <Input
+            <Input.Search
               allowClear
               placeholder="Tìm kiếm theo tên tài liệu..."
               prefix={<SearchOutlined />}
               value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                setSearchText(value);
+                if (!value) {
+                  onFilterDocuments({ source: sourceFilter });
+                }
+              }}
+              onSearch={(value) => onFilterDocuments({
+                keyword: value.trim() || undefined,
+                source: sourceFilter,
+              })}
               style={{ width: 260 }}
             />
             <Select
@@ -166,7 +179,13 @@ export default function CouncilPanel({
               placeholder="Lọc theo nguồn"
               options={sourceOptions}
               value={sourceFilter}
-              onChange={(value) => setSourceFilter(value)}
+              onChange={(value) => {
+                setSourceFilter(value);
+                onFilterDocuments({
+                  keyword: searchText.trim() || undefined,
+                  source: value,
+                });
+              }}
               style={{ width: 200 }}
             />
           </Space>

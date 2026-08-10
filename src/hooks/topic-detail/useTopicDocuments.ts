@@ -1,16 +1,17 @@
 import { useCallback, useState } from 'react';
 import { message } from 'antd';
 import { getDocumentsByTopic } from '../../services/topic/DocumentsService';
+import type { DocumentQueryParams } from '../../services/topic/DocumentsService';
 import type { ProjectDocumentItem } from '../../components/topic-detail/types';
 
 export function useTopicDocuments() {
     const [documents, setDocuments] = useState<ProjectDocumentItem[]>([]);
     const [loading, setLoading] = useState(false);
 
-    const refresh = useCallback(async (maDT: string) => {
+    const refresh = useCallback(async (maDT: string, query?: DocumentQueryParams) => {
         try {
             setLoading(true);
-            const response = await getDocumentsByTopic(maDT);
+            const response = await getDocumentsByTopic(maDT, query);
             setDocuments(response.map((document) => ({
                 id: document.MaTL,
                 name: document.TenFile,

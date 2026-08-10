@@ -15,6 +15,25 @@ export interface TopicLoad {
     progress?: number
 
     ThanhVienDT: ThanhVienDT[];
+    NhomTruong?: {
+        TaiKhoan: string;
+        TenDayDu: string;
+    } | null;
+}
+
+export interface AdminTopicListResponse {
+    data: TopicLoad[];
+    total: number;
+    page: number;
+    limit: number;
+}
+
+export interface AdminTopicQuery {
+    keyword?: string;
+    phanLoai?: string;
+    trangThai?: string;
+    page?: number;
+    limit?: number;
 }
 
 export interface ThanhVienDT {
@@ -87,6 +106,13 @@ export const submitProjectForApproval = async (
 
 export const getProjectApprovals = async (id: string) => {
     const response = await ApiAxios.get(`/project/${id}/approvals`);
+    return response.data;
+};
+
+export const getAdminTopics = async (
+    params: AdminTopicQuery,
+): Promise<AdminTopicListResponse> => {
+    const response = await ApiAxios.get('/project/admin/all', { params });
     return response.data;
 };
 

@@ -3,6 +3,7 @@ import { Button, Card, List, Input, Select, Space, Empty, Tag } from 'antd';
 import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ThanhVienDT, TopicLoad } from '../../services/topic/TopicService';
 import type { ProjectDocumentItem } from './types';
+import type { DocumentQueryParams } from '../../services/topic/DocumentsService';
 
 interface TopicInformationPanelProps {
   topic: TopicLoad;
@@ -12,6 +13,7 @@ interface TopicInformationPanelProps {
   visibleDocumentCount: number;
   onShowMoreDocuments: () => void;
   onDownloadDocument: (id: number, name: string) => void;
+  onFilterDocuments: (query: DocumentQueryParams) => void;
 }
 
 export default function TopicInformationPanel({
@@ -22,6 +24,7 @@ export default function TopicInformationPanel({
   visibleDocumentCount,
   onShowMoreDocuments,
   onDownloadDocument,
+  onFilterDocuments,
 }: TopicInformationPanelProps) {
   const [searchText, setSearchText] = useState('');
   const [sourceFilter, setSourceFilter] = useState<string | undefined>(undefined);
@@ -77,12 +80,22 @@ export default function TopicInformationPanel({
             direction="horizontal"
             wrap
           >
-            <Input
+            <Input.Search
               allowClear
               placeholder="Tìm kiếm theo tên tài liệu..."
               prefix={<SearchOutlined />}
               value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                setSearchText(value);
+                if (!value) {
+                  onFilterDocuments({ source: sourceFilter });
+                }
+              }}
+              onSearch={(value) => onFilterDocuments({
+                keyword: value.trim() || undefined,
+                source: sourceFilter,
+              })}
               style={{ width: 260 }}
             />
             <Select
@@ -90,7 +103,13 @@ export default function TopicInformationPanel({
               placeholder="Lọc theo nguồn"
               options={sourceOptions}
               value={sourceFilter}
-              onChange={(value) => setSourceFilter(value)}
+              onChange={(value) => {
+                setSourceFilter(value);
+                onFilterDocuments({
+                  keyword: searchText.trim() || undefined,
+                  source: value,
+                });
+              }}
               style={{ width: 200 }}
             />
           </Space>

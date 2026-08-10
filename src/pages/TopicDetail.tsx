@@ -547,7 +547,11 @@ const TopicDetail: React.FC = () => {
                                 documents={topicDocuments.documents}
                                 documentsLoading={topicDocuments.loading}
                                 visibleDocumentCount={docsVisibleCount}
-                                onShowMoreDocuments={() => setDocsVisibleCount((current) => current + PAGE_SIZE)}
+                                onShowMoreDocuments={() => setDocsVisibleCount((current) =>
+                                    current >= topicDocuments.documents.length
+                                        ? PAGE_SIZE
+                                        : topicDocuments.documents.length,
+                                )}
                                 onDownloadDocument={downloadDocument}
                                 onFilterDocuments={(query) => {
                                     if (MaDT) {
@@ -575,7 +579,11 @@ const TopicDetail: React.FC = () => {
                                 documents={topicDocuments.documents}
                                 documentsLoading={topicDocuments.loading}
                                 visibleDocumentCount={docsVisibleCount}
-                                onShowMoreDocuments={() => setDocsVisibleCount((current) => current + PAGE_SIZE)}
+                                onShowMoreDocuments={() => setDocsVisibleCount((current) =>
+                                    current >= topicDocuments.documents.length
+                                        ? PAGE_SIZE
+                                        : topicDocuments.documents.length,
+                                )}
                                 onDownloadDocument={downloadDocument}
                                 onFilterDocuments={(query) => {
                                     if (MaDT) {

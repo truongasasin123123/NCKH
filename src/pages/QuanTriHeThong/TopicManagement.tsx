@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Table, Input, Select, Space, Tag, Card, Typography, Button, message, Popover } from "antd";
-import { SearchOutlined, ReloadOutlined, EyeOutlined, FilterOutlined } from "@ant-design/icons";
+import { Table, Input, Select, Space, Tag, Button, message, Popover } from "antd";
+import { ReloadOutlined, EyeOutlined, FilterOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { useNavigate } from "react-router-dom";
 import { getAdminTopics } from "../../services/topic/TopicService";
 import type { TopicLoad } from "../../services/topic/TopicService";
-
-const { Title } = Typography;
 
 const STATUS_COLOR_MAP: Record<string, string> = {
   "Nháp": "default",
@@ -27,7 +25,7 @@ const TopicManagement = () => {
   const [topics, setTopics] = useState<TopicLoad[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(10);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -157,25 +155,19 @@ const TopicManagement = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <Title level={3} style={{ marginBottom: 4 }}>Quản lý đề tài toàn hệ thống</Title>
-      <p style={{ color: "#667085", marginBottom: 20 }}>
-        Tra cứu toàn bộ đề tài và xem chi tiết hồ sơ theo quyền quản trị.
-      </p>
-
-      <Card style={{ marginBottom: 16 }}>
-        <Space wrap size="middle">
-          <Input
+    <div style={{ background: '#fff', padding: 20, borderRadius: 6 }}>
+      <Space style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }} wrap>
+        <Space wrap>
+          <Input.Search
             placeholder="Tìm theo mã hoặc tên đề tài"
-            prefix={<SearchOutlined />}
             allowClear
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            onPressEnter={() => {
+            onSearch={() => {
               setPage(1);
               fetchData();
             }}
-            style={{ width: 280 }}
+            style={{ width: 300 }}
           />
 
           <Popover content={filterContent} trigger="click" placement="bottomLeft">
@@ -184,7 +176,7 @@ const TopicManagement = () => {
             </Button>
           </Popover>
         </Space>
-      </Card>
+      </Space>
 
       <Table
         rowKey="MaDT"
@@ -195,7 +187,7 @@ const TopicManagement = () => {
           current: page,
           pageSize,
           total,
-          showSizeChanger: true,
+          showSizeChanger: false,
           showTotal: (count) => `Tổng ${count} đề tài`,
           onChange: (nextPage, nextPageSize) => {
             setPage(nextPage);

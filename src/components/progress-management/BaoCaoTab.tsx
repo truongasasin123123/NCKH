@@ -52,7 +52,7 @@ const BaoCaoTab: React.FC<BaoCaoTabProps> = ({
               <Tag color={
                 bc.TrangThai === 'Đạt' ? 'success' :
                   bc.TrangThai === 'Đã gửi' ? 'processing' :
-                    bc.TrangThai === 'Không đạt' ? 'error' : 'warning'
+                    ['Yêu cầu điều chỉnh', 'Đề xuất thanh lý', 'Không đạt'].includes(bc.TrangThai) ? 'error' : 'warning'
               }>
                 {bc.TrangThai}
               </Tag>
@@ -64,17 +64,41 @@ const BaoCaoTab: React.FC<BaoCaoTabProps> = ({
               <p><strong>Khó khăn:</strong> {bc.KhoKhan || '—'}</p>
               <p><strong>Đề xuất:</strong> {bc.DeXuat || '—'}</p>
               {bc.NhanXetHoiDong && (
-                <p><strong>Nhận xét hội đồng:</strong> {bc.NhanXetHoiDong}</p>
+                <div style={{ marginBottom: 12, padding: '10px 12px', background: '#f6ffed', borderRadius: 6 }}>
+                  <strong>Kết luận Chủ tịch:</strong> {bc.NhanXetHoiDong}
+                  {bc.NguoiHoiDong && (
+                    <div style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+                      {bc.NguoiHoiDong.TenDayDu || bc.NguoiHoiDong.TaiKhoan}
+                      {bc.NgayPhanHoi ? ` · ${dayjs(bc.NgayPhanHoi).format('DD/MM/YYYY HH:mm')}` : ''}
+                    </div>
+                  )}
+                </div>
               )}
               {bc.PhanHoi?.length ? (
                 <div style={{ marginBottom: 12 }}>
-                  <strong>Lịch sử phản hồi:</strong>
-                  {bc.PhanHoi.map((feedback) => (
-                    <div key={feedback.Id} style={{ marginTop: 6, padding: '8px 10px', background: '#fafafa', borderRadius: 4 }}>
-                      <Tag color={feedback.KetQua === 'Đạt' ? 'success' : feedback.KetQua === 'Không đạt' ? 'error' : 'warning'}>{feedback.KetQua}</Tag>
-                      {feedback.NhanXet} <span style={{ color: '#888' }}>— {dayjs(feedback.NgayPhanHoi).format('DD/MM/YYYY HH:mm')}</span>
-                    </div>
-                  ))}
+                  <Collapse
+                    size="small"
+                    items={[
+                      {
+                        key: `feedback-${bc.Id}`,
+                        label: `Lịch sử phản hồi (${bc.PhanHoi.length})`,
+                        children: (
+                          <Space direction="vertical" size={6} style={{ width: '100%' }}>
+                            {bc.PhanHoi.map((feedback) => (
+                              <div key={feedback.Id} style={{ padding: '8px 10px', background: '#fafafa', borderRadius: 4 }}>
+                                <Tag color={feedback.KetQua === 'Đề xuất đạt' ? 'success' : feedback.KetQua === 'Đề xuất không đạt' ? 'error' : 'warning'}>{feedback.KetQua}</Tag>
+                                {feedback.NhanXet}
+                                <div style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+                                  {feedback.NguoiHoiDong?.TenDayDu || feedback.NguoiHoiDong?.TaiKhoan || 'Hội đồng'}
+                                  {' · '}{dayjs(feedback.NgayPhanHoi).format('DD/MM/YYYY HH:mm')}
+                                </div>
+                              </div>
+                            ))}
+                          </Space>
+                        ),
+                      },
+                    ]}
+                  />
                 </div>
               ) : null}
               <div style={{ marginTop: 16, marginBottom: 12 }}>

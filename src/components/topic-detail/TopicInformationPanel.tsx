@@ -159,10 +159,12 @@ export default function TopicInformationPanel({
               <Empty description="Không tìm thấy tài liệu phù hợp" />
             )}
 
-            {!isFiltering && visibleDocumentCount < documents.length && (
+            {!isFiltering && documents.length > 5 && (
               <div style={{ textAlign: 'center', marginTop: 12 }}>
                 <Button block onClick={onShowMoreDocuments}>
-                  Tải thêm tài liệu ({documents.length - visibleDocumentCount} còn lại)
+                  {visibleDocumentCount >= documents.length
+                    ? 'Thu gọn tài liệu'
+                    : `Xem tất cả tài liệu (${documents.length - visibleDocumentCount} còn lại)`}
                 </Button>
               </div>
             )}

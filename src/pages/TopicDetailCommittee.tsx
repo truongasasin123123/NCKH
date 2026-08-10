@@ -50,6 +50,8 @@ const TopicDetailCommittee: React.FC = () => {
     const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
     const [editingCommentContent, setEditingCommentContent] = useState('');
     const [projectDocuments, setProjectDocuments] = useState<ProjectDocumentItem[]>([]);
+    const DOCUMENT_PAGE_SIZE = 5;
+    const [visibleDocumentCount, setVisibleDocumentCount] = useState(DOCUMENT_PAGE_SIZE);
     const [documentsLoading, setDocumentsLoading] = useState(false);
     const [acceptanceDossier, setAcceptanceDossier] = useState<HoSoNghiemThu | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -128,6 +130,7 @@ const TopicDetailCommittee: React.FC = () => {
                 source: document.LoaiTaiLieu || 'Tài liệu đề tài',
                 date: document.NgayTaiLen ? new Date(document.NgayTaiLen).toLocaleDateString('vi-VN') : undefined,
             })));
+            setVisibleDocumentCount(DOCUMENT_PAGE_SIZE);
         } catch (error) {
             console.error('Lỗi khi tải tài liệu đề tài:', error);
             message.error('Không thể tải tài liệu đề tài');
@@ -295,8 +298,12 @@ const TopicDetailCommittee: React.FC = () => {
                             members={members}
                             documents={projectDocuments}
                             documentsLoading={documentsLoading}
-                            visibleDocumentCount={projectDocuments.length}
-                            onShowMoreDocuments={() => undefined}
+                            visibleDocumentCount={visibleDocumentCount}
+                            onShowMoreDocuments={() => setVisibleDocumentCount((current) =>
+                                current >= projectDocuments.length
+                                    ? DOCUMENT_PAGE_SIZE
+                                    : projectDocuments.length,
+                            )}
                             onDownloadDocument={downloadDocument}
                             onFilterDocuments={(query) => {
                                 if (MaDT) {

@@ -21,6 +21,7 @@ interface UploadDocumentParams {
   maMoc?: number;
   maBaoCaoTienDo?: number;
   maHoSoNghiemThu?: number;
+  maYeuCauDieuChinh?: number;
   loaiTaiLieu?: string;
 }
 
@@ -30,6 +31,7 @@ export const uploadDocument = async ({
   maMoc,
   maBaoCaoTienDo,
   maHoSoNghiemThu,
+  maYeuCauDieuChinh,
   loaiTaiLieu,
 }: UploadDocumentParams): Promise<TaiLieu> => {
   const formData = new FormData();
@@ -38,6 +40,7 @@ export const uploadDocument = async ({
   if (maMoc !== undefined) formData.append('MaMoc', String(maMoc));
   if (maBaoCaoTienDo !== undefined) formData.append('MaBaoCaoTienDo', String(maBaoCaoTienDo));
   if (maHoSoNghiemThu !== undefined) formData.append('MaHoSoNghiemThu', String(maHoSoNghiemThu));
+  if (maYeuCauDieuChinh !== undefined) formData.append('MaYeuCauDieuChinh', String(maYeuCauDieuChinh));
   if (loaiTaiLieu) formData.append('LoaiTaiLieu', loaiTaiLieu);
 
   const response = await ApiAxios.post('/documents/upload', formData);

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Table, Input, Select, Space, Tag, Button, message, Popover } from "antd";
+import { Table, Input, Select, Space, Tag, Button, message, Popover, Tabs } from "antd";
 import { ReloadOutlined, EyeOutlined, FilterOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { useNavigate } from "react-router-dom";
 import { getAdminTopics } from "../../services/topic/TopicService";
 import type { TopicLoad } from "../../services/topic/TopicService";
+import AdjustmentRequestManagement from './AdjustmentRequestManagement';
 
 const STATUS_COLOR_MAP: Record<string, string> = {
   "Nháp": "default",
@@ -154,8 +155,8 @@ const TopicManagement = () => {
     },
   ];
 
-  return (
-    <div style={{ background: '#fff', padding: 20, borderRadius: 6 }}>
+  const topicsTab = (
+    <>
       <Space style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }} wrap>
         <Space wrap>
           <Input.Search
@@ -194,6 +195,18 @@ const TopicManagement = () => {
             setPageSize(nextPageSize);
           },
         }}
+      />
+    </>
+  );
+
+  return (
+    <div style={{ background: '#fff', padding: 20, borderRadius: 6 }}>
+      <Tabs
+        defaultActiveKey="topics"
+        items={[
+          { key: 'topics', label: 'Danh sách đề tài', children: topicsTab },
+          { key: 'adjustments', label: 'Phiếu điều chỉnh', children: <AdjustmentRequestManagement embedded /> },
+        ]}
       />
     </div>
   );

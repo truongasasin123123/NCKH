@@ -6,6 +6,8 @@ export interface TopicLoad {
     MaDT: string
     TenDT: string
     PhanLoai: string
+    ChuyenNganh?: string
+    Khoa?: string
     TrangThai: string
     NgayBatDau: Date
     NgayKetThuc: Date

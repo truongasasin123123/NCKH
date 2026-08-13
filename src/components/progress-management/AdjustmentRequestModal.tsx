@@ -1,29 +1,52 @@
 import { useState } from "react";
-import { Modal, Form, Input, Tag, Upload, App } from "antd";
+import { Modal, Form, Input, Select, Tag, Upload, App } from "antd";
 import { InboxOutlined } from "@ant-design/icons";
 import type { UploadFile } from "antd/es/upload/interface";
 
 const { TextArea } = Input;
 const { Dragger } = Upload;
 
+const ADJUSTMENT_GROUP_OPTIONS = [
+  { label: "Nội dung nghiên cứu", value: "noi_dung" },
+  { label: "Tiến độ thực hiện", value: "tien_do" },
+  { label: "Sản phẩm dự kiến", value: "san_pham" },
+  { label: "Kinh phí", value: "kinh_phi" },
+  { label: "Nhân sự", value: "nhan_su" },
+];
+
+export type AdjustmentApprovalStatus = "cho_duyet" | "da_duyet" | "tu_choi";
+
 export interface AdjustmentRequestPayload {
-  ghiChu: string;
+  noiDungHienTai: string;
+  noiDungDeNghi: string;
+  nhomDieuChinh: string[];
+  lyDo: string;
   files: UploadFile[];
 }
 
 interface AdjustmentRequestModalProps {
   open: boolean;
   topicCode: string;
-  reasonFromChair?: string; // hiển thị lại lý do Chủ tịch đã ghi khi yêu cầu điều chỉnh
+  reasonFromChair?: string; // ý kiến Chủ tịch khi yêu cầu điều chỉnh
+  approvalStatus?: AdjustmentApprovalStatus; // trạng thái duyệt của Admin (chỉ có khi xem lại phiếu đã gửi)
+  adminNote?: string; // ghi chú của Admin khi duyệt/từ chối (nếu có)
   onClose: () => void;
   // TODO: nối API thật khi backend có endpoint POST /adjustment-requests
   onSubmit: (topicCode: string, payload: AdjustmentRequestPayload) => Promise<void>;
 }
 
+const APPROVAL_STATUS_LABEL: Record<AdjustmentApprovalStatus, { text: string; color: string }> = {
+  cho_duyet: { text: "Chờ Admin duyệt", color: "blue" },
+  da_duyet: { text: "Đã duyệt", color: "green" },
+  tu_choi: { text: "Từ chối", color: "red" },
+};
+
 const AdjustmentRequestModal: React.FC<AdjustmentRequestModalProps> = ({
   open,
   topicCode,
   reasonFromChair,
+  approvalStatus,
+  adminNote,
   onClose,
   onSubmit,
 }) => {
@@ -36,7 +59,7 @@ const AdjustmentRequestModal: React.FC<AdjustmentRequestModalProps> = ({
     try {
       const values = await form.validateFields();
       setSubmitting(true);
-      await onSubmit(topicCode, { ghiChu: values.ghiChu, files });
+      await onSubmit(topicCode, { ...values, files });
       message.success("Đã gửi phiếu điều chỉnh, chờ admin phê duyệt");
       form.resetFields();
       setFiles([]);
@@ -52,32 +75,66 @@ const AdjustmentRequestModal: React.FC<AdjustmentRequestModalProps> = ({
 
   return (
     <Modal
-      title="Tạo phiếu điều chỉnh đề tài"
+      title="Phiếu điều chỉnh đề tài"
       open={open}
       onCancel={onClose}
       onOk={handleSubmit}
       confirmLoading={submitting}
       okText="Gửi cho admin duyệt"
       cancelText="Hủy"
-      width={600}
+      width={640}
     >
+      {approvalStatus && (
+        <div style={{ marginBottom: 16 }}>
+          <Tag color={APPROVAL_STATUS_LABEL[approvalStatus].color}>
+            {APPROVAL_STATUS_LABEL[approvalStatus].text}
+          </Tag>
+          {adminNote && (
+            <div style={{ marginTop: 6, fontSize: 13, color: "#595959" }}>
+              <b>Ghi chú của Admin:</b> {adminNote}
+            </div>
+          )}
+        </div>
+      )}
+
       {reasonFromChair && (
         <div style={{ marginBottom: 16, padding: 12, background: "#fff7e6", borderRadius: 6 }}>
-          <Tag color="red">Yêu cầu từ Chủ tịch hội đồng</Tag>
+          <Tag color="red">Ý kiến Chủ tịch hội đồng</Tag>
           <div style={{ marginTop: 6 }}>{reasonFromChair}</div>
         </div>
       )}
 
       <Form form={form} layout="vertical">
         <Form.Item
-          name="ghiChu"
-          label="Ghi chú điều chỉnh"
-          rules={[{ required: true, message: "Nhập nội dung điều chỉnh" }]}
+          name="nhomDieuChinh"
+          label="Nhóm điều chỉnh"
+          rules={[{ required: true, message: "Chọn ít nhất một nhóm điều chỉnh" }]}
         >
-          <TextArea
-            rows={5}
-            placeholder="Mô tả nội dung/tiến độ/kinh phí cần điều chỉnh và lý do..."
-          />
+          <Select mode="multiple" options={ADJUSTMENT_GROUP_OPTIONS} placeholder="Chọn nội dung/tiến độ/sản phẩm/kinh phí/nhân sự" />
+        </Form.Item>
+
+        <Form.Item
+          name="noiDungHienTai"
+          label="Nội dung hiện tại"
+          rules={[{ required: true, message: "Nhập nội dung hiện tại" }]}
+        >
+          <TextArea rows={3} placeholder="Mô tả nội dung/tiến độ/kinh phí/nhân sự hiện tại theo thuyết minh..." />
+        </Form.Item>
+
+        <Form.Item
+          name="noiDungDeNghi"
+          label="Nội dung đề nghị điều chỉnh"
+          rules={[{ required: true, message: "Nhập nội dung đề nghị điều chỉnh" }]}
+        >
+          <TextArea rows={3} placeholder="Mô tả nội dung mới muốn thay đổi..." />
+        </Form.Item>
+
+        <Form.Item
+          name="lyDo"
+          label="Lý do điều chỉnh"
+          rules={[{ required: true, message: "Nhập lý do" }]}
+        >
+          <TextArea rows={3} placeholder="Giải trình lý do cần điều chỉnh..." />
         </Form.Item>
 
         <Form.Item label="Tài liệu đính kèm">

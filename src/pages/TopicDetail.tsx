@@ -502,18 +502,19 @@ const TopicDetail: React.FC = () => {
                                                     Quản lý tiến độ
                                                 </Button>
                                             )}
-                                            {pendingAdjustmentReports.length > 0 && (
-                                                <Button
-                                                    danger
-                                                    block
-                                                    onClick={() => {
-                                                        setAdjustmentTargetReport(pendingAdjustmentReports[0]);
-                                                        setAdjustmentModalOpen(true);
-                                                    }}
-                                                >
-                                                    Tạo phiếu điều chỉnh ({pendingAdjustmentReports.length})
-                                                </Button>
-                                            )}
+                                            <Button
+                                                danger
+                                                block
+                                                onClick={() => {
+                                                    setAdjustmentTargetReport(
+                                                        pendingAdjustmentReports[0] ||
+                                                        ({ Id: 0, MaDT: MaDT, NhanXetHoiDong: undefined } as BaoCaoTienDo)
+                                                    );
+                                                    setAdjustmentModalOpen(true);
+                                                }}
+                                            >
+                                                Tạo phiếu điều chỉnh
+                                            </Button>
                                         </div>
                                     </Col>
                                 )}
@@ -670,9 +671,9 @@ const TopicDetail: React.FC = () => {
                                     setAdjustmentTargetReport(null);
                                 }}
                                 onSubmit={async (topicCode, payload) => {
-                                    console.log('Gửi phiếu điều chỉnh:', topicCode, payload.ghiChu, payload.files);
-                                    // TODO: await createAdjustmentRequest(topicCode, payload) + upload từng file trong payload.files
-                                    // khi backend có API — có thể tham khảo cách handleSubmitTopic() đang upload attachedFiles
+                                    console.log('Gửi phiếu điều chỉnh:', topicCode, payload);
+                                    // TODO: await createAdjustmentRequest(topicCode, payload) khi backend có API
+                                    // payload gồm: noiDungHienTai, noiDungDeNghi, nhomDieuChinh, lyDo, files
                                 }}
                             />
                         )}

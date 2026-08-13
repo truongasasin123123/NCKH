@@ -116,16 +116,7 @@ export default function ApprovedTopics() {
           ...facultyOptions.map((value) => ({ value, label: value })),
         ]}
       />
-      <Select
-        value={progressFilter}
-        onChange={setProgressFilter}
-        options={[
-          { value: 'all', label: 'Tất cả tiến độ' },
-          { value: 'under50', label: 'Dưới 50%' },
-          { value: 'from50to99', label: 'Từ 50% đến 99%' },
-          { value: 'complete', label: 'Hoàn thành (100%)' },
-        ]}
-      />
+      
       <Button block onClick={resetFilters}>Đặt lại bộ lọc</Button>
     </Space>
   );

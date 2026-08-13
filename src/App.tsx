@@ -25,6 +25,9 @@ import DanhSachDeTai from "./pages/QuanTriHeThong/MonitoringCommittee";
 import ChiTietBaoCao from "./pages/QuanTriHeThong/ReportDetail";
 import Acceptance from "./pages/Acceptance";
 import TopicManagement from "./pages/QuanTriHeThong/TopicManagement";
+import CompleteProfile from "./pages/CompleteProfile";
+import { useEffect, useState } from "react";
+import ApiAxios from "./axios.config";
 
 interface JwtPayload {
   TaiKhoan: string;
@@ -33,10 +36,25 @@ interface JwtPayload {
 
 function App() {
 
+  const [profile, setProfile] = useState<{ TenDayDu?: string } | null>(null);
+
   const token = localStorage.getItem("access_token") || sessionStorage.getItem("access_token");
   const user: JwtPayload | null = token ? jwtDecode(token) : null;
   const navigate = useNavigate();
+  useEffect(() => {
+    if (!token) return;
 
+    const fetchProfile = async () => {
+      try {
+        const res = await ApiAxios.get("/auth/profile");
+        setProfile(res.data);
+      } catch (error) {
+        console.error("Lỗi lấy thông tin hồ sơ:", error);
+      }
+    };
+
+    fetchProfile();
+  }, [token]);
 
   const handleLogout = () => {
     localStorage.removeItem("access_token");
@@ -94,7 +112,7 @@ function App() {
             <Dropdown menu={{ items: userMenu }} trigger={["click"]}>
               <Button type="primary" className="header-auth">
                 <Space>
-                  {user.TenDayDu}
+                  {profile?.TenDayDu || user?.TaiKhoan}
                   <DownOutlined />
                 </Space>
               </Button>
@@ -108,6 +126,7 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/Register" element={<Register />} />
+          <Route path="/complete-profile" element={<CompleteProfile />} />
           <Route path="/home" element={<Home />} />
           <Route path="/forgot" element={<ForgotPassword />} />
           <Route path="/change-password" element={<ChangePass />} />

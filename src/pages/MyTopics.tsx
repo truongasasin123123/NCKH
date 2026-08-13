@@ -25,7 +25,9 @@ const MyTopics: React.FC = () => {
     const displayRole = user?.VaiTro || null;
     const isCommitteeRole = displayRole?.toLowerCase().includes('hội đồng');
     const isAdvisorRole = displayRole?.toLowerCase().includes('người hướng dẫn');
-    
+    // Thêm state theo dõi trang hiện tại
+    const [pagination, setPagination] = useState({ current: 1, pageSize: 10 });
+
 
     useEffect(() => {
         fetchTopics();
@@ -190,7 +192,7 @@ const MyTopics: React.FC = () => {
         statusFilter,
         categoryFilter,
         memberRoleFilter,
-        progressFilter,
+
     ].filter(Boolean).length;
 
     const filterContent = (
@@ -243,7 +245,8 @@ const MyTopics: React.FC = () => {
         {
             title: 'STT',
             width: 50,
-            render: (_, __, index) => index + 1,
+            render: (_, __, index) =>
+                (pagination.current - 1) * pagination.pageSize + index + 1,
         },
         {
             title: 'Tên đề tài',
@@ -328,7 +331,8 @@ const MyTopics: React.FC = () => {
         {
             title: 'STT',
             width: 50,
-            render: (_, __, index) => index + 1,
+            render: (_, __, index) =>
+                (pagination.current - 1) * pagination.pageSize + index + 1,
         },
         {
             title: 'Tên đề tài',
@@ -376,7 +380,8 @@ const MyTopics: React.FC = () => {
         {
             title: 'STT',
             width: 50,
-            render: (_, __, index) => index + 1,
+            render: (_, __, index) =>
+                (pagination.current - 1) * pagination.pageSize + index + 1,
         },
         {
             title: 'Tên đề tài',
@@ -477,12 +482,16 @@ const MyTopics: React.FC = () => {
                         columns={currentColumns}
                         dataSource={filteredTopics}
                         rowKey="MaDT"
-                        pagination={{ pageSize: 10 }}
+                        pagination={{
+                            current: pagination.current,
+                            pageSize: pagination.pageSize,
+                            onChange: (page, pageSize) => setPagination({ current: page, pageSize }),
+                        }}
                         scroll={{ x: 1000 }}
                     />
                 </Spin>
             </div>
-            
+
         </>
     );
 };

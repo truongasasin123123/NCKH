@@ -34,7 +34,7 @@ function Login() {
 
             message.success("Đăng nhập thành công!");
             window.location.href = res.data.requiresProfileCompletion
-                ? "/mainhome/profile"
+                ? "/complete-profile"
                 : "/home";
 
         } catch (error: any) {

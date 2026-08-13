@@ -22,7 +22,7 @@ const { TabPane } = Tabs;
 const ProgressManagement: React.FC = () => {
   const {
     isCommitteeRole, canManageMoc, memberOptions,
-    selectedTopicId, topics, topicLoading, showTopicSearch, setShowTopicSearch,
+    selectedTopicId, pendingTopicId, topics, topicLoading, showTopicSearch, setShowTopicSearch,
     handleTopicChange, handleGoToTopic,
     progressData, loading, searchText, setSearchText,
     activeTab, setActiveTab,
@@ -73,7 +73,7 @@ const ProgressManagement: React.FC = () => {
                   placeholder="Chọn đề tài..."
                   style={{ width: 300 }}
                   optionFilterProp="children"
-                  value={selectedTopicId || undefined}
+                  value={pendingTopicId || selectedTopicId || undefined}
                   onChange={handleTopicChange}
                   filterOption={(input, option) =>
                     String(option?.children)
@@ -88,12 +88,13 @@ const ProgressManagement: React.FC = () => {
                   ))}
                 </Select>
 
-                <Button
+                <Button 
                   type="primary"
                   icon={<CheckOutlined />}
                   onClick={() => {
                     handleGoToTopic();
                     setShowTopicSearch(false);
+                    
                   }}
                 >
                   Tìm

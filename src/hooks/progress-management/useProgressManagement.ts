@@ -30,6 +30,7 @@ export const useProgressManagement = () => {
   const navigate = useNavigate();
 
   const [selectedTopicId, setSelectedTopicId] = useState<string>(maDT || '');
+  const [pendingTopicId, setPendingTopicId] = useState<string>(maDT || '');
   const [topics, setTopics] = useState<TopicLoad[]>([]);
   const [topicLoading, setTopicLoading] = useState(false);
   const maDTToUse = selectedTopicId || maDT;
@@ -76,7 +77,7 @@ export const useProgressManagement = () => {
   }, [isCommitteeRole, activeTab]);
 
   const handleTopicChange = async (newMaDT: string) => {
-    setSelectedTopicId(newMaDT);
+    setPendingTopicId(newMaDT);
     setMilestoneMembers([]);
     editForm.resetFields(['ThanhVienIds']);
 
@@ -90,9 +91,11 @@ export const useProgressManagement = () => {
   };
 
   const handleGoToTopic = () => {
-    if (selectedTopicId) {
-      navigate(`/mainhome/progress/${selectedTopicId}`);
-    }
+    const nextTopicId = pendingTopicId || selectedTopicId;
+    if (!nextTopicId) return;
+
+    setSelectedTopicId(nextTopicId);
+    navigate(`/mainhome/progress/${nextTopicId}`);
   };
 
   const fetchBaoCao = async () => {
@@ -205,6 +208,7 @@ export const useProgressManagement = () => {
   useEffect(() => {
     if (maDT) {
       setSelectedTopicId(maDT);
+      setPendingTopicId(maDT);
     }
   }, [maDT]);
 
@@ -491,7 +495,7 @@ export const useProgressManagement = () => {
     // dữ liệu chung
     maDT, maDTToUse, isCommitteeRole, canManageMoc, memberOptions,
     // đề tài
-    selectedTopicId, topics, topicLoading, showTopicSearch, setShowTopicSearch,
+    selectedTopicId, pendingTopicId, topics, topicLoading, showTopicSearch, setShowTopicSearch,
     handleTopicChange, handleGoToTopic,
     // tiến độ / mốc
     progressData, loading, searchText, setSearchText,

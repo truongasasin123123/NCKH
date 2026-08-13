@@ -7,6 +7,7 @@ import { ArrowLeftOutlined, EditOutlined, CloseOutlined, SendOutlined, BarChartO
 import type { UploadFile } from 'antd/es/upload/interface';
 import { getTopicById, resendProjectApproval, submitProjectForApproval, updateProject } from '../services/topic/TopicService';
 import { downloadDocument, uploadDocument } from '../services/topic/DocumentsService';
+import { createAdjustmentRequest } from '../services/topic/AdjustmentRequestService';
 import {
     createCouncilAssignmentRequest,
     getAvailableCouncilTypes,
@@ -28,8 +29,6 @@ import {
     useTopicDocuments,
 } from '../hooks/topic-detail';
 import type { ReviewerApproval } from '../components/topic-detail/types';
-import { getBaoCaoTheoDeTai } from '../services/progress/ProgressService';
-import type { BaoCaoTienDo } from '../services/progress/ProgressService';
 import AdjustmentRequestModal from '../components/progress-management/AdjustmentRequestModal';
 import "../style/topic.css";
 
@@ -86,9 +85,15 @@ const TopicDetail: React.FC = () => {
     const approvedCount = approvalReviewers.filter((reviewer) => reviewer.status === 'Đã phê duyệt').length;
     const hasSubmittedForApproval = topicApprovals.submittedCouncilTypes.includes('Xét duyệt');
     const isRejected = topic?.TrangThai === 'Từ chối';
-    const isTopicLeader = members.some((member) =>
-        member.TaiKhoan === user?.TaiKhoan && member.VaiTroDT === 'Nhóm trưởng',
-    );
+    const isTopicLeader = members.some((member) => {
+        const memberRole = member.VaiTroDT
+            ?.normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .replace(/đ/g, 'd');
+        return member.TaiKhoan === user?.TaiKhoan
+            && (memberRole?.includes('truong nhom') || memberRole?.includes('nhom truong'));
+    });
     const canEditProject = (topic?.TrangThai === 'Nháp' || isRejected) && isTopicLeader;
     const requestBusiness: CouncilBusiness | undefined = (() => {
         if (['Nháp', 'Chờ phân công hội đồng xét duyệt'].includes(topic?.TrangThai || '')) return 'approval';
@@ -109,9 +114,16 @@ const TopicDetail: React.FC = () => {
         && ['Chờ phê duyệt', 'Chờ xét duyệt'].includes(topic?.TrangThai || '')
         && !hasSubmittedForApproval;
     const [form] = Form.useForm();
-    const [pendingAdjustmentReports, setPendingAdjustmentReports] = useState<BaoCaoTienDo[]>([]);
     const [adjustmentModalOpen, setAdjustmentModalOpen] = useState(false);
-    const [adjustmentTargetReport, setAdjustmentTargetReport] = useState<BaoCaoTienDo | null>(null);
+    const normalizedTopicStatus = (topic?.TrangThai || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/đ/g, 'd')
+        .trim();
+    const canCreateAdjustmentRequest = isTopicLeader
+        // Dữ liệu cũ dùng "Đã phê duyệt" nhưng giao diện hiển thị là "Bắt đầu".
+        && ['da phe duyet', 'bat dau', 'dang thuc hien'].includes(normalizedTopicStatus);
     useEffect(() => {
         fetchTopicDetail();
     }, [MaDT]);
@@ -160,21 +172,6 @@ const TopicDetail: React.FC = () => {
 
         return () => window.clearInterval(refreshInterval);
     }, [MaDT]);
-
-    useEffect(() => {
-        if (!MaDT || !isTopicLeader) return;
-        if (topic?.TrangThai !== 'Đã phê duyệt' && topic?.TrangThai !== 'Bắt đầu') return;
-
-        getBaoCaoTheoDeTai(MaDT)
-            .then((reports) => {
-                // TODO: đổi 'Yêu cầu điều chỉnh' thành đúng giá trị TrangThai backend trả về
-                // khi bạn đã thêm trạng thái này vào TrangThaiBaoCao
-                setPendingAdjustmentReports(
-                    reports.filter((r) => r.TrangThai === ('Yêu cầu điều chỉnh' as any)),
-                );
-            })
-            .catch((err) => console.warn('Không tải được báo cáo tiến độ:', err));
-    }, [MaDT, isTopicLeader, topic?.TrangThai]);
 
     const fetchTopicDetail = async () => {
         if (!MaDT) {
@@ -502,19 +499,21 @@ const TopicDetail: React.FC = () => {
                                                     Quản lý tiến độ
                                                 </Button>
                                             )}
-                                            <Button
-                                                danger
-                                                block
-                                                onClick={() => {
-                                                    setAdjustmentTargetReport(
-                                                        pendingAdjustmentReports[0] ||
-                                                        ({ Id: 0, MaDT: MaDT, NhanXetHoiDong: undefined } as BaoCaoTienDo)
-                                                    );
-                                                    setAdjustmentModalOpen(true);
-                                                }}
-                                            >
-                                                Tạo phiếu điều chỉnh
-                                            </Button>
+                                            {canCreateAdjustmentRequest && (
+                                                <Button
+                                                    block
+                                                    style={{
+                                                        color: '#d46b08',
+                                                        borderColor: '#faad14',
+                                                        background: '#fffbe6',
+                                                    }}
+                                                    onClick={() => {
+                                                        setAdjustmentModalOpen(true);
+                                                    }}
+                                                >
+                                                    Tạo phiếu điều chỉnh
+                                                </Button>
+                                            )}
                                         </div>
                                     </Col>
                                 )}
@@ -661,19 +660,41 @@ const TopicDetail: React.FC = () => {
                             }}
                             onSubmit={handleResendToReviewer}
                         />
-                        {adjustmentTargetReport && (
+                        {adjustmentModalOpen && (
                             <AdjustmentRequestModal
                                 open={adjustmentModalOpen}
                                 topicCode={MaDT || ''}
-                                reasonFromChair={adjustmentTargetReport.NhanXetHoiDong}
+                                topic={topic}
+                                members={members}
                                 onClose={() => {
                                     setAdjustmentModalOpen(false);
-                                    setAdjustmentTargetReport(null);
                                 }}
                                 onSubmit={async (topicCode, payload) => {
-                                    console.log('Gửi phiếu điều chỉnh:', topicCode, payload);
-                                    // TODO: await createAdjustmentRequest(topicCode, payload) khi backend có API
-                                    // payload gồm: noiDungHienTai, noiDungDeNghi, nhomDieuChinh, lyDo, files
+                                    const request = await createAdjustmentRequest(topicCode, {
+                                        nhomDieuChinh: payload.nhomDieuChinh,
+                                        thongTinHienTai: payload.thongTinHienTai,
+                                        noiDungDeNghi: payload.noiDungDeNghi,
+                                        lyDo: payload.lyDo,
+                                    });
+
+                                    const uploadFiles = payload.files.reduce<File[]>(
+                                        (files, item) => {
+                                            if (item.originFileObj) {
+                                                files.push(item.originFileObj);
+                                            }
+                                            return files;
+                                        },
+                                        [],
+                                    );
+
+                                    await Promise.all(
+                                        uploadFiles.map((file) => uploadDocument({
+                                            file,
+                                            maDT: topicCode,
+                                            maYeuCauDieuChinh: request.Id,
+                                            loaiTaiLieu: 'Tài liệu phiếu điều chỉnh',
+                                        })),
+                                    );
                                 }}
                             />
                         )}

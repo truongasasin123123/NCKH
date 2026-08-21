@@ -1,4 +1,4 @@
-import { Card, Form, Input, Select, Button, Row, Col, Space, Typography, Upload, message, } from "antd";
+import { Card, Form, Input, Select, Button, Row, Col, Space, Typography, Upload, message, DatePicker } from "antd";
 import debounce from "lodash/debounce";
 import { UploadOutlined } from "@ant-design/icons";
 import { useEffect, useState } from "react";
@@ -7,9 +7,11 @@ import { jwtDecode } from 'jwt-decode';
 import ApiAxios from "../axios.config";
 import type { UploadFile } from 'antd/es/upload/interface';
 import { uploadDocument } from '../services/topic/DocumentsService';
+import RichTextEditor from "../components/common/RichTextEditor";
+import dayjs from "dayjs";
 
 const { Title } = Typography;
-const { TextArea } = Input;
+
 
 interface JwtPayload {
   VaiTro?: string;
@@ -36,6 +38,8 @@ export interface RegisterTopic {
   idNguoiHD: string;
   ThanhVienIds: string[];
   MoTa?: string;
+  NgayBatDau?: string; // thêm
+  NgayKetThuc?: string; // thêm
   taiLieu?: UploadFile[];
 }
 
@@ -248,7 +252,44 @@ const RegisterTopic = () => {
         >
           <Input placeholder="Nhập loại đề tài" />
         </Form.Item>
+        {/* Ngày bắt đầu - Hạn chót */}
+        <Row gutter={16}>
+          <Col span={12}>
+            <Form.Item
+              label="Ngày bắt đầu:"
+              name="NgayBatDau"
+              rules={[requiredRule("ngày bắt đầu")]}
+            >
+              <DatePicker
+                style={{ width: "100%" }}
+                format="DD/MM/YYYY"
+                disabledDate={(current) => current && current < dayjs().startOf('day')}
+              />
+            </Form.Item>
+          </Col>
 
+          <Col span={12}>
+            <Form.Item
+              label="Hạn chót:"
+              name="NgayKetThuc"
+              dependencies={['NgayBatDau']}
+              rules={[
+                requiredRule("hạn chót"),
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    const start = getFieldValue('NgayBatDau');
+                    if (!value || !start || value.isAfter(start)) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject(new Error('Hạn chót phải sau ngày bắt đầu'));
+                  },
+                }),
+              ]}
+            >
+              <DatePicker style={{ width: "100%" }} format="DD/MM/YYYY" />
+            </Form.Item>
+          </Col>
+        </Row>
         {/* Người hướng dẫn */}
         <Form.Item
           label="Người hướng dẫn:"
@@ -286,8 +327,9 @@ const RegisterTopic = () => {
 
 
         {/* Mô tả */}
+        {/* Mô tả */}
         <Form.Item label="Mô tả đề tài:" name="MoTa">
-          <TextArea rows={6} />
+          <RichTextEditor placeholder="Nhập mô tả chi tiết đề tài..." />
         </Form.Item>
 
         {/* Đính kèm tài liệu */}

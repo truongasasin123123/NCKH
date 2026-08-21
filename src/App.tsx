@@ -25,6 +25,12 @@ import DanhSachDeTai from "./pages/QuanTriHeThong/MonitoringCommittee";
 import ChiTietBaoCao from "./pages/QuanTriHeThong/ReportDetail";
 import Acceptance from "./pages/Acceptance";
 import TopicManagement from "./pages/QuanTriHeThong/TopicManagement";
+import AdjustmentRequestManagement from "./pages/QuanTriHeThong/AdjustmentRequestManagement";
+import CompleteProfile from "./pages/CompleteProfile";
+import { useEffect, useState } from "react";
+import ApiAxios from "./axios.config";
+import StatisticsDashboard from "./pages/StatisticsDashboard";
+import MyTopicsStatistics from "./pages/MyTopicsStatistics";
 
 interface JwtPayload {
   TaiKhoan: string;
@@ -147,6 +153,8 @@ function App() {
             <Route path="admin/topics" element={<TopicManagement />} />   {/* thêm dòng này */}
             <Route path="admin/topics/:MaDT" element={<TopicDetail />} />
             <Route path="admin/adjustment-requests" element={<AdjustmentRequestManagement />} />
+            <Route path="admin/statistics" element={<StatisticsDashboard />} />   
+            <Route path="statistics/my-topics" element={<MyTopicsStatistics />} />  
           </Route>
         </Routes>
       </Layout>

@@ -1,10 +1,11 @@
 import { Layout, Row, Col, Badge } from "antd";
 import { Navigate, Outlet, NavLink, useLocation } from "react-router-dom";
-import { UserOutlined, EditOutlined, BellOutlined, ProfileOutlined, FileOutlined, BarChartOutlined, TeamOutlined, AuditOutlined, FileSearchOutlined } from "@ant-design/icons";
+import { UserOutlined, EditOutlined, BellOutlined, ProfileOutlined, FileOutlined, BarChartOutlined, TeamOutlined, AuditOutlined, FileSearchOutlined, PieChartOutlined } from "@ant-design/icons";
 import { useState, useEffect } from "react";
 import { jwtDecode } from 'jwt-decode';
 import { getNotifications } from "../services/notification/NotificationService";
 import { getCouncilMembership } from '../services/progress/ProgressService';
+import { checkIsTeamLeader } from '../services/topic/TopicService';
 import "../style/content.css";
 
 const { Content } = Layout;
@@ -12,11 +13,13 @@ const { Content } = Layout;
 interface JwtPayload {
   VaiTro?: string;
   DaHoanThienHoSo?: boolean;
+  TaiKhoan?: string; // TODO: xác nhận đúng tên claim tài khoản trong JWT của bạn (có thể là sub, username...)
 }
 
 const MainHome: React.FC = () => {
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [isCouncilMember, setIsCouncilMember] = useState(false);
+  const [isTeamLeader, setIsTeamLeader] = useState(false); 
 
   const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
   const user: JwtPayload | null = token ? jwtDecode<JwtPayload>(token) : null;
@@ -57,6 +60,13 @@ const MainHome: React.FC = () => {
     getCouncilMembership()
       .then((data) => setIsCouncilMember(data.isCouncilMember))
       .catch(() => setIsCouncilMember(false));
+  }, [token, isAdmin]);
+
+  useEffect(() => {
+    if (!token || isAdmin) return;
+    checkIsTeamLeader(user?.TaiKhoan)
+      .then((result) => setIsTeamLeader(result))
+      .catch(() => setIsTeamLeader(false));
   }, [token, isAdmin]);
 
   if (user?.DaHoanThienHoSo === false && location.pathname !== '/mainhome/profile') {
@@ -134,6 +144,12 @@ const MainHome: React.FC = () => {
                       <span>Quản lý đề tài</span>
                     </NavLink>
                   </li>
+                  <li>
+                    <NavLink to="/mainhome/admin/statistics" className="li-link">
+                      <PieChartOutlined style={{ fontSize: 18, marginRight: 5 }} />
+                      <span>Thống kê</span>
+                    </NavLink>
+                  </li>
                 </>
               )}
               {(!isAdmin || canAccessCouncil) && (
@@ -144,6 +160,14 @@ const MainHome: React.FC = () => {
                   </NavLink>
                 </li>
               )}
+              
+                <li>
+                  <NavLink to="/mainhome/statistics/my-topics" className="li-link">
+                    <PieChartOutlined style={{ fontSize: 18, marginRight: 5 }} />
+                    <span>Thống kê</span>
+                  </NavLink>
+                </li>
+              
               {canAccessCouncil && (
                 <li>
                   <NavLink to="/mainhome/approvedtopics" className="li-link">

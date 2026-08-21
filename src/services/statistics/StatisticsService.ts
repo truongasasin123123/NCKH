@@ -1,0 +1,115 @@
+import ApiAxios from '../../axios.config';
+
+// ===== Types =====
+
+export type TopicStatus = 'in_progress' | 'completed' | 'overdue';
+
+export interface StatisticsOverview {
+  totalTopics: number;
+  inProgress: number;
+  completed: number;
+  overdue: number;
+}
+
+export interface OverdueTopic {
+  id: string;
+  topicName: string;
+  owner: string;
+  daysOverdue: number;
+}
+
+export interface DepartmentStat {
+  departmentName: string;
+  count: number;
+}
+
+export interface MonthlyTrend {
+  month: string;
+  count: number;
+}
+
+export interface BudgetStat {
+  totalBudget: number;
+  disbursed: number;
+}
+
+export interface AdminStatisticsResponse {
+  overview: StatisticsOverview;
+  overdueTopics: OverdueTopic[];
+  byDepartment: DepartmentStat[];
+  monthlyTrend: MonthlyTrend[];
+  budget: BudgetStat;
+}
+
+export interface Milestone {
+  name: string;
+  status: 'completed' | 'in_progress' | 'upcoming' | 'not_started';
+}
+
+export interface OwnerTopic {
+  id: string;
+  topicName: string;
+  status: TopicStatus;
+  milestones: Milestone[];
+  nextDeadline: string | null;
+}
+
+export interface TodoItem {
+  id: string;
+  content: string;
+  level: 'overdue' | 'upcoming';
+  days: number;
+}
+
+export interface OwnerStatisticsResponse {
+  todoItems: TodoItem[];
+  myTopics: OwnerTopic[];
+}
+
+export interface StatisticsQueryParams {
+  academicYear?: string;
+  departmentId?: string;
+  status?: string;
+}
+
+export type ExportFormat = 'excel' | 'pdf' | 'docx';
+
+// ===== API calls =====
+
+export const getAdminOverview = async (
+  params: StatisticsQueryParams,
+): Promise<AdminStatisticsResponse> => {
+  const res = await ApiAxios.get('/statistics/overview', { params });
+  return res.data;
+};
+
+export const getMyStatistics = async (): Promise<OwnerStatisticsResponse> => {
+  const res = await ApiAxios.get('/statistics/my-topics');
+  return res.data;
+};
+
+export const exportReport = async (
+  format: ExportFormat,
+  params: StatisticsQueryParams,
+): Promise<void> => {
+  const res = await ApiAxios.get('/statistics/export', {
+    params: { ...params, format },
+    responseType: 'blob',
+  });
+
+  const extensionMap: Record<ExportFormat, string> = {
+    excel: 'xlsx',
+    pdf: 'pdf',
+    docx: 'docx',
+  };
+
+  const blob = new Blob([res.data]);
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `thong-ke-de-tai.${extensionMap[format]}`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+};

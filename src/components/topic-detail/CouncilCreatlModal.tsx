@@ -9,7 +9,7 @@ const { TextArea } = Input;
 
 const businessHints: Partial<Record<CouncilBusiness, string>> = {
   approval: 'Đề tài ở trạng thái Nháp chỉ được yêu cầu hội đồng xét duyệt.',
-  monitoring: 'Đề tài đã Bắt đầu chỉ được yêu cầu hội đồng theo dõi.',
+  monitoring: 'Đề tài đã Bắt đầu chỉ được yêu cầu đội ngũ theo dõi.',
   scoring: 'Đề tài ở trạng thái Chờ nghiệm thu chỉ được yêu cầu hội đồng nghiệm thu.',
 };
 

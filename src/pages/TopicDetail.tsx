@@ -6,7 +6,7 @@ import { jwtDecode } from 'jwt-decode';
 import { ArrowLeftOutlined, EditOutlined, CloseOutlined, SendOutlined, BarChartOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { getTopicById, resendProjectApproval, submitProjectForApproval, updateProject } from '../services/topic/TopicService';
-import { downloadDocument, uploadDocument } from '../services/topic/DocumentsService';
+import { downloadDocument, uploadDocument, deleteDocument } from '../services/topic/DocumentsService';
 import { createAdjustmentRequest } from '../services/topic/AdjustmentRequestService';
 import {
     createCouncilAssignmentRequest,
@@ -127,6 +127,17 @@ const TopicDetail: React.FC = () => {
     useEffect(() => {
         fetchTopicDetail();
     }, [MaDT]);
+
+    const handleDeleteDocument = async (documentId: number) => {
+        if (!MaDT) return;
+        try {
+            await deleteDocument(documentId);
+            message.success('Đã xóa tài liệu');
+            await topicDocuments.refresh(MaDT);
+        } catch (error: any) {
+            message.error(error?.response?.data?.message || 'Không thể xóa tài liệu');
+        }
+    };
 
     useEffect(() => {
         const loadCouncilRequestData = async () => {
@@ -348,7 +359,7 @@ const TopicDetail: React.FC = () => {
             "Chờ xét duyệt": { color: 'blue', label: 'Chờ phê duyệt' },
             "Chờ phân công hội đồng xét duyệt": { color: 'gold', label: 'Chờ phân công hội đồng xét duyệt' },
             "Chờ phân công hội đồng nghiệm thu": { color: 'gold', label: 'Chờ phân công hội đồng nghiệm thu' },
-            "Chờ phân công hội đồng theo dõi": { color: 'gold', label: 'Chờ phân công hội đồng theo dõi' },
+            "Chờ phân công hội đồng theo dõi": { color: 'gold', label: 'Chờ phân công đội ngũ theo dõi' },
             "Từ chối": { color: 'red', label: 'Từ chối' },
             "Chờ nghiệm thu": { color: 'gold', label: 'Chờ nghiệm thu' },
             "Đang nghiệm thu": { color: 'processing', label: 'Đang nghiệm thu' },
@@ -547,12 +558,14 @@ const TopicDetail: React.FC = () => {
                                 documents={topicDocuments.documents}
                                 documentsLoading={topicDocuments.loading}
                                 visibleDocumentCount={docsVisibleCount}
+                                isTopicLeader={isTopicLeader}
                                 onShowMoreDocuments={() => setDocsVisibleCount((current) =>
                                     current >= topicDocuments.documents.length
                                         ? PAGE_SIZE
                                         : topicDocuments.documents.length,
                                 )}
                                 onDownloadDocument={downloadDocument}
+                                onDeleteDocument={handleDeleteDocument}
                                 onFilterDocuments={(query) => {
                                     if (MaDT) {
                                         setDocsVisibleCount(PAGE_SIZE);

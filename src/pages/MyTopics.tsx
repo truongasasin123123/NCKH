@@ -76,7 +76,7 @@ const MyTopics: React.FC = () => {
             "Chờ phê duyệt": { color: 'blue', label: 'Chờ phê duyệt' },
             "Chờ xét duyệt": { color: 'blue', label: 'Chờ phê duyệt' },
             "Chờ phân công hội đồng xét duyệt": { color: 'gold', label: 'Chờ phân công hội đồng xét duyệt' },
-            "Chờ phân công hội đồng theo dõi": { color: 'gold', label: 'Chờ phân công hội đồng theo dõi' },
+            "Chờ phân công hội đồng theo dõi": { color: 'gold', label: 'Chờ phân công đội ngũ theo dõi' },
             "Chờ phân công hội đồng nghiệm thu": { color: 'gold', label: 'Chờ phân công hội đồng nghiệm thu' },
             "Từ chối": { color: 'red', label: 'Từ chối' },
             "Chờ nghiệm thu": { color: 'gold', label: 'Chờ nghiệm thu' },

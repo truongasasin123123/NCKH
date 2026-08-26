@@ -24,8 +24,6 @@ export interface Council {
   MaLoaiHoiDong: number;
   MoTa?: string;
   NgayTao?: string;
-  NamBatDau?: number;
-  NamKetThuc?: number;
   LoaiHoiDong?: CouncilType;
   ThanhVienHoiDong?: CouncilMember[];
 }

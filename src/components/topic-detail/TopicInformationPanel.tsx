@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Button, Card, List, Input, Select, Space, Empty, Tag } from 'antd';
-import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
+import { Button, Card, List, Input, Select, Space, Empty, Tag, Popconfirm, Tooltip } from 'antd';
+import { DownloadOutlined, SearchOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ThanhVienDT, TopicLoad } from '../../services/topic/TopicService';
 import type { ProjectDocumentItem } from './types';
 import type { DocumentQueryParams } from '../../services/topic/DocumentsService';
+import DOMPurify from 'dompurify';
+import 'react-quill-new/dist/quill.snow.css';
 
 interface TopicInformationPanelProps {
   topic: TopicLoad;
@@ -11,8 +13,10 @@ interface TopicInformationPanelProps {
   documents: ProjectDocumentItem[];
   documentsLoading: boolean;
   visibleDocumentCount: number;
+  isTopicLeader: boolean; // thêm
   onShowMoreDocuments: () => void;
   onDownloadDocument: (id: number, name: string) => void;
+  onDeleteDocument: (id: number) => void; // thêm
   onFilterDocuments: (query: DocumentQueryParams) => void;
 }
 
@@ -22,8 +26,10 @@ export default function TopicInformationPanel({
   documents,
   documentsLoading,
   visibleDocumentCount,
+  isTopicLeader,
   onShowMoreDocuments,
   onDownloadDocument,
+  onDeleteDocument,
   onFilterDocuments,
 }: TopicInformationPanelProps) {
   const [searchText, setSearchText] = useState('');
@@ -70,7 +76,15 @@ export default function TopicInformationPanel({
       </Card>
 
       <Card title="Mô tả" style={{ marginTop: 16 }}>
-        <p>{topic.MoTa || 'Chưa có mô tả'}</p>
+        {topic.MoTa ? (
+          <div
+            className="ql-editor"
+            style={{ padding: 0 }}
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(topic.MoTa) }}
+          />
+        ) : (
+          <p style={{ color: '#8c8c8c' }}>Chưa có mô tả</p>
+        )}
       </Card>
 
       <Card title="Tổng hợp tài liệu dự án" style={{ marginTop: 16 }}>
@@ -143,14 +157,30 @@ export default function TopicInformationPanel({
                           {document.date ? document.date : ''}
                         </div>
                       </div>
-                      <Button
-                        type="primary"
-                        icon={<DownloadOutlined />}
-                        className="btn-see-upload"
-                        onClick={() => onDownloadDocument(document.id, document.name)}
-                      >
-                        Tải xuống
-                      </Button>
+                      <Space>
+                        <Button
+                          type="primary"
+                          icon={<DownloadOutlined />}
+                          className="btn-see-upload"
+                          onClick={() => onDownloadDocument(document.id, document.name)}
+                        >
+                          Tải xuống
+                        </Button>
+                        {isTopicLeader && (
+                          <Popconfirm
+                            title="Xóa tài liệu này?"
+                            description="Tài liệu sẽ bị xóa vĩnh viễn, không thể khôi phục."
+                            okText="Xóa"
+                            cancelText="Hủy"
+                            okButtonProps={{ danger: true }}
+                            onConfirm={() => onDeleteDocument(document.id)}
+                          >
+                            <Tooltip title="Xóa tài liệu">
+                              <Button danger icon={<DeleteOutlined />} />
+                            </Tooltip>
+                          </Popconfirm>
+                        )}
+                      </Space>
                     </div>
                   </List.Item>
                 )}

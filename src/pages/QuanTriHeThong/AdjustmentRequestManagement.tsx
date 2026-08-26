@@ -95,17 +95,18 @@ export default function AdjustmentRequestManagement({ embedded = false }: Adjust
   const approve = async (request: AdjustmentRequest) => {
     try {
       setSubmitting(true);
-      await reviewAdjustmentRequest(request.Id, 'accepted');
+      const updated = await reviewAdjustmentRequest(request.Id, 'accepted');
       message.success('Đã chấp nhận phiếu điều chỉnh');
       setSelected(undefined);
       await load();
+
+      await openApplyModal(updated);
     } catch (error: any) {
       message.error(error?.response?.data?.message || 'Không thể chấp nhận phiếu');
     } finally {
       setSubmitting(false);
     }
   };
-
   const reject = async () => {
     if (!rejecting) return;
     try {

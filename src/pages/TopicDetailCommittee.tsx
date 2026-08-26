@@ -183,7 +183,7 @@ const TopicDetailCommittee: React.FC = () => {
             "Chờ phê duyệt": { color: 'blue', label: 'Chờ phê duyệt' },
             "Chờ xét duyệt": { color: 'blue', label: 'Chờ phê duyệt' },
             "Chờ phân công hội đồng xét duyệt": { color: 'gold', label: 'Chờ phân công hội đồng xét duyệt' },
-            "Chờ phân công hội đồng theo dõi": { color: 'gold', label: 'Chờ phân công hội đồng theo dõi' },
+            "Chờ phân công hội đồng theo dõi": { color: 'gold', label: 'Chờ phân công đội ngũ theo dõi' },
             "Chờ phân công hội đồng nghiệm thu": { color: 'gold', label: 'Chờ phân công hội đồng nghiệm thu' },
             "Từ chối": { color: 'red', label: 'Từ chối' },
             "Chờ nghiệm thu": { color: 'gold', label: 'Chờ nghiệm thu' },
@@ -197,6 +197,11 @@ const TopicDetailCommittee: React.FC = () => {
 
     // Xử lý phê duyệt
     const handleApprove = async () => {
+        if (!approveNote.trim()) {
+            message.warning('Vui lòng nhập nhận xét trước khi phê duyệt');
+            return;
+        }
+
         if (!topic) return;
 
         try {
@@ -310,6 +315,8 @@ const TopicDetailCommittee: React.FC = () => {
                                     void fetchProjectDocuments(MaDT, query);
                                 }
                             }}
+                            isTopicLeader={false}
+                            onDeleteDocument={() => { }}
                         />
 
                         {acceptanceDossier && (
@@ -430,13 +437,20 @@ const TopicDetailCommittee: React.FC = () => {
                         >
                             <p>Bạn có chắc chắn muốn <strong>phê duyệt</strong> đề tài <strong>{topic.TenDT}</strong> không?</p>
                             <Divider />
-                            <p style={{ marginBottom: 8 }}>Ghi chú (tùy chọn):</p>
+                            <p style={{ marginBottom: 8 }}>
+                                Nhận xét khi phê duyệt <span style={{ color: 'red' }}>*</span>:
+                            </p>
                             <Input.TextArea
                                 rows={4}
-                                placeholder="Nhập ghi chú phê duyệt..."
+                                placeholder="Nhập nhận xét đánh giá đề tài trước khi phê duyệt..."
                                 value={approveNote}
                                 onChange={(e) => setApproveNote(e.target.value)}
                             />
+                            {!approveNote.trim() && (
+                                <p style={{ color: '#ff4d4f', fontSize: 12, marginTop: 4, marginBottom: 0 }}>
+                                    Vui lòng nhập nhận xét trước khi phê duyệt
+                                </p>
+                            )}
                         </Modal>
 
                         {/* Modal Từ chối */}

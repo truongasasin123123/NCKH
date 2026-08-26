@@ -169,3 +169,17 @@ export const updateProjectDate = async (id: string, dates: {
     const response = await ApiAxios.patch(`/project/updatedate/${id}`, dates);
     return response.data;
 };
+
+/**
+ * Kiểm tra tài khoản hiện tại có đang là "Nhóm trưởng" ở ít nhất 1 đề tài không.
+ * Tận dụng lại getMyTopics() (đã có ThanhVienDT kèm VaiTroDT) thay vì gọi thêm API riêng.
+ */
+export const checkIsTeamLeader = async (currentAccount?: string): Promise<boolean> => {
+    if (!currentAccount) return false;
+    const topics = await getMyTopics();
+    return topics.some((topic) =>
+        topic.ThanhVienDT?.some(
+            (member) => member.TaiKhoan === currentAccount && member.VaiTroDT === 'Nhóm trưởng',
+        ),
+    );
+};

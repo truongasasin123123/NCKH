@@ -1,6 +1,7 @@
 import type { FormInstance } from 'antd';
 import { Button, Card, Col, Form, Input, Row } from 'antd';
 import { CloseOutlined, SaveOutlined } from '@ant-design/icons';
+import RichTextEditor from '../common/RichTextEditor';
 
 interface TopicEditFormProps {
   form: FormInstance;
@@ -47,7 +48,7 @@ export default function TopicEditForm({ form, onSubmit, onCancel }: TopicEditFor
 
       <Card title="Mô tả" style={{ marginTop: 16 }}>
         <Form.Item label="Mô tả" name="MoTa">
-          <Input.TextArea rows={3} />
+          <RichTextEditor placeholder="Nhập mô tả đề tài..." />
         </Form.Item>
       </Card>
 

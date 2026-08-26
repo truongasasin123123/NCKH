@@ -233,11 +233,7 @@ const CouncilList = () => {
           },
           { title: 'Loại hội đồng', render: (_, council) => <Tag>{council.LoaiHoiDong?.TenLoaiHoiDong || '—'}</Tag> },
           { title: 'Mô tả', dataIndex: 'MoTa', render: (value) => value || '—' },
-          {
-            title: "Năm hoạt động",
-            render: (_: any, record: Council) => `${record.NamBatDau} - ${record.NamKetThuc}`,
-            width: 150,
-          },
+          
           {
             title: 'Thao tác',
             render: (_, council) => (

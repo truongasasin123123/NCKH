@@ -25,6 +25,10 @@ import DanhSachDeTai from "./pages/QuanTriHeThong/MonitoringCommittee";
 import ChiTietBaoCao from "./pages/QuanTriHeThong/ReportDetail";
 import Acceptance from "./pages/Acceptance";
 import TopicManagement from "./pages/QuanTriHeThong/TopicManagement";
+import { useEffect, useState } from "react";
+import ApiAxios from "./axios.config";
+import CompleteProfile from "./pages/CompleteProfile";
+import AdjustmentRequestManagement from "./pages/QuanTriHeThong/AdjustmentRequestManagement";
 
 interface JwtPayload {
   TaiKhoan: string;

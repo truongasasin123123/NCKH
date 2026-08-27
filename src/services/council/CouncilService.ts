@@ -78,8 +78,8 @@ export const deleteCouncil = async (id: number) =>
   (await ApiAxios.delete(`/admin/councils/${id}`)).data;
 
 export const searchAccounts = async (keyword: string) => {
-  const response = await ApiAxios.get('/admin/users', { params: { keyword, page: 1, limit: 20 } });
-  return response.data.data as Array<{ TaiKhoan: string; TenDayDu?: string; VaiTro?: string }>;
+  const response = await ApiAxios.get('/admin/councils/eligible-members', { params: { keyword } });
+  return response.data as Array<{ TaiKhoan: string; TenDayDu?: string; VaiTro?: string }>;
 };
 
 export const addCouncilMember = async (councilId: number, TaiKhoan: string, ChucDanh: CouncilPosition) =>

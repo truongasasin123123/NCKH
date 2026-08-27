@@ -34,7 +34,7 @@ export default function StatisticsDashboard() {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [data, setData] = useState<AdminStatisticsResponse | null>(null);
-  const [filters, setFilters] = useState<StatisticsQueryParams>({ academicYear: '2025-2026' });
+  const [filters, setFilters] = useState<StatisticsQueryParams>({});
 
   useEffect(() => {
     fetchData();
@@ -84,10 +84,13 @@ export default function StatisticsDashboard() {
         <Space wrap>
           <Select
             style={{ width: 150 }}
+            allowClear
+            placeholder="Tất cả năm học"
             value={filters.academicYear}
             onChange={(v) => setFilters((f) => ({ ...f, academicYear: v }))}
             options={[
               { value: '2025-2026', label: 'Năm học 2025-2026' },
+              { value: '2026-2027', label: 'Năm học 2026-2027' },
               { value: '2024-2025', label: 'Năm học 2024-2025' },
             ]}
           />

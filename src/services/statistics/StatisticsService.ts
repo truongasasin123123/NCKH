@@ -88,6 +88,23 @@ export const getMyStatistics = async (): Promise<OwnerStatisticsResponse> => {
   return res.data;
 };
 
+export const exportMyTopicsReport = async (format: ExportFormat): Promise<void> => {
+  const res = await ApiAxios.get('/statistics/my-topics/export', {
+    params: { format },
+    responseType: 'blob',
+  });
+  const extensionMap: Record<ExportFormat, string> = { excel: 'xlsx', pdf: 'pdf', docx: 'docx' };
+  const blob = new Blob([res.data]);
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `thong-ke-de-tai-cua-toi.${extensionMap[format]}`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+};
+
 export const exportReport = async (
   format: ExportFormat,
   params: StatisticsQueryParams,

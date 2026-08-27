@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Button, Descriptions, Empty, Input, Modal, Progress, Select, Space, Spin, Tag, Typography, message } from 'antd';
 import { ReloadOutlined, RightOutlined, SearchOutlined } from '@ant-design/icons';
 import { lookupTopics, type TopicLoad } from '../services/topic/TopicService';
-
+import DOMPurify from 'dompurify';
 const { Paragraph, Text } = Typography;
 const statusColors: Record<string, string> = { 'Nháp': 'default', 'Chờ phê duyệt': 'gold', 'Chờ xét duyệt': 'gold', 'Từ chối': 'red', 'Đã phê duyệt': 'blue', 'Bắt đầu': 'cyan', 'Đang thực hiện': 'blue', 'Chờ nghiệm thu': 'purple', 'Đang nghiệm thu': 'purple', 'Đã nghiệm thu': 'green' };
 const progressColor = (progress: number) => progress >= 100 ? '#299b5e' : progress < 50 ? '#d97706' : '#2f9b65';
@@ -75,7 +75,16 @@ export default function TopicLookup({ compact = false }: { compact?: boolean }) 
           <Descriptions.Item label="Giảng viên hướng dẫn">{selectedTopic.NguoiHD?.NguoiDung?.TenDayDu || 'Chưa cập nhật'}</Descriptions.Item><Descriptions.Item label="Nhóm trưởng">{selectedTopic.NhomTruong?.TenDayDu || 'Chưa cập nhật'}</Descriptions.Item>
           <Descriptions.Item label="Khoa / chuyên ngành">{selectedTopic.TenKhoa || selectedTopic.Khoa || '—'} / {selectedTopic.TenChuyenNganh || selectedTopic.ChuyenNganh || '—'}</Descriptions.Item><Descriptions.Item label="Trạng thái"><Tag color={statusColors[selectedTopic.TrangThai] || 'default'}>{selectedTopic.TrangThai}</Tag></Descriptions.Item>
           <Descriptions.Item label="Tiến độ"><Progress percent={Number(selectedTopic.TienDo ?? selectedTopic.progress ?? 0)} size="small" /></Descriptions.Item><Descriptions.Item label="Thời gian thực hiện">{selectedTopic.NgayBatDau ? new Date(selectedTopic.NgayBatDau).toLocaleDateString('vi-VN') : '—'} – {selectedTopic.NgayKetThuc ? new Date(selectedTopic.NgayKetThuc).toLocaleDateString('vi-VN') : '—'}</Descriptions.Item>
-        </Descriptions><Paragraph style={{ marginTop: 16, marginBottom: 0 }}><strong>Mô tả tóm tắt: </strong>{selectedTopic.MoTa || 'Chưa cập nhật mô tả.'}</Paragraph></>}
+        </Descriptions><Paragraph style={{ marginTop: 16, marginBottom: 0 }}>
+            <strong>Mô tả tóm tắt: </strong>
+            {selectedTopic.MoTa ? (
+              <span
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(selectedTopic.MoTa) }}
+              />
+            ) : (
+              'Chưa cập nhật mô tả.'
+            )}
+          </Paragraph></>}
       </Modal>
     </div>
   );

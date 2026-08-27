@@ -1,6 +1,6 @@
 import { Layout, Row, Col, Badge } from "antd";
 import { Navigate, Outlet, NavLink, useLocation } from "react-router-dom";
-import { UserOutlined, EditOutlined, BellOutlined, ProfileOutlined, FileOutlined, BarChartOutlined, TeamOutlined, AuditOutlined, FileSearchOutlined, PieChartOutlined } from "@ant-design/icons";
+import { UserOutlined, EditOutlined, BellOutlined, ProfileOutlined, FileOutlined, BarChartOutlined, TeamOutlined, AuditOutlined, PieChartOutlined } from "@ant-design/icons";
 import { useState, useEffect } from "react";
 import { jwtDecode } from 'jwt-decode';
 import { getNotifications } from "../services/notification/NotificationService";
@@ -151,12 +151,7 @@ const MainHome: React.FC = () => {
                 </li>
               )}
               
-                <li>
-                  <NavLink to="/mainhome/statistics/my-topics" className="li-link">
-                    <PieChartOutlined style={{ fontSize: 18, marginRight: 5 }} />
-                    <span>Thống kê</span>
-                  </NavLink>
-                </li>
+                
               
               {canAccessCouncil && (
                 <li>

@@ -1,6 +1,6 @@
 import { Layout, Row, Col, Badge } from "antd";
 import { Navigate, Outlet, NavLink, useLocation } from "react-router-dom";
-import { UserOutlined, EditOutlined, BellOutlined, ProfileOutlined, FileOutlined, BarChartOutlined, TeamOutlined, AuditOutlined, FileSearchOutlined, PieChartOutlined, SearchOutlined } from "@ant-design/icons";
+import { UserOutlined, EditOutlined, BellOutlined, ProfileOutlined, FileOutlined, BarChartOutlined, TeamOutlined, AuditOutlined, FileSearchOutlined, PieChartOutlined } from "@ant-design/icons";
 import { useState, useEffect } from "react";
 import { jwtDecode } from 'jwt-decode';
 import { getNotifications } from "../services/notification/NotificationService";
@@ -66,10 +66,6 @@ const MainHome: React.FC = () => {
   if (isAdmin && location.pathname === '/mainhome') {
     return <Navigate to="/mainhome/admin/topics" replace />;
   }
-  if (canAccessCouncil && location.pathname === '/mainhome') {
-    return <Navigate to="/mainhome/approvedtopics" replace />;
-  }
-
   return (
     <>
       <Content style={{ marginTop: 60 }}>
@@ -92,15 +88,7 @@ const MainHome: React.FC = () => {
                   </li>
                 </>
               )}
-              <li>
-                <NavLink
-                  to="/mainhome/tra-cuu-de-tai"
-                  className="li-link"
-                >
-                  <SearchOutlined style={{ fontSize: 18, marginRight: 5 }} />
-                  <span>Tra cứu đề tài</span>
-                </NavLink>
-              </li>
+              
               <li>
                 <NavLink
                   to="/mainhome/profile"
@@ -110,6 +98,14 @@ const MainHome: React.FC = () => {
                   <span>Thông tin cá nhân</span>
                 </NavLink>
               </li>
+              {(isAdmin || !isCommitteeRole) && (
+                <li>
+                  <NavLink to="/mainhome/statistics" className="li-link">
+                    <PieChartOutlined style={{ fontSize: 18, marginRight: 5 }} />
+                    <span>Thống kê</span>
+                  </NavLink>
+                </li>
+              )}
               <li>
                 <NavLink
                   to="/mainhome/notifications"
@@ -140,14 +136,8 @@ const MainHome: React.FC = () => {
                   </li>
                   <li>
                     <NavLink to="/mainhome/admin/topics" className="li-link">
-                      <FileSearchOutlined style={{ fontSize: 18, marginRight: 5 }} />
+                      <FileOutlined style={{ fontSize: 18, marginRight: 5 }} />
                       <span>Quản lý đề tài</span>
-                    </NavLink>
-                  </li>
-                  <li>
-                    <NavLink to="/mainhome/admin/statistics" className="li-link">
-                      <PieChartOutlined style={{ fontSize: 18, marginRight: 5 }} />
-                      <span>Thống kê</span>
                     </NavLink>
                   </li>
                 </>
@@ -160,14 +150,14 @@ const MainHome: React.FC = () => {
                   </NavLink>
                 </li>
               )}
-              {!isAdmin && !canAccessCouncil && (
+              
                 <li>
                   <NavLink to="/mainhome/statistics/my-topics" className="li-link">
                     <PieChartOutlined style={{ fontSize: 18, marginRight: 5 }} />
                     <span>Thống kê</span>
                   </NavLink>
                 </li>
-              )}
+              
               {canAccessCouncil && (
                 <li>
                   <NavLink to="/mainhome/approvedtopics" className="li-link">

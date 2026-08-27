@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Card, Steps, Tag, Typography, Alert, Space, message, Empty } from 'antd';
-import { ClockCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
-import { getMyStatistics } from '../services/statistics/StatisticsService';
-import type { OwnerStatisticsResponse, TopicStatus } from '../services/statistics/StatisticsService';
+import { Card, Steps, Tag, Typography, Alert, Space, message, Empty, Row, Col, Statistic, Button, Dropdown } from 'antd';
+import { ClockCircleOutlined, ExclamationCircleOutlined, DownloadOutlined, FileExcelOutlined, FilePdfOutlined, FileWordOutlined } from '@ant-design/icons';
+import { exportMyTopicsReport, getMyStatistics } from '../services/statistics/StatisticsService';
+import type { ExportFormat, OwnerStatisticsResponse, TopicStatus } from '../services/statistics/StatisticsService';
 
 const { Title, Text } = Typography;
 
@@ -21,6 +21,8 @@ const MILESTONE_STEP_STATUS: Record<string, 'finish' | 'process' | 'wait'> = {
 
 export default function MyTopicsStatistics() {
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [showAllTopics, setShowAllTopics] = useState(false);
   const [data, setData] = useState<OwnerStatisticsResponse | null>(null);
 
   useEffect(() => {
@@ -32,6 +34,7 @@ export default function MyTopicsStatistics() {
     try {
       const res = await getMyStatistics();
       setData(res);
+      setShowAllTopics(false);
     } catch (err) {
       message.error('Không tải được dữ liệu thống kê');
     } finally {
@@ -39,24 +42,53 @@ export default function MyTopicsStatistics() {
     }
   }
 
+  async function handleExport(format: ExportFormat) {
+    setExporting(true);
+    try {
+      await exportMyTopicsReport(format);
+      message.success('Đã xuất báo cáo đề tài của bạn');
+    } catch {
+      message.error('Xuất báo cáo thất bại');
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  const topics = data?.myTopics ?? [];
+  const overview = {
+    total: topics.length,
+    inProgress: topics.filter((topic) => topic.status === 'in_progress').length,
+    completed: topics.filter((topic) => topic.status === 'completed').length,
+    overdue: topics.filter((topic) => topic.status === 'overdue').length,
+  };
+  const visibleTopics = showAllTopics ? topics : topics.slice(0, 3);
+
   return (
     <div style={{ padding: 24 }}>
-      <Title level={4} style={{ marginBottom: 4 }}>
-        Đề tài của tôi
-      </Title>
-      <Text type="secondary">Tiến độ và mốc thời gian các đề tài bạn đang chủ trì</Text>
+      <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 20 }} wrap>
+        <div>
+          <Title level={4} style={{ margin: 0 }}>Thống kê đề tài của tôi</Title>
+          <Text type="secondary">Tổng quan tiến độ và mốc thời gian các đề tài bạn tham gia hoặc hướng dẫn</Text>
+        </div>
+        <Dropdown menu={{ items: [
+          { key: 'excel', label: 'Excel (.xlsx)', icon: <FileExcelOutlined /> },
+          { key: 'pdf', label: 'PDF', icon: <FilePdfOutlined /> },
+          { key: 'docx', label: 'Word (.docx)', icon: <FileWordOutlined /> },
+        ], onClick: ({ key }) => handleExport(key as ExportFormat) }} disabled={exporting}>
+          <Button type="primary" icon={<DownloadOutlined />} loading={exporting}>Xuất báo cáo</Button>
+        </Dropdown>
+      </Space>
 
-      <div style={{ marginTop: 20, marginBottom: 20 }}>
-        <Text strong style={{ fontSize: 13 }}>
-          Việc cần làm
-        </Text>
-        <Space direction="vertical" style={{ width: '100%', marginTop: 8 }} size={8}>
-          {loading && <Card loading />}
-          {!loading && (data?.todoItems.length ?? 0) === 0 && (
-            <Text type="secondary" style={{ fontSize: 13 }}>
-              Không có việc cần xử lý gấp.
-            </Text>
-          )}
+      <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
+        <Col xs={12} md={6}><Card loading={loading}><Statistic title="Tổng đề tài" value={overview.total} /></Card></Col>
+        <Col xs={12} md={6}><Card loading={loading}><Statistic title="Đang thực hiện" value={overview.inProgress} valueStyle={{ color: '#1677ff' }} /></Card></Col>
+        <Col xs={12} md={6}><Card loading={loading}><Statistic title="Hoàn thành" value={overview.completed} valueStyle={{ color: '#389e0d' }} /></Card></Col>
+        <Col xs={12} md={6}><Card loading={loading}><Statistic title="Trễ hạn" value={overview.overdue} valueStyle={{ color: '#cf1322' }} /></Card></Col>
+      </Row>
+
+      <Card title="Việc cần làm" loading={loading} style={{ marginBottom: 20 }}>
+        {!loading && (data?.todoItems.length ?? 0) === 0 && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Không có việc cần xử lý gấp" />}
+        <Space direction="vertical" style={{ width: '100%' }} size={8}>
           {data?.todoItems.map((item) => (
             <Alert
               key={item.id}
@@ -72,20 +104,15 @@ export default function MyTopicsStatistics() {
             />
           ))}
         </Space>
-      </div>
+      </Card>
 
-      <Text strong style={{ fontSize: 13 }}>
-        Đề tài của tôi ({data?.myTopics.length ?? 0})
-      </Text>
-
-      <Space direction="vertical" style={{ width: '100%', marginTop: 8 }} size={16}>
-        {loading && <Card loading />}
-        {!loading && (data?.myTopics.length ?? 0) === 0 && (
+      <Card title={`Đề tài của tôi (${overview.total})`} loading={loading}>
+        {!loading && topics.length === 0 && (
           <Empty description="Bạn chưa chủ trì đề tài nào" />
         )}
-
-        {data?.myTopics.map((topic) => (
-          <Card key={topic.id}>
+        <Space direction="vertical" style={{ width: '100%' }} size={16}>
+        {visibleTopics.map((topic) => (
+          <Card key={topic.id} size="small">
             <div
               style={{
                 display: 'flex',
@@ -122,7 +149,18 @@ export default function MyTopicsStatistics() {
             )}
           </Card>
         ))}
-      </Space>
+        {topics.length > 3 && (
+          <div style={{ width: '100%', textAlign: 'center', paddingTop: 4 }}>
+            <Button
+              onClick={() => setShowAllTopics((value) => !value)}
+              style={{ borderRadius: 20, minWidth: 170, color: '#1677ff', borderColor: '#91caff' }}
+            >
+              {showAllTopics ? 'Thu gọn' : `Xem thêm ${topics.length - 3} đề tài`}
+            </Button>
+          </div>
+        )}
+        </Space>
+      </Card>
     </div>
   );
 }

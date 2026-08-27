@@ -8,13 +8,19 @@ export interface TopicLoad {
     PhanLoai: string
     ChuyenNganh?: string
     Khoa?: string
+    TenChuyenNganh?: string
+    TenKhoa?: string
     TrangThai: string
     NgayBatDau: Date
     NgayKetThuc: Date
     NgayTao: Date
     MoTa: string
     TongKinhPhi: number
+    TienDo?: number
     progress?: number
+    NguoiHD?: {
+        NguoiDung?: NguoiDung;
+    };
 
     ThanhVienDT: ThanhVienDT[];
     NhomTruong?: {
@@ -34,6 +40,8 @@ export interface AdminTopicQuery {
     keyword?: string;
     phanLoai?: string;
     trangThai?: string;
+    khoa?: string;
+    namHoc?: string;
     page?: number;
     limit?: number;
 }
@@ -115,6 +123,13 @@ export const getAdminTopics = async (
     params: AdminTopicQuery,
 ): Promise<AdminTopicListResponse> => {
     const response = await ApiAxios.get('/project/admin/all', { params });
+    return response.data;
+};
+
+export const lookupTopics = async (
+    params: AdminTopicQuery,
+): Promise<AdminTopicListResponse> => {
+    const response = await ApiAxios.get('/project/lookup', { params });
     return response.data;
 };
 

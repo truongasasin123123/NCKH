@@ -109,11 +109,11 @@ const RegisterTopic = () => {
 
     setFetching(true);
     try {
-      const takename = await ApiAxios.get(`/user/sreach?userkey=${value}`);
+      const takename = await ApiAxios.get('/user/students', { params: { keyword: value } });
       const data = Array.isArray(takename.data) ? takename.data : [];
       setOptions(
         data.map((u: any) => ({
-          label: u.TaiKhoan, value: u.TaiKhoan,
+          label: `${u.TaiKhoan}${u.TenDayDu ? ` — ${u.TenDayDu}` : ''}`, value: u.TaiKhoan,
         }))
       );
     } catch {
@@ -298,7 +298,7 @@ const RegisterTopic = () => {
         >
           <Select
             showSearch
-            placeholder="Chọn người hướng dẫn"
+            placeholder="Chọn giảng viên hướng dẫn"
             options={nguoiHuongDan}
             filterOption={false}
             onSearch={fetchTeacher}

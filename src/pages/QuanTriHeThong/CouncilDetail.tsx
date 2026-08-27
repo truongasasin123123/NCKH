@@ -169,7 +169,7 @@ const CouncilDetail = () => {
 
       <Card title="Thành viên hội đồng">
         <Space style={{ display: 'flex', marginBottom: 16 }} wrap>
-          <AutoComplete style={{ minWidth: 300 }} options={accountOptions} value={account} onSearch={findAccounts} onChange={setAccount} onSelect={(value) => setAccount(value)} placeholder="Tìm tài khoản để thêm" />
+          <AutoComplete style={{ minWidth: 300 }} options={accountOptions} value={account} onSearch={findAccounts} onChange={setAccount} onSelect={(value) => setAccount(value)} placeholder="Tìm giảng viên hoặc người hướng dẫn" />
           <Select value={position} onChange={setPosition} style={{ width: 150 }} options={positions.map((item) => ({ value: item, label: item }))} />
           <Button type="primary" icon={<PlusOutlined />} onClick={addMember}>Thêm thành viên</Button>
         </Space>

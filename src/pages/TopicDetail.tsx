@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { CollapseProps } from 'antd';
 import { Collapse, Spin, Button, Tag, Card, Row, Col, message, Form, Segmented } from 'antd';
-import { useLocation, useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import { ArrowLeftOutlined, EditOutlined, CloseOutlined, SendOutlined, BarChartOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
@@ -41,8 +41,6 @@ interface JwtPayload {
 const TopicDetail: React.FC = () => {
     const { MaDT } = useParams<{ MaDT: string }>(); // Sử dụng MaDT thay vì id
     const navigate = useNavigate();
-    const location = useLocation();
-    const isAdminTopicView = location.pathname.startsWith('/mainhome/admin/topics/');
     const [submitModalOpen, setSubmitModalOpen] = useState(false);
     const [councilTypes, setCouncilTypes] = useState<CouncilType[]>([]);
     const [councilRequests, setCouncilRequests] = useState<CouncilAssignmentRequest[]>([]);
@@ -420,9 +418,7 @@ const TopicDetail: React.FC = () => {
                                 type="text"
                                 icon={<ArrowLeftOutlined />}
                                 onClick={() => navigate(
-                                    isAdminTopicView
-                                        ? '/mainhome/admin/topics'
-                                        : isCommitteeRole && topic.TrangThai === 'Đã phê duyệt'
+                                    isCommitteeRole && topic.TrangThai === 'Đã phê duyệt'
                                             ? '/mainhome/approvedtopics'
                                             : '/mainhome',
                                 )}

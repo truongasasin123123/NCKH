@@ -10,6 +10,7 @@ import EditMocModal from '../components/progress-management/EditMocModal';
 import ViewMocModal from '../components/progress-management/ViewMocModal';
 import UploadMocModal from '../components/progress-management/UploadMocModal';
 import BaoCaoModal from '../components/progress-management/BaoCaoModal';
+import type { MocTienDo } from '../services/progress/ProgressService';
 
 const { Content } = Layout;
 const { TabPane } = Tabs;
@@ -88,13 +89,13 @@ const ProgressManagement: React.FC = () => {
                   ))}
                 </Select>
 
-                <Button 
+                <Button
                   type="primary"
                   icon={<CheckOutlined />}
                   onClick={() => {
                     handleGoToTopic();
                     setShowTopicSearch(false);
-                    
+
                   }}
                 >
                   Tìm
@@ -171,6 +172,11 @@ const ProgressManagement: React.FC = () => {
         memberOptions={memberOptions}
         onFinish={handleCreateMocSubmit}
         onReset={handleReset}
+        nextThuTu={
+          progressData?.MocTienDo?.length
+            ? Math.max(...progressData.MocTienDo.map((moc: MocTienDo) => moc.ThuTu)) + 1
+            : 1
+        }
       />
 
       <EditMocModal

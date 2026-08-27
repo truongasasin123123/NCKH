@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Modal, Form, Input, DatePicker, InputNumber, Select, Row, Col, Button } from 'antd';
 import type { FormInstance } from 'antd';
 
@@ -11,14 +11,18 @@ interface CreateMocModalProps {
   memberOptions: { label: string; value: number }[];
   onFinish: (values: any) => void;
   onReset: () => void;
+  nextThuTu: number;
 }
 
-/**
- * Modal tạo mốc tiến độ mới.
- */
 const CreateMocModal: React.FC<CreateMocModalProps> = ({
-  open, onCancel, form, memberOptions, onFinish, onReset,
+  open, onCancel, form, memberOptions, onFinish, onReset, nextThuTu,
 }) => {
+  useEffect(() => {
+    if (open) {
+      form.setFieldValue('ThuTu', nextThuTu);
+    }
+  }, [open, nextThuTu, form]);
+
   return (
     <Modal
       title="Tạo mốc tiến độ"
@@ -69,7 +73,7 @@ const CreateMocModal: React.FC<CreateMocModalProps> = ({
         <Row gutter={16}>
           <Col span={12}>
             <Form.Item name="ThuTu" label="Thứ tự" rules={[{ required: true }]}>
-              <InputNumber min={1} style={{ width: '100%' }} />
+              <InputNumber min={1} style={{ width: '100%' }} disabled />
             </Form.Item>
           </Col>
           <Col span={12}>

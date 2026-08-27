@@ -158,6 +158,23 @@ const CouncilList = () => {
     }
   };
 
+  const renderMoTa = (value?: string) => {
+    if (!value) return '—';
+    const parts = value.split(/(https?:\/\/[^\s]+)/g);
+    return (
+      <div style={{ whiteSpace: 'pre-line' }}>
+        {parts.map((part, index) =>
+          /^https?:\/\//.test(part) ? (
+            <a key={index} href={part} target="_blank" rel="noopener noreferrer">
+              {part}
+            </a>
+          ) : (
+            <span key={index}>{part}</span>
+          ),
+        )}
+      </div>
+    );
+  };
   const requestsTab = (
     <>
       <Space style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }} wrap>
@@ -232,8 +249,7 @@ const CouncilList = () => {
             render: (name: string, council) => <Button type="link" onClick={() => navigate(`/mainhome/admin/councils/${council.MaHoiDong}`)}>{name}</Button>,
           },
           { title: 'Loại hội đồng', render: (_, council) => <Tag>{council.LoaiHoiDong?.TenLoaiHoiDong || '—'}</Tag> },
-          { title: 'Mô tả', dataIndex: 'MoTa', render: (value) => value || '—' },
-          
+          { title: 'Mô tả', dataIndex: 'MoTa', render: renderMoTa },
           {
             title: 'Thao tác',
             render: (_, council) => (
@@ -275,7 +291,14 @@ const CouncilList = () => {
         <Form form={typeForm} layout="vertical" initialValues={{ NghiepVu: 'other' }}>
           <Form.Item name="TenLoaiHoiDong" label="Tên loại hội đồng" rules={[{ required: true, message: 'Vui lòng nhập tên loại' }]}><Input /></Form.Item>
           <Form.Item name="NghiepVu" label="Nghiệp vụ" rules={[{ required: true }]}><Select options={businessOptions} /></Form.Item>
-          <Form.Item name="MoTa" label="Mô tả"><Input.TextArea rows={2} /></Form.Item>
+          <Form.Item name="MoTa" label="Mô tả">
+            <Input.TextArea
+              rows={4}
+              placeholder={
+                'Ví dụ:\nNgày họp: 15/09/2026 - 08:00\nĐịa điểm: Phòng họp A2, Học viện Nông nghiệp Việt Nam (họp offline)\nLink họp online: https://meet.google.com/xxx-xxxx-xxx'
+              }
+            />
+          </Form.Item>
         </Form>
       </Modal>
     </div>

@@ -1,7 +1,7 @@
 import { Button, Checkbox, Form, Input, message } from 'antd';
 import "../style/auth.css";
 import ApiAxios from '../axios.config';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useState } from "react";
 
 interface FormType {
@@ -10,8 +10,14 @@ interface FormType {
     remember: boolean;
 }
 
+interface LocationState {
+    redirectTo?: string;
+}
+
 function Login() {
     const [loading, setLoading] = useState(false);
+    const location = useLocation();
+    const redirectTo = (location.state as LocationState | null)?.redirectTo;
 
     const onFinish = async (values: FormType) => {
         const { TaiKhoan, MatKhau, remember } = values;
@@ -33,9 +39,14 @@ function Login() {
             }
 
             message.success("Đăng nhập thành công!");
-            window.location.href = res.data.requiresProfileCompletion
-                ? "/complete-profile"
-                : "/home";
+
+            // Ưu tiên hoàn thiện hồ sơ trước, kể cả khi có redirectTo — vào thẳng
+            // trang khác lúc hồ sơ chưa đủ có thể khiến các trang đó lỗi do thiếu dữ liệu user.
+            if (res.data.requiresProfileCompletion) {
+                window.location.href = "/complete-profile";
+            } else {
+                window.location.href = redirectTo || "/home";
+            }
 
         } catch (error: any) {
             message.error("Sai tài khoản hoặc mật khẩu!");

@@ -1,11 +1,10 @@
 import { Layout, Row, Col, Badge } from "antd";
 import { Navigate, Outlet, NavLink, useLocation } from "react-router-dom";
-import { UserOutlined, EditOutlined, BellOutlined, ProfileOutlined, FileOutlined, BarChartOutlined, TeamOutlined, AuditOutlined, FileSearchOutlined, PieChartOutlined } from "@ant-design/icons";
+import { UserOutlined, EditOutlined, BellOutlined, ProfileOutlined, FileOutlined, BarChartOutlined, TeamOutlined, AuditOutlined, FileSearchOutlined, PieChartOutlined, SearchOutlined } from "@ant-design/icons";
 import { useState, useEffect } from "react";
 import { jwtDecode } from 'jwt-decode';
 import { getNotifications } from "../services/notification/NotificationService";
 import { getCouncilMembership } from '../services/progress/ProgressService';
-import { checkIsTeamLeader } from '../services/topic/TopicService';
 import "../style/content.css";
 
 const { Content } = Layout;
@@ -19,7 +18,6 @@ interface JwtPayload {
 const MainHome: React.FC = () => {
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [isCouncilMember, setIsCouncilMember] = useState(false);
-  const [isTeamLeader, setIsTeamLeader] = useState(false); 
 
   const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
   const user: JwtPayload | null = token ? jwtDecode<JwtPayload>(token) : null;
@@ -62,13 +60,6 @@ const MainHome: React.FC = () => {
       .catch(() => setIsCouncilMember(false));
   }, [token, isAdmin]);
 
-  useEffect(() => {
-    if (!token || isAdmin) return;
-    checkIsTeamLeader(user?.TaiKhoan)
-      .then((result) => setIsTeamLeader(result))
-      .catch(() => setIsTeamLeader(false));
-  }, [token, isAdmin]);
-
   if (user?.DaHoanThienHoSo === false && location.pathname !== '/mainhome/profile') {
     return <Navigate to="/mainhome/profile" replace />;
   }
@@ -101,6 +92,15 @@ const MainHome: React.FC = () => {
                   </li>
                 </>
               )}
+              <li>
+                <NavLink
+                  to="/mainhome/tra-cuu-de-tai"
+                  className="li-link"
+                >
+                  <SearchOutlined style={{ fontSize: 18, marginRight: 5 }} />
+                  <span>Tra cứu đề tài</span>
+                </NavLink>
+              </li>
               <li>
                 <NavLink
                   to="/mainhome/profile"
@@ -160,14 +160,14 @@ const MainHome: React.FC = () => {
                   </NavLink>
                 </li>
               )}
-              
+              {!isAdmin && !canAccessCouncil && (
                 <li>
                   <NavLink to="/mainhome/statistics/my-topics" className="li-link">
                     <PieChartOutlined style={{ fontSize: 18, marginRight: 5 }} />
                     <span>Thống kê</span>
                   </NavLink>
                 </li>
-              
+              )}
               {canAccessCouncil && (
                 <li>
                   <NavLink to="/mainhome/approvedtopics" className="li-link">

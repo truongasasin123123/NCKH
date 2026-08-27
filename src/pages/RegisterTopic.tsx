@@ -326,7 +326,7 @@ const RegisterTopic = () => {
         </Form.Item>
 
 
-        {/* Mô tả */}
+        
         {/* Mô tả */}
         <Form.Item label="Mô tả đề tài:" name="MoTa">
           <RichTextEditor placeholder="Nhập mô tả chi tiết đề tài..." />

@@ -10,7 +10,7 @@ import {
   Popconfirm,
   Select,
   Space,
-  
+
   Table,
   Tag,
   message,
@@ -58,7 +58,7 @@ const CouncilDetail = () => {
   useEffect(() => { loadData(); }, [maHoiDong]);
 
   const members = council?.ThanhVienHoiDong ?? [];
-  
+
 
   const findAccounts = async (keyword: string) => {
     if (!keyword.trim()) return setAccountOptions([]);
@@ -114,6 +114,24 @@ const CouncilDetail = () => {
     setEditing(true);
   };
 
+  const renderMoTa = (value?: string) => {
+    if (!value) return '—';
+    const parts = value.split(/(https?:\/\/[^\s]+)/g);
+    return (
+      <div style={{ whiteSpace: 'pre-line' }}>
+        {parts.map((part, index) =>
+          /^https?:\/\//.test(part) ? (
+            <a key={index} href={part} target="_blank" rel="noopener noreferrer">
+              {part}
+            </a>
+          ) : (
+            <span key={index}>{part}</span>
+          ),
+        )}
+      </div>
+    );
+  };
+
   if (loading) return <div style={{ padding: 24 }}>Đang tải...</div>;
   if (!council) return <div style={{ padding: 24 }}>Không tìm thấy hội đồng.</div>;
 
@@ -127,21 +145,27 @@ const CouncilDetail = () => {
           <Form form={form} layout="vertical">
             <Form.Item name="TenHoiDong" label="Tên hội đồng" rules={[{ required: true }]}><Input /></Form.Item>
             <Form.Item name="MaLoaiHoiDong" label="Loại hội đồng" rules={[{ required: true }]}><Select options={types.map((type) => ({ value: type.MaLoaiHoiDong, label: type.TenLoaiHoiDong }))} /></Form.Item>
-            <Form.Item name="MoTa" label="Mô tả"><Input.TextArea rows={3} /></Form.Item>
-            
+            <Form.Item name="MoTa" label="Mô tả">
+              <Input.TextArea
+                rows={4}
+                placeholder={
+                  'Ví dụ:\nNgày họp: 15/09/2026 - 08:00\nĐịa điểm: Phòng họp A2, Học viện Nông nghiệp Việt Nam (họp offline)\nLink họp online: https://meet.google.com/xxx-xxxx-xxx'
+                }
+              />
+            </Form.Item>
+
           </Form>
         ) : (
           <Descriptions column={1}>
             <Descriptions.Item label="Mã hội đồng">{council.MaHoiDong}</Descriptions.Item>
             <Descriptions.Item label="Tên hội đồng">{council.TenHoiDong}</Descriptions.Item>
             <Descriptions.Item label="Loại hội đồng">{council.LoaiHoiDong?.TenLoaiHoiDong || '—'}</Descriptions.Item>
-            <Descriptions.Item label="Mô tả">{council.MoTa || '—'}</Descriptions.Item>
-            
+            <Descriptions.Item label="Mô tả">{renderMoTa(council.MoTa)}</Descriptions.Item>
           </Descriptions>
         )}
       </Card>
 
-      
+
 
       <Card title="Thành viên hội đồng">
         <Space style={{ display: 'flex', marginBottom: 16 }} wrap>

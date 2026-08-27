@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout, Button, Typography, Space, Row, Col } from 'antd';
-import { ArrowRightOutlined } from '@ant-design/icons';
+import { ArrowRightOutlined, SearchOutlined } from '@ant-design/icons';
 import { getCouncilMembership } from '../services/progress/ProgressService';
 
 const { Content } = Layout;
@@ -25,6 +25,8 @@ const features = [
     },
 ];
 
+const TOPIC_LOOKUP_PATH = '/mainhome/tra-cuu-de-tai';
+
 const HomePage: React.FC = () => {
     const navigate = useNavigate();
     const [isCouncilMember, setIsCouncilMember] = useState(false);
@@ -36,6 +38,17 @@ const HomePage: React.FC = () => {
             .then((data) => setIsCouncilMember(data.isCouncilMember))
             .catch(() => setIsCouncilMember(false));
     }, []);
+
+    function handleLookupTopics() {
+        const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
+        if (token) {
+            navigate(TOPIC_LOOKUP_PATH);
+        } else {
+            // TODO: cần Login.tsx đọc location.state.redirectTo sau khi đăng nhập thành công
+            // và điều hướng tới đó thay vì trang mặc định (xem ghi chú kèm theo).
+            navigate('/login', { state: { redirectTo: TOPIC_LOOKUP_PATH } });
+        }
+    }
 
     return (
         <Layout style={{ background: '#f7f9f7', minHeight: '100vh' }}>
@@ -129,6 +142,8 @@ const HomePage: React.FC = () => {
                                 <Button
                                     size="large"
                                     ghost
+                                    icon={<SearchOutlined />}
+                                    onClick={handleLookupTopics}
                                     style={{
                                         color: '#fff',
                                         borderColor: 'rgba(255,255,255,0.35)',
@@ -136,7 +151,7 @@ const HomePage: React.FC = () => {
                                         paddingInline: 28,
                                     }}
                                 >
-                                    Tìm hiểu thêm
+                                    Tra cứu đề tài
                                 </Button>
                             </Space>
                         </Col>

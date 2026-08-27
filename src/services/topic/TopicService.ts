@@ -171,6 +171,28 @@ export const updateProjectDate = async (id: string, dates: {
 };
 
 /**
+ * Tra cứu đề tài toàn hệ thống — dùng cho mọi role đã đăng nhập (chỉ xem, không sửa/xóa).
+ * Khác với getAdminTopics (/project/admin/all — chỉ quantri), endpoint /project/search
+ * cần được backend mở quyền cho mọi JWT hợp lệ, không áp RolesGuard.
+ */
+export interface TopicSearchQuery {
+    keyword?: string;
+    phanLoai?: string;
+    khoa?: string;
+    trangThai?: string;
+    namHoc?: string;
+    page?: number;
+    limit?: number;
+}
+
+export const searchTopics = async (
+    params: TopicSearchQuery,
+): Promise<AdminTopicListResponse> => {
+    const response = await ApiAxios.get('/project/search', { params });
+    return response.data;
+};
+
+/**
  * Kiểm tra tài khoản hiện tại có đang là "Nhóm trưởng" ở ít nhất 1 đề tài không.
  * Tận dụng lại getMyTopics() (đã có ThanhVienDT kèm VaiTroDT) thay vì gọi thêm API riêng.
  */

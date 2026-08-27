@@ -31,6 +31,7 @@ import { useEffect, useState } from "react";
 import ApiAxios from "./axios.config";
 import StatisticsDashboard from "./pages/StatisticsDashboard";
 import MyTopicsStatistics from "./pages/MyTopicsStatistics";
+import TopicLookup from "./pages/TopicLookup";
 
 interface JwtPayload {
   TaiKhoan: string;
@@ -155,6 +156,8 @@ function App() {
             <Route path="admin/adjustment-requests" element={<AdjustmentRequestManagement />} />
             <Route path="admin/statistics" element={<StatisticsDashboard />} />   
             <Route path="statistics/my-topics" element={<MyTopicsStatistics />} />  
+            <Route path="tra-cuu-de-tai" element={<TopicLookup />} />
+            <Route path="tra-cuu-de-tai/:MaDT" element={<TopicDetail />} />
           </Route>
         </Routes>
       </Layout>

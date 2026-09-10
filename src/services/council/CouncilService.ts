@@ -9,7 +9,13 @@ export interface CouncilType {
   TenLoaiHoiDong: string;
   NghiepVu: CouncilBusiness;
   MoTa?: string;
+  ThoiGianHop?: string;       // ISO datetime string
+  HinhThucHop?: CouncilMeetingType;
+  DiaDiem?: string;           // dùng khi HinhThucHop === 'offline'
+  LinkHop?: string;           // dùng khi HinhThucHop === 'online'
 }
+
+export type CouncilMeetingType = 'online' | 'offline';
 
 export interface CouncilMember {
   Id: number;
@@ -59,8 +65,10 @@ export const getCouncilTypes = async (): Promise<CouncilType[]> =>
 export const getAvailableCouncilTypes = async (): Promise<CouncilType[]> =>
   (await ApiAxios.get('/council-requests/types')).data;
 
-export const createCouncilType = async (payload: Pick<CouncilType, 'TenLoaiHoiDong'> & Partial<Pick<CouncilType, 'NghiepVu' | 'MoTa'>>) =>
-  (await ApiAxios.post('/admin/councils/types', payload)).data;
+export const createCouncilType = async (
+  payload: Pick<CouncilType, 'TenLoaiHoiDong'> &
+    Partial<Pick<CouncilType, 'NghiepVu' | 'MoTa' | 'ThoiGianHop' | 'HinhThucHop' | 'DiaDiem' | 'LinkHop'>>,
+) => (await ApiAxios.post('/admin/councils/types', payload)).data;
 
 export const getCouncils = async (typeId?: number): Promise<Council[]> =>
   (await ApiAxios.get('/admin/councils', { params: { typeId } })).data;
@@ -118,3 +126,4 @@ export const rejectCouncilRequest = async (id: number, LyDoTuChoi: string): Prom
 /* API cũ đã được thay bằng các endpoint phân công hội đồng theo từng đề tài. */
 export const getLegacyCouncilRequests = async () =>
   (await ApiAxios.get('/admin/councils/requests')).data;
+

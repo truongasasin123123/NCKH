@@ -5,6 +5,8 @@ import type { UploadFile } from 'antd/es/upload/interface';
 import type { TopicLoad, ThanhVienDT } from '../../services/topic/TopicService';
 import { getMocTienDoByTopic, type MocTienDo } from '../../services/progress/ProgressService';
 import ApiAxios from '../../axios.config';
+import RichTextEditor from '../common/RichTextEditor';
+import DOMPurify from 'dompurify';
 
 const { TextArea } = Input;
 const { Dragger } = Upload;
@@ -168,15 +170,48 @@ export default function AdjustmentRequestModal({ open, topicCode, topic, members
             {fieldOptions.filter((item) => selectedKeys.includes(item.value)).map((item) => (
               <div key={item.value} style={{ marginBottom: 12 }}>
                 <div style={{ fontSize: 13, color: '#595959', marginBottom: 4 }}>{item.label}</div>
-                <Input.TextArea value={item.current} readOnly autoSize={{ minRows: 2, maxRows: 4 }} />
+                {item.value === 'MoTa' ? (
+                  <div
+                    style={{
+                      border: '1px solid #d9d9d9',
+                      borderRadius: 6,
+                      padding: '8px 11px',
+                      minHeight: 64,
+                      maxHeight: 160,
+                      overflowY: 'auto',
+                      background: '#fafafa',
+                    }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.current) }}
+                  />
+                ) : (
+                  <Input.TextArea value={item.current} readOnly autoSize={{ minRows: 2, maxRows: 4 }} />
+                )}
               </div>
             ))}
           </Col>
           <Col span={12}>
             <div style={{ fontWeight: 600, marginBottom: 8 }}>Nội dung đề nghị điều chỉnh</div>
             {fieldOptions.filter((item) => selectedKeys.includes(item.value)).map((item) => (
-              <Form.Item key={item.value} name={['deNghi', item.value]} label={item.label} rules={[{ required: true, whitespace: true, message: `Nhập ${item.label.toLowerCase()} đề nghị` }]}>
-                {item.value === 'MoTa' ? <TextArea rows={3} placeholder={`Nhập ${item.label.toLowerCase()} mới`} /> : <Input placeholder={`Nhập ${item.label.toLowerCase()} mới`} />}
+              <Form.Item
+                key={item.value}
+                name={['deNghi', item.value]}
+                label={item.label}
+                rules={
+                  item.value === 'MoTa'
+                    ? [{
+                      validator: (_, value) =>
+                        !value || !String(value).replace(/<(.|\n)*?>/g, '').trim()
+                          ? Promise.reject(new Error(`Nhập ${item.label.toLowerCase()} đề nghị`))
+                          : Promise.resolve(),
+                    }]
+                    : [{ required: true, whitespace: true, message: `Nhập ${item.label.toLowerCase()} đề nghị` }]
+                }
+              >
+                {item.value === 'MoTa' ? (
+                  <RichTextEditor placeholder={`Nhập ${item.label.toLowerCase()} mới`} minHeight={200} />
+                ) : (
+                  <Input placeholder={`Nhập ${item.label.toLowerCase()} mới`} />
+                )}
               </Form.Item>
             ))}
           </Col>

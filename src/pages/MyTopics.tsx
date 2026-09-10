@@ -450,7 +450,7 @@ const MyTopics: React.FC = () => {
     return (
         <>
             {user && (
-                <div style={{ background: '#fff', padding: 20, borderRadius: 4, marginBottom: 16 }}>
+                <div style={{ background: '#fff', padding: 20, marginBottom: 16 }}>
                     <h2 style={{ color: '#333', margin: 0 }}>
                         Chào mừng trở lại, <strong>{displayName}</strong> — {displayRole}
                     </h2>

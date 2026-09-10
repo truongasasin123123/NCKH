@@ -20,7 +20,7 @@ import {
   FileWordOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
-import { Column } from '@ant-design/plots'; // npm install @ant-design/plots
+import { Column, Pie } from '@ant-design/plots';
 import { getAdminOverview, exportReport } from '../services/statistics/StatisticsService';
 import type {
   AdminStatisticsResponse,
@@ -29,6 +29,14 @@ import type {
 } from '../services/statistics/StatisticsService';
 
 const { Title, Text } = Typography;
+
+function parseMonthLabel(label: string): number {
+  // label dạng "tháng 08, 2026" -> lấy ra tháng và năm để tính key sắp xếp
+  const match = label.match(/(\d{1,2}).*?(\d{4})/);
+  if (!match) return 0;
+  const [, month, year] = match;
+  return Number(year) * 12 + Number(month);
+}
 
 export default function StatisticsDashboard() {
   const [loading, setLoading] = useState(true);
@@ -70,6 +78,14 @@ export default function StatisticsDashboard() {
     { key: 'pdf', label: 'PDF', icon: <FilePdfOutlined /> },
     { key: 'docx', label: 'Word (.docx)', icon: <FileWordOutlined /> },
   ];
+
+  const CHART_COLORS = {
+    primary: '#5B8FF9',
+    primaryLight: '#95D5F5',
+    success: '#5AD8A6',
+    danger: '#FF9845',
+    gradient: ['l(90) 0:#BAE7FF 1:#1677FF'], // gradient dọc cho cột
+  }
 
   return (
     <div style={{ padding: 24 }}>
@@ -157,21 +173,95 @@ export default function StatisticsDashboard() {
       </Row>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
-        <Col xs={24} md={24}>
+        <Col xs={24} md={14}>
           <Card title="Đề tài đăng ký theo tháng" loading={loading}>
             {data && (
               <Column
-                data={data.monthlyTrend}
+                data={[...data.monthlyTrend].sort(
+                  (a, b) => parseMonthLabel(a.month) - parseMonthLabel(b.month),
+                )}
                 xField="month"
                 yField="count"
-                height={200}
-                columnStyle={{ radius: [4, 4, 0, 0] }}
-                color="#378ADD"
+                height={260}
+                style={{
+                  radius: 6,
+                  fill: 'l(90) 0:#BAE7FF 1:#1677FF',
+                }}
+                maxColumnWidth={48}
+                label={{
+                  position: 'top',
+                  offsetY: -8,
+                  style: {
+                    fill: '#262626',
+                    fontSize: 14,
+                    fontWeight: 700,
+                  },
+                }}
+                axis={{
+                  x: {
+                    labelFill: '#000000',
+                    labelFontSize: 13,
+                    labelFontWeight: 500,
+                    lineStroke: '#e8e8e8',
+                  },
+                  y: {
+                    labelFill: '#000000',
+                    labelFontSize: 13,
+                    labelFontWeight: 600,
+                    gridStroke: '#f0f0f0',
+                  },
+                }}
+                tooltip={{
+                  title: 'month',
+                  items: [
+                    {
+                      field: 'count',
+                      name: 'Số đề tài đăng ký',
+                      valueFormatter: (value: number) => `${value} đề tài`,
+                    },
+                  ],
+                }}
+                interaction={{
+                  elementHighlight: true,
+                }}
               />
             )}
           </Card>
         </Col>
-        
+
+        <Col xs={24} md={10}>
+          <Card title="Tỷ lệ trạng thái đề tài" loading={loading}>
+            {data && (
+              <Pie
+                data={[
+                  { type: 'Đang thực hiện', value: data.overview.inProgress },
+                  { type: 'Hoàn thành', value: data.overview.completed },
+                  { type: 'Trễ hạn', value: data.overview.overdue },
+                ]}
+                angleField="value"
+                colorField="type"
+                height={260}
+                radius={0.8}
+                innerRadius={0.6}
+                color={[CHART_COLORS.primary, CHART_COLORS.success, CHART_COLORS.danger]}
+                label={{
+                  type: 'inner',
+                  offset: '-30%',
+                  content: ({ percent }: { percent: number }) => `${(percent * 100).toFixed(0)}%`,
+                  style: { fill: '#fff', fontSize: 12, textAlign: 'center' },
+                }}
+                statistic={{
+                  title: false,
+                  content: {
+                    style: { fontSize: 20, fontWeight: 600, color: '#262626' },
+                    content: `${data.overview.totalTopics}`,
+                  },
+                }}
+                legend={{ position: 'bottom' }}
+              />
+            )}
+          </Card>
+        </Col>
       </Row>
 
       {data && data.overdueTopics.length > 0 && (

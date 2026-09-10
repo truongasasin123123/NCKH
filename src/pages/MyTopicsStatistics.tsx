@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Card, Steps, Tag, Typography, Alert, Space, message, Empty, Row, Col, Statistic, Button, Dropdown } from 'antd';
+import { Card, Steps, Tag, Typography, Alert, Space, message, Empty, Row, Col, Statistic, Button, Dropdown, Table } from 'antd';
 import { ClockCircleOutlined, ExclamationCircleOutlined, DownloadOutlined, FileExcelOutlined, FilePdfOutlined, FileWordOutlined } from '@ant-design/icons';
 import { exportMyTopicsReport, getMyStatistics } from '../services/statistics/StatisticsService';
 import type { ExportFormat, OwnerStatisticsResponse, TopicStatus } from '../services/statistics/StatisticsService';
+import type { ColumnsType } from 'antd/es/table';
 
 const { Title, Text } = Typography;
 
@@ -22,7 +23,7 @@ const MILESTONE_STEP_STATUS: Record<string, 'finish' | 'process' | 'wait'> = {
 export default function MyTopicsStatistics() {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
-  const [showAllTopics, setShowAllTopics] = useState(false);
+
   const [data, setData] = useState<OwnerStatisticsResponse | null>(null);
 
   useEffect(() => {
@@ -34,7 +35,6 @@ export default function MyTopicsStatistics() {
     try {
       const res = await getMyStatistics();
       setData(res);
-      setShowAllTopics(false);
     } catch (err) {
       message.error('Không tải được dữ liệu thống kê');
     } finally {
@@ -61,7 +61,7 @@ export default function MyTopicsStatistics() {
     completed: topics.filter((topic) => topic.status === 'completed').length,
     overdue: topics.filter((topic) => topic.status === 'overdue').length,
   };
-  const visibleTopics = showAllTopics ? topics : topics.slice(0, 3);
+
 
   return (
     <div style={{ padding: 24 }}>
@@ -70,11 +70,13 @@ export default function MyTopicsStatistics() {
           <Title level={4} style={{ margin: 0 }}>Thống kê đề tài của tôi</Title>
           <Text type="secondary">Tổng quan tiến độ và mốc thời gian các đề tài bạn tham gia hoặc hướng dẫn</Text>
         </div>
-        <Dropdown menu={{ items: [
-          { key: 'excel', label: 'Excel (.xlsx)', icon: <FileExcelOutlined /> },
-          { key: 'pdf', label: 'PDF', icon: <FilePdfOutlined /> },
-          { key: 'docx', label: 'Word (.docx)', icon: <FileWordOutlined /> },
-        ], onClick: ({ key }) => handleExport(key as ExportFormat) }} disabled={exporting}>
+        <Dropdown menu={{
+          items: [
+            { key: 'excel', label: 'Excel (.xlsx)', icon: <FileExcelOutlined /> },
+            { key: 'pdf', label: 'PDF', icon: <FilePdfOutlined /> },
+            { key: 'docx', label: 'Word (.docx)', icon: <FileWordOutlined /> },
+          ], onClick: ({ key }) => handleExport(key as ExportFormat)
+        }} disabled={exporting}>
           <Button type="primary" icon={<DownloadOutlined />} loading={exporting}>Xuất báo cáo</Button>
         </Dropdown>
       </Space>
@@ -106,60 +108,82 @@ export default function MyTopicsStatistics() {
         </Space>
       </Card>
 
-      <Card title={`Đề tài của tôi (${overview.total})`} loading={loading}>
-        {!loading && topics.length === 0 && (
-          <Empty description="Bạn chưa chủ trì đề tài nào" />
-        )}
-        <Space direction="vertical" style={{ width: '100%' }} size={16}>
-        {visibleTopics.map((topic) => (
-          <Card key={topic.id} size="small">
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: 16,
-              }}
-            >
-              <Text strong>{topic.topicName}</Text>
-              <Tag color={STATUS_LABEL[topic.status].color}>{STATUS_LABEL[topic.status].text}</Tag>
-            </div>
-
-            <Steps
-              size="small"
-              items={topic.milestones.map((m) => ({
-                title: m.name,
-                status: MILESTONE_STEP_STATUS[m.status],
-              }))}
-            />
-
-            {topic.nextDeadline && (
-              <div
-                style={{
-                  marginTop: 16,
-                  paddingTop: 12,
-                  borderTop: '1px solid #f0f0f0',
-                  textAlign: 'right',
-                }}
-              >
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Hạn tiếp theo: {new Date(topic.nextDeadline).toLocaleDateString('vi-VN')}
-                </Text>
-              </div>
-            )}
-          </Card>
-        ))}
-        {topics.length > 3 && (
-          <div style={{ width: '100%', textAlign: 'center', paddingTop: 4 }}>
-            <Button
-              onClick={() => setShowAllTopics((value) => !value)}
-              style={{ borderRadius: 20, minWidth: 170, color: '#1677ff', borderColor: '#91caff' }}
-            >
-              {showAllTopics ? 'Thu gọn' : `Xem thêm ${topics.length - 3} đề tài`}
-            </Button>
-          </div>
-        )}
-        </Space>
+      <Card
+        title={`Đề tài của tôi (${overview.total})`}
+        loading={loading}
+        extra={
+          <Button
+            icon={<FileExcelOutlined />}
+            onClick={() => handleExport('excel')}
+            loading={exporting}
+          >
+            Xuất Excel
+          </Button>
+        }
+      >
+        <Table
+          rowKey="id"
+          dataSource={topics}
+          locale={{ emptyText: <Empty description="Bạn chưa chủ trì đề tài nào" /> }}
+          pagination={{ pageSize: 5, hideOnSinglePage: true }}
+          columns={
+            [
+              {
+                title: 'Tên đề tài',
+                dataIndex: 'topicName',
+                render: (value: string) => <Text strong>{value}</Text>,
+              },
+              {
+                title: 'Trạng thái',
+                dataIndex: 'status',
+                width: 150,
+                filters: [
+                  { text: 'Đang thực hiện', value: 'in_progress' },
+                  { text: 'Hoàn thành', value: 'completed' },
+                  { text: 'Trễ hạn', value: 'overdue' },
+                ],
+                onFilter: (value, record) => record.status === value,
+                render: (status: TopicStatus) => (
+                  <Tag color={STATUS_LABEL[status].color}>{STATUS_LABEL[status].text}</Tag>
+                ),
+              },
+              {
+                title: 'Tiến độ mốc',
+                dataIndex: 'milestones',
+                width: 150,
+                render: (milestones: OwnerStatisticsResponse['myTopics'][number]['milestones']) => {
+                  const done = milestones.filter((m) => m.status === 'completed').length;
+                  return <Text type="secondary">{done}/{milestones.length} mốc hoàn thành</Text>;
+                },
+              },
+              {
+                title: 'Hạn tiếp theo',
+                dataIndex: 'nextDeadline',
+                width: 150,
+                align: 'right',
+                render: (value?: string) =>
+                  value ? (
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {new Date(value).toLocaleDateString('vi-VN')}
+                    </Text>
+                  ) : (
+                    <Text type="secondary" style={{ fontSize: 12 }}>—</Text>
+                  ),
+              },
+            ] as ColumnsType<OwnerStatisticsResponse['myTopics'][number]>
+          }
+          expandable={{
+            expandedRowRender: (topic) => (
+              <Steps
+                size="small"
+                items={topic.milestones.map((m) => ({
+                  title: m.name,
+                  status: MILESTONE_STEP_STATUS[m.status],
+                }))}
+              />
+            ),
+          }}
+        />
       </Card>
     </div>
   );

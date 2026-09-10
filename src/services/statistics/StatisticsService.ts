@@ -4,6 +4,8 @@ import ApiAxios from '../../axios.config';
 
 export type TopicStatus = 'in_progress' | 'completed' | 'overdue';
 
+export type CouncilTopicStatus = 'pending' | 'approved' | 'rejected';
+
 export interface StatisticsOverview {
   totalTopics: number;
   inProgress: number;
@@ -73,6 +75,49 @@ export interface StatisticsQueryParams {
 }
 
 export type ExportFormat = 'excel' | 'pdf' | 'docx';
+
+
+export interface CouncilTopic {
+  id: string;
+  topicName: string;
+  status: CouncilTopicStatus;
+  councilTypeName: string;   // loại hội đồng (Xét duyệt, Nghiệm thu...)
+  submittedDate: string;
+  processedDate: string | null;
+}
+
+export interface CouncilStatisticsOverview {
+  totalTopics: number;
+  pending: number;
+  approved: number;
+}
+
+export interface CouncilStatisticsResponse {
+  overview: CouncilStatisticsOverview;
+  topics: CouncilTopic[];
+}
+
+export const getCouncilStatistics = async (): Promise<CouncilStatisticsResponse> => {
+  const res = await ApiAxios.get('/statistics/council');
+  return res.data;
+};
+
+export const exportCouncilTopicsReport = async (format: ExportFormat): Promise<void> => {
+  const res = await ApiAxios.get('/statistics/council/export', {
+    params: { format },
+    responseType: 'blob',
+  });
+  const extensionMap: Record<ExportFormat, string> = { excel: 'xlsx', pdf: 'pdf', docx: 'docx' };
+  const blob = new Blob([res.data]);
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `thong-ke-de-tai-hoi-dong.${extensionMap[format]}`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+};
 
 // ===== API calls =====
 

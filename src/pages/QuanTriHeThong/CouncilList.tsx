@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Form, Input, Modal, Popconfirm, Select, Space, Table, Tabs, Tag, message } from 'antd';
+import { Button, Form, Input, Modal, Popconfirm, Select, Space, Table, Tabs, Tag, message, DatePicker, Radio } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -14,8 +14,10 @@ import type {
   Council,
   CouncilAssignmentRequest,
   CouncilBusiness,
+  CouncilMeetingType,
 } from '../../services/council/CouncilService';
 import CouncilRequestDetailModal from './CouncilRequestDetailModal';
+import type { Dayjs } from 'dayjs';
 
 const businessOptions: Array<{ value: CouncilBusiness; label: string }> = [
   { value: 'approval', label: 'Xét duyệt đề tài' },
@@ -101,7 +103,11 @@ const CouncilList = () => {
   const submitType = async () => {
     try {
       const values = await typeForm.validateFields();
-      await createCouncilType(values);
+      const payload = {
+        ...values,
+        ThoiGianHop: values.ThoiGianHop ? (values.ThoiGianHop as Dayjs).toISOString() : undefined,
+      };
+      await createCouncilType(payload);
       message.success('Đã thêm loại hội đồng');
       await loadCouncils();
       setTypeOpen(false);
@@ -248,8 +254,33 @@ const CouncilList = () => {
             dataIndex: 'TenHoiDong',
             render: (name: string, council) => <Button type="link" onClick={() => navigate(`/mainhome/admin/councils/${council.MaHoiDong}`)}>{name}</Button>,
           },
-          { title: 'Loại hội đồng', render: (_, council) => <Tag>{council.LoaiHoiDong?.TenLoaiHoiDong || '—'}</Tag> },
-          { title: 'Mô tả', dataIndex: 'MoTa', render: renderMoTa },
+          {
+            title: 'Loại hội đồng', render: (_, council) => <Tag>{council.LoaiHoiDong?.TenLoaiHoiDong || '—'}</Tag>
+          },
+          {
+            title: 'Thông tin cuộc họp',
+            render: (_, council) => {
+              const type = council.LoaiHoiDong;
+              if (!type?.ThoiGianHop && !type?.HinhThucHop) return '—';
+              return (
+                <div style={{ fontSize: 13 }}>
+                  {type.ThoiGianHop && (
+                    <div>🕒 {new Date(type.ThoiGianHop).toLocaleString('vi-VN')}</div>
+                  )}
+                  {type.HinhThucHop === 'online' && type.LinkHop && (
+                    <div>
+                      📹 <a href={type.LinkHop} target="_blank" rel="noopener noreferrer">{type.LinkHop}</a>
+                    </div>
+                  )}
+                  {type.HinhThucHop === 'offline' && type.DiaDiem && (
+                    <div>📍 {type.DiaDiem}</div>
+                  )}
+                </div>
+              );
+            },
+          },
+          { title: 'Ghi chú', dataIndex: 'MoTa', render: renderMoTa },
+
           {
             title: 'Thao tác',
             render: (_, council) => (
@@ -288,16 +319,59 @@ const CouncilList = () => {
       />
 
       <Modal title="Thêm loại hội đồng" open={typeOpen} onCancel={() => setTypeOpen(false)} onOk={submitType} okText="Thêm" cancelText="Hủy" destroyOnClose>
-        <Form form={typeForm} layout="vertical" initialValues={{ NghiepVu: 'other' }}>
-          <Form.Item name="TenLoaiHoiDong" label="Tên loại hội đồng" rules={[{ required: true, message: 'Vui lòng nhập tên loại' }]}><Input /></Form.Item>
-          <Form.Item name="NghiepVu" label="Nghiệp vụ" rules={[{ required: true }]}><Select options={businessOptions} /></Form.Item>
-          <Form.Item name="MoTa" label="Mô tả">
-            <Input.TextArea
-              rows={4}
-              placeholder={
-                'Ví dụ:\nNgày họp: 15/09/2026 - 08:00\nĐịa điểm: Phòng họp A2, Học viện Nông nghiệp Việt Nam (họp offline)\nLink họp online: https://meet.google.com/xxx-xxxx-xxx'
-              }
+        <Form form={typeForm} layout="vertical" initialValues={{ NghiepVu: 'other', HinhThucHop: 'offline' }}>
+          <Form.Item name="TenLoaiHoiDong" label="Tên loại hội đồng" rules={[{ required: true, message: 'Vui lòng nhập tên loại' }]}>
+            <Input />
+          </Form.Item>
+
+          <Form.Item name="NghiepVu" label="Nghiệp vụ" rules={[{ required: true }]}>
+            <Select options={businessOptions} />
+          </Form.Item>
+
+          <Form.Item name="ThoiGianHop" label="Thời gian họp">
+            <DatePicker
+              showTime={{ format: 'HH:mm' }}
+              format="DD/MM/YYYY HH:mm"
+              style={{ width: '100%' }}
+              placeholder="Chọn ngày giờ họp"
             />
+          </Form.Item>
+
+          <Form.Item name="HinhThucHop" label="Hình thức họp" rules={[{ required: true }]}>
+            <Radio.Group>
+              <Radio.Button value="offline">Họp trực tiếp</Radio.Button>
+              <Radio.Button value="online">Họp online</Radio.Button>
+            </Radio.Group>
+          </Form.Item>
+
+          <Form.Item shouldUpdate={(prev, curr) => prev.HinhThucHop !== curr.HinhThucHop} noStyle>
+            {({ getFieldValue }) => {
+              const hinhThuc: CouncilMeetingType = getFieldValue('HinhThucHop');
+              if (hinhThuc === 'online') {
+                return (
+                  <Form.Item
+                    name="LinkHop"
+                    label="Link họp online"
+                    rules={[{ required: true, message: 'Vui lòng nhập link họp' }]}
+                  >
+                    <Input placeholder="https://meet.google.com/xxx-xxxx-xxx" />
+                  </Form.Item>
+                );
+              }
+              return (
+                <Form.Item
+                  name="DiaDiem"
+                  label="Địa điểm họp"
+                  rules={[{ required: true, message: 'Vui lòng nhập địa điểm họp' }]}
+                >
+                  <Input placeholder="Ví dụ: Phòng họp A2, Học viện Nông nghiệp Việt Nam" />
+                </Form.Item>
+              );
+            }}
+          </Form.Item>
+
+          <Form.Item name="MoTa" label="Ghi chú thêm">
+            <Input.TextArea rows={3} placeholder="Nội dung/ghi chú khác cho buổi họp (không bắt buộc)" />
           </Form.Item>
         </Form>
       </Modal>

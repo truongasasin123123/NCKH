@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Button, Card, Collapse, Empty, Form, Input, Modal, Space, Spin, Tag, Typography, message } from 'antd';
 import { ArrowLeftOutlined, DownloadOutlined, FileTextOutlined } from '@ant-design/icons';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { downloadDocument } from '../../services/topic/DocumentsService';
-import { getBaoCaoTheoDeTai, getDeTaiDuocGan, nhanXetBaoCao } from '../../services/progress/ProgressService';
+import { getBaoCaoTheoDeTai, getDeTaiDuocGan, getDeTaiTheoHoiDong, nhanXetBaoCao } from '../../services/progress/ProgressService';
 import type { BaoCaoTienDo } from '../../services/progress/ProgressService';
 import ReportConclusionModal from '../../components/progress-management/ReportConclusionModal';
 
@@ -20,6 +20,8 @@ const statusColor: Record<string, string> = {
 export default function ReportDetail() {
   const { maDT } = useParams<{ maDT: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const partialReportId = Number(searchParams.get('reportId')) || undefined;
   const [reports, setReports] = useState<BaoCaoTienDo[]>([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<BaoCaoTienDo>();
@@ -35,23 +37,32 @@ export default function ReportDetail() {
       setLoading(true);
       const [reportData, projects] = await Promise.all([
         getBaoCaoTheoDeTai(maDT),
-        getDeTaiDuocGan(),
+        partialReportId ? getDeTaiTheoHoiDong() : getDeTaiDuocGan(),
       ]);
-      setReports(reportData);
-      const membership = projects.find((project) => project.MaDT === maDT);
+      const visibleReports = partialReportId
+        ? reportData.filter((report) => report.Id === partialReportId && report.LoaiBaoCao === 'Nghiệm thu từng phần')
+        : reportData;
+      setReports(visibleReports);
+      const membership = projects.find((project) => (
+        project.MaDT === maDT
+        && (!partialReportId || project.MaBaoCaoTienDo === partialReportId)
+      ));
       const normalizedPosition = membership?.VaiTroTrongHoiDong
         ?.normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase()
         .replace(/đ/g, 'd');
       setCanFinalize(
-        membership?.NghiepVuHoiDong === 'monitoring'
-        && Boolean(normalizedPosition?.includes('chu tich')),
+        partialReportId
+          ? membership?.LoaiNghiemThu === 'tung-phan'
+            && Boolean(normalizedPosition?.includes('chu tich') || normalizedPosition?.includes('thu ky'))
+          : membership?.NghiepVuHoiDong === 'monitoring'
+            && Boolean(normalizedPosition?.includes('chu tich')),
       );
     }
     catch { message.error('Không tải được báo cáo tiến độ'); }
     finally { setLoading(false); }
-  }, [maDT]);
+  }, [maDT, partialReportId]);
   useEffect(() => { load(); }, [load]);
 
   const submitReview = async () => {
@@ -91,7 +102,7 @@ export default function ReportDetail() {
             <Space>
               <FileTextOutlined style={{ color: '#1677ff' }} />
               <Typography.Title level={4} style={{ margin: 0 }}>
-                Báo cáo tiến độ
+                {partialReportId ? 'Hồ sơ nghiệm thu từng phần' : 'Báo cáo tiến độ'}
               </Typography.Title>
             </Space>
           }
@@ -108,13 +119,13 @@ export default function ReportDetail() {
                   <Space>
                     <b>{report.MocDeTai?.TenMoc || report.KyBaoCao}</b>
                     <Tag color={statusColor[report.TrangThai]}>{report.TrangThai}</Tag>
-                    <span>{report.TienDoBaoCao ?? 0}%</span>
+                    {report.LoaiBaoCao !== 'Nghiệm thu từng phần' && <span>{report.TienDoBaoCao ?? 0}%</span>}
                   </Space>
                 ),
                 children: (
                   <div style={{ lineHeight: 1.8 }}>
                     <p><b>Nội dung:</b> {report.NoiDungBaoCao}</p>
-                    <p><b>Khó khăn:</b> {report.KhoKhan || '—'}</p>
+                    {report.LoaiBaoCao !== 'Nghiệm thu từng phần' && <p><b>Khó khăn:</b> {report.KhoKhan || '—'}</p>}
                     <p><b>Đề xuất:</b> {report.DeXuat || '—'}</p>
 
                     <div style={{ margin: '14px 0' }}>

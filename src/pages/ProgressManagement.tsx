@@ -42,9 +42,12 @@ const ProgressManagement: React.FC = () => {
     baoCaoForm, submittingBaoCao, baoCaoFiles, setBaoCaoFiles,
     editingBaoCao, loaiBaoCao, setLoaiBaoCao,
     resetBaoCaoModal, handleLuuBaoCao, handleSubmitExistingReport,
+    handleRequestPartialAcceptanceCouncil,
     handleOpenCreateBaoCao, handleEditBaoCao, handleDeleteBaoCao, handleDeleteBaoCaoDocument,
     downloadDocument,
   } = useProgressManagement();
+  const progressReports = baoCaoList.filter((report) => report.LoaiBaoCao !== 'Nghiệm thu từng phần');
+  const partialAcceptanceReports = baoCaoList.filter((report) => report.LoaiBaoCao === 'Nghiệm thu từng phần');
 
   return (
     <Content style={{ padding: 24 }}>
@@ -150,7 +153,7 @@ const ProgressManagement: React.FC = () => {
             <TabPane tab="Báo cáo tiến độ" key="baocao">
               <BaoCaoTab
                 canManageMoc={canManageMoc}
-                baoCaoList={baoCaoList}
+                baoCaoList={progressReports}
                 baoCaoLoading={baoCaoLoading}
                 submittingBaoCao={submittingBaoCao}
                 onOpenCreate={handleOpenCreateBaoCao}
@@ -159,6 +162,25 @@ const ProgressManagement: React.FC = () => {
                 onDeleteDocument={handleDeleteBaoCaoDocument}
                 onSubmitExisting={handleSubmitExistingReport}
                 downloadDocument={downloadDocument}
+              />
+            </TabPane>
+          )}
+
+          {!isCommitteeRole && (
+            <TabPane tab="Nghiệm thu từng phần" key="nghiem-thu-tung-phan">
+              <BaoCaoTab
+                canManageMoc={canManageMoc}
+                baoCaoList={partialAcceptanceReports}
+                baoCaoLoading={baoCaoLoading}
+                submittingBaoCao={submittingBaoCao}
+                onOpenCreate={() => handleOpenCreateBaoCao('Nghiệm thu từng phần')}
+                onEdit={handleEditBaoCao}
+                onDelete={handleDeleteBaoCao}
+                onDeleteDocument={handleDeleteBaoCaoDocument}
+                onSubmitExisting={handleSubmitExistingReport}
+                onRequestCouncil={handleRequestPartialAcceptanceCouncil}
+                downloadDocument={downloadDocument}
+                partialAcceptance
               />
             </TabPane>
           )}
@@ -232,6 +254,7 @@ const ProgressManagement: React.FC = () => {
         baoCaoFiles={baoCaoFiles}
         setBaoCaoFiles={setBaoCaoFiles}
         submittingBaoCao={submittingBaoCao}
+        partialAcceptance={loaiBaoCao === 'Nghiệm thu từng phần'}
         onFinish={handleLuuBaoCao}
       />
     </Content>

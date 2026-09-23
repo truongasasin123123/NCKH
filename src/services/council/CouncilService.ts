@@ -37,6 +37,7 @@ export interface Council {
 export interface CouncilAssignmentRequest {
   Id: number;
   MaDT: string;
+  MaBaoCaoTienDo?: number;
   MaLoaiHoiDong: number;
   MaHoiDong?: number;
   TaiKhoanNguoiGui: string;

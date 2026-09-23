@@ -18,11 +18,12 @@ export type TrangThaiBaoCao =
   | 'Đạt'
   | 'Không đạt';
 export type KetLuanBaoCao = 'accepted' | 'supplement' | 'adjustment' | 'liquidation';
-export type LoaiBaoCao = 'Theo mốc' | 'Định kỳ' | 'Đột xuất';
+export type LoaiBaoCao = 'Theo mốc' | 'Định kỳ' | 'Đột xuất' | 'Nghiệm thu từng phần';
 export interface BaoCaoTienDo {
   Id: number; MaDT: string; MaMoc?: number; LoaiBaoCao: LoaiBaoCao; KyBaoCao: string; NoiDungBaoCao: string;
   TienDoBaoCao?: number; KhoKhan?: string; DeXuat?: string; TaiKhoanNguoiGui: string;
   TrangThai: TrangThaiBaoCao; NhanXetHoiDong?: string; NgayGui?: string;
+  MaHoiDongNghiemThu?: number; TrangThaiPhanCongHoiDong?: 'Chờ xử lý' | 'Đã phân công' | 'Từ chối';
   TaiKhoanHoiDong?: string; NgayPhanHoi?: string;
   NguoiHoiDong?: { TenDayDu?: string; TaiKhoan?: string };
   MocDeTai?: MocTienDo;
@@ -44,7 +45,7 @@ export interface CapNhatBaoCaoDto {
   KhoKhan?: string;
   DeXuat?: string;
 }
-export interface DeTaiTheoDoi { MaDT: string; MaHoiDong?: number; TenDT: string; ChuNhiem: string; Khoa: string; TienDo: number; TrangThai: string; TenHoiDong?: string; NghiepVuHoiDong?: string; VaiTroTrongHoiDong?: string; ThanhVienHoiDong?: Array<{ TaiKhoan: string; TenDayDu: string; ChucDanh: string }> }
+export interface DeTaiTheoDoi { MaDT: string; MaHoiDong?: number; MaBaoCaoTienDo?: number; TenDT: string; ChuNhiem: string; Khoa: string; TienDo: number; TrangThai: string; TenHoiDong?: string; NghiepVuHoiDong?: string; LoaiNghiemThu?: 'toan-bo' | 'tung-phan'; VaiTroTrongHoiDong?: string; ThanhVienHoiDong?: Array<{ TaiKhoan: string; TenDayDu: string; ChucDanh: string }> }
 
 export const getMocTienDoByTopic = async (maDT: string): Promise<MocTienDo[]> =>
   (await ApiAxios.get('/progress/getprogress', { params: { MaDT: maDT } })).data;
@@ -68,6 +69,8 @@ export const xoaBaoCaoTienDo = async (id: number) => {
 };
 export const guiBaoCaoTienDo = async (id: number): Promise<BaoCaoTienDo> =>
   (await ApiAxios.post(`/progress-reports/${id}/submit`)).data;
+export const yeuCauHoiDongNghiemThuTungPhan = async (id: number) =>
+  (await ApiAxios.post(`/progress-reports/${id}/council-request`)).data;
 export const nhanXetBaoCao = async (id: number, note: string, decision?: 'accepted' | 'supplement' | 'rejected') =>
   (await ApiAxios.post(`/progress-reports/${id}/review`, { decision, note })).data;
 export const chotKetLuanBaoCao = async (id: number, decision: KetLuanBaoCao, note: string) =>

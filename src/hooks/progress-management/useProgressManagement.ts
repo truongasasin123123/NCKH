@@ -11,7 +11,7 @@ import {
 import type { TaiLieu } from '../../services/topic/DocumentsService';
 import {
   getTopicProgress, createMocTienDo, updateMocTienDo, deleteMocTienDo, getMemberById,
-  capNhatBaoCaoTienDo, getBaoCaoTheoDeTai, guiBaoCaoTienDo, taoBaoCaoTienDo, xoaBaoCaoTienDo, getDeTaiDuocGan,
+  capNhatBaoCaoTienDo, getBaoCaoTheoDeTai, guiBaoCaoTienDo, taoBaoCaoTienDo, xoaBaoCaoTienDo, getDeTaiDuocGan, yeuCauHoiDongNghiemThuTungPhan,
 } from '../../services/progress/ProgressService';
 import type { MocTienDo, CapNhatTienDo, ThanhVienMocDT, BaoCaoTienDo, LoaiBaoCao } from '../../services/progress/ProgressService';
 
@@ -71,7 +71,7 @@ export const useProgressManagement = () => {
     || (user?.VaiTro || '').toLowerCase().includes('hoidong');
 
   useEffect(() => {
-    if (isCommitteeRole && activeTab === 'baocao') {
+    if (isCommitteeRole && ['baocao', 'nghiem-thu-tung-phan'].includes(activeTab)) {
       setActiveTab('timeline');
     }
   }, [isCommitteeRole, activeTab]);
@@ -112,7 +112,7 @@ export const useProgressManagement = () => {
   };
 
   useEffect(() => {
-    if (activeTab === 'baocao' && maDTToUse) {
+    if (['baocao', 'nghiem-thu-tung-phan'].includes(activeTab) && maDTToUse) {
       fetchBaoCao();
     }
   }, [activeTab, maDTToUse]);
@@ -132,8 +132,8 @@ export const useProgressManagement = () => {
         ? await capNhatBaoCaoTienDo(editingBaoCao.Id, values)
         : await taoBaoCaoTienDo(maDTToUse, {
           LoaiBaoCao: values.LoaiBaoCao,
-          MaMoc: values.LoaiBaoCao === 'Theo mốc' ? values.MaMoc : undefined,
-          KyBaoCao: values.LoaiBaoCao === 'Theo mốc' ? undefined : values.KyBaoCao,
+          MaMoc: ['Theo mốc', 'Nghiệm thu từng phần'].includes(values.LoaiBaoCao) ? values.MaMoc : undefined,
+          KyBaoCao: ['Theo mốc', 'Nghiệm thu từng phần'].includes(values.LoaiBaoCao) ? undefined : values.KyBaoCao,
           NoiDungBaoCao: values.NoiDungBaoCao,
           TienDoBaoCao: values.TienDoBaoCao,
           KhoKhan: values.KhoKhan,
@@ -169,9 +169,23 @@ export const useProgressManagement = () => {
     }
   };
 
-  const handleOpenCreateBaoCao = () => {
+  const handleRequestPartialAcceptanceCouncil = async (reportId: number) => {
+    try {
+      setSubmittingBaoCao(true);
+      await yeuCauHoiDongNghiemThuTungPhan(reportId);
+      message.success('Đã gửi yêu cầu phân công Hội đồng nghiệm thu đến Admin');
+      await fetchBaoCao();
+    } catch (error: any) {
+      message.error(error.response?.data?.message || 'Không thể gửi yêu cầu Hội đồng');
+    } finally {
+      setSubmittingBaoCao(false);
+    }
+  };
+
+  const handleOpenCreateBaoCao = (type: LoaiBaoCao = 'Theo mốc') => {
     resetBaoCaoModal();
-    baoCaoForm.setFieldValue('LoaiBaoCao', 'Theo mốc');
+    setLoaiBaoCao(type);
+    baoCaoForm.setFieldValue('LoaiBaoCao', type);
     setIsBaoCaoModalVisible(true);
   };
 
@@ -518,6 +532,7 @@ export const useProgressManagement = () => {
     baoCaoForm, submittingBaoCao, baoCaoFiles, setBaoCaoFiles,
     editingBaoCao, loaiBaoCao, setLoaiBaoCao,
     resetBaoCaoModal, handleLuuBaoCao, handleSubmitExistingReport,
+    handleRequestPartialAcceptanceCouncil,
     handleOpenCreateBaoCao, handleEditBaoCao, handleDeleteBaoCao, handleDeleteBaoCaoDocument,
     // tiện ích
     downloadDocument,

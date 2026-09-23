@@ -15,6 +15,8 @@ interface BaoCaoTabProps {
   onDeleteDocument: (documentId: number) => void;
   onSubmitExisting: (reportId: number) => void;
   downloadDocument: (maTL: number, tenFile: string) => void;
+  partialAcceptance?: boolean;
+  onRequestCouncil?: (reportId: number) => void;
 }
 
 /**
@@ -23,8 +25,9 @@ interface BaoCaoTabProps {
  */
 const BaoCaoTab: React.FC<BaoCaoTabProps> = ({
   canManageMoc, baoCaoList, baoCaoLoading, submittingBaoCao,
-  onOpenCreate, onEdit, onDelete, onDeleteDocument, onSubmitExisting, downloadDocument,
+  onOpenCreate, onEdit, onDelete, onDeleteDocument, onSubmitExisting, downloadDocument, partialAcceptance = false, onRequestCouncil,
 }) => {
+  const itemName = partialAcceptance ? 'hồ sơ nghiệm thu' : 'báo cáo';
   return (
     <>
       {canManageMoc && (
@@ -34,7 +37,7 @@ const BaoCaoTab: React.FC<BaoCaoTabProps> = ({
           onClick={onOpenCreate}
           style={{ marginBottom: 16 }}
         >
-          Tạo báo cáo tiến độ
+          {partialAcceptance ? 'Tạo hồ sơ nghiệm thu mốc' : 'Tạo báo cáo tiến độ'}
         </Button>
       )}
 
@@ -45,7 +48,7 @@ const BaoCaoTab: React.FC<BaoCaoTabProps> = ({
             <Space size="middle">
               <span style={{ fontWeight: 500 }}>{bc.KyBaoCao}</span>
               <Tag color={bc.LoaiBaoCao === 'Theo mốc' ? 'blue' : 'purple'}>{bc.LoaiBaoCao}</Tag>
-              <span>{bc.TienDoBaoCao}%</span>
+              {bc.LoaiBaoCao !== 'Nghiệm thu từng phần' && bc.TienDoBaoCao !== undefined && <span>{bc.TienDoBaoCao}%</span>}
               <span style={{ color: '#888' }}>
                 {bc.NgayGui ? dayjs(bc.NgayGui).format('DD/MM/YYYY') : 'Chưa gửi'}
               </span>
@@ -121,16 +124,20 @@ const BaoCaoTab: React.FC<BaoCaoTabProps> = ({
                     <Button onClick={() => onEdit(bc)}>Chỉnh sửa</Button>
                     {bc.TrangThai === 'Nháp' && <Button danger type="text" onClick={() => onDelete(bc)}>Xóa báo cáo</Button>}
                   </Space>
-                  <Button type="primary" icon={<SendOutlined />} loading={submittingBaoCao} onClick={() => onSubmitExisting(bc.Id)}>
-                    {bc.TrangThai === 'Yêu cầu bổ sung' ? 'Gửi lại báo cáo' : 'Gửi báo cáo'}
-                  </Button>
+                  {partialAcceptance && bc.TrangThaiPhanCongHoiDong !== 'Đã phân công' ? (
+                    <Button type="primary" loading={submittingBaoCao} disabled={bc.TrangThaiPhanCongHoiDong === 'Chờ xử lý'} onClick={() => onRequestCouncil?.(bc.Id)}>
+                      {bc.TrangThaiPhanCongHoiDong === 'Chờ xử lý' ? 'Đang chờ Admin xử lý' : 'Gửi yêu cầu Hội đồng'}
+                    </Button>
+                  ) : <Button type="primary" icon={<SendOutlined />} loading={submittingBaoCao} onClick={() => onSubmitExisting(bc.Id)}>
+                    {bc.TrangThai === 'Yêu cầu bổ sung' ? `Gửi lại ${itemName}` : `Gửi ${itemName}`}
+                  </Button>}
                 </div>
               )}
             </div>
           ),
         }))}
       />
-      {!baoCaoLoading && baoCaoList.length === 0 && <div>Chưa có báo cáo nào</div>}
+      {!baoCaoLoading && baoCaoList.length === 0 && <div>{partialAcceptance ? 'Chưa có hồ sơ nghiệm thu từng phần nào' : 'Chưa có báo cáo nào'}</div>}
     </>
   );
 };

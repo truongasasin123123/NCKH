@@ -199,7 +199,7 @@ const CouncilList = () => {
         dataSource={filteredRequests}
         pagination={{ pageSize: 10 }}
         columns={[
-          { title: 'Đề tài', render: (_, request) => request.DeTai?.TenDT || request.MaDT },
+          { title: 'Đề tài / hồ sơ', render: (_, request) => <>{request.DeTai?.TenDT || request.MaDT}{request.MaBaoCaoTienDo && <div style={{ color: '#8c8c8c', fontSize: 12 }}>Nghiệm thu từng phần · Hồ sơ #{request.MaBaoCaoTienDo}</div>}</> },
           {
             title: 'Loại hội đồng yêu cầu',
             render: (_, request) => <Tag color="purple">{request.LoaiHoiDong?.TenLoaiHoiDong || `Loại #${request.MaLoaiHoiDong}`}</Tag>,

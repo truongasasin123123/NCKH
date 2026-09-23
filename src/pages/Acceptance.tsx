@@ -12,6 +12,7 @@ import {
   Space,
   Spin,
   Tag,
+  Tabs,
   Upload,
   message,
 } from 'antd';
@@ -28,6 +29,8 @@ import {
 } from '../services/topic/AcceptanceService';
 import type { HoSoNghiemThu } from '../services/topic/AcceptanceService';
 import { getTopicById } from '../services/topic/TopicService';
+import { getBaoCaoTheoDeTai } from '../services/progress/ProgressService';
+import type { BaoCaoTienDo } from '../services/progress/ProgressService';
 
 const statusColor: Record<string, string> = {
   'Nháp': 'default',
@@ -49,6 +52,7 @@ export default function Acceptance() {
   const [scoreOpen, setScoreOpen] = useState(false);
   const [finalOpen, setFinalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [partialAcceptances, setPartialAcceptances] = useState<BaoCaoTienDo[]>([]);
 
   const [draftForm] = Form.useForm();
   const [scoreForm] = Form.useForm();
@@ -68,6 +72,8 @@ export default function Acceptance() {
       ]);
       setDossier(dossiers[0]);
       setProjectStatus(project.TrangThai);
+      const reports = await getBaoCaoTheoDeTai(maDT).catch(() => [] as BaoCaoTienDo[]);
+      setPartialAcceptances(reports.filter((report) => report.LoaiBaoCao === 'Nghiệm thu từng phần'));
     } catch (error: any) {
       message.error(error.response?.data?.message || 'Không tải được hồ sơ nghiệm thu');
     } finally {
@@ -175,6 +181,11 @@ export default function Acceptance() {
             </Tag>
           }
         >
+          <Tabs defaultActiveKey="final" items={[
+            {
+              key: 'final',
+              label: 'Nghiệm thu toàn bộ',
+              children: <>
           {!dossier ? (
             <Empty
               description={
@@ -284,6 +295,32 @@ export default function Acceptance() {
               )}
             </>
           )}
+              </>,
+            },
+            {
+              key: 'partial',
+              label: `Nghiệm thu từng phần${partialAcceptances.length ? ` (${partialAcceptances.length})` : ''}`,
+              children: partialAcceptances.length ? (
+                <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                  {partialAcceptances.map((report) => (
+                    <Card key={report.Id} size="small" style={{ borderColor: '#d9f7be' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start' }}>
+                        <div>
+                          <b>{report.MocDeTai ? `${report.MocDeTai.ThuTu}. ${report.MocDeTai.TenMoc}` : report.KyBaoCao}</b>
+                          <div style={{ color: '#8c8c8c', fontSize: 13, marginTop: 4 }}>Hồ sơ nghiệm thu theo mốc</div>
+                        </div>
+                        <Tag color={statusColor[report.TrangThai] || 'blue'}>{report.TrangThai}</Tag>
+                      </div>
+                      <div style={{ marginTop: 12 }}><b>Kết quả thực hiện:</b><p style={{ marginBottom: 0 }}>{report.NoiDungBaoCao}</p></div>
+                      {report.NhanXetHoiDong && <Card size="small" style={{ marginTop: 12, background: '#f6ffed' }}><b>Kết luận hội đồng:</b><br />{report.NhanXetHoiDong}</Card>}
+                    </Card>
+                  ))}
+                </Space>
+              ) : (
+                <Empty description="Chưa có hồ sơ nghiệm thu từng phần" />
+              ),
+            },
+          ]} />
         </Card>
 
         {/* Modal: tạo & gửi hồ sơ */}

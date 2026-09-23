@@ -126,6 +126,7 @@ export const useProgressManagement = () => {
 
   const handleLuuBaoCao = async (values: any) => {
     if (!maDTToUse) return;
+    let reportCreated = false;
     try {
       setSubmittingBaoCao(true);
       const report = editingBaoCao
@@ -139,6 +140,7 @@ export const useProgressManagement = () => {
           KhoKhan: values.KhoKhan,
           DeXuat: values.DeXuat,
         });
+      reportCreated = true;
       await Promise.all(baoCaoFiles.map((file) => uploadDocument({
         file,
         maDT: maDTToUse,
@@ -151,6 +153,10 @@ export const useProgressManagement = () => {
       await fetchBaoCao();
     } catch (error: any) {
       message.error(error.response?.data?.message || 'Gửi báo cáo thất bại');
+      // Nếu tạo báo cáo thất bại (chưa tạo được), xóa file đã chọn để tránh tồn đọng
+      if (!reportCreated) {
+        setBaoCaoFiles([]);
+      }
     } finally {
       setSubmittingBaoCao(false);
     }

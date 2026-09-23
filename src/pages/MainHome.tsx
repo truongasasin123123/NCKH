@@ -154,12 +154,20 @@ const MainHome: React.FC = () => {
                 
               
               {canAccessCouncil && (
-                <li>
-                  <NavLink to="/mainhome/approvedtopics" className="li-link">
-                    <FileOutlined style={{ fontSize: 18, marginRight: 5 }} />
-                    <span>Đề tài hội đồng</span>
-                  </NavLink>
-                </li>
+                <>
+                  <li>
+                    <NavLink to="/mainhome/approvedtopics" className="li-link">
+                      <FileOutlined style={{ fontSize: 18, marginRight: 5 }} />
+                      <span>Đề tài hội đồng</span>
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink to="/mainhome/statistics/council" className="li-link">
+                      <AuditOutlined style={{ fontSize: 18, marginRight: 5 }} />
+                      <span>Thống kê hội đồng</span>
+                    </NavLink>
+                  </li>
+                </>
               )}
             </ul>
           </Col>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Layout, Space, Typography } from 'antd';
-import { ArrowRightOutlined, SearchOutlined } from '@ant-design/icons';
+import { ArrowRightOutlined, SearchOutlined, CloseOutlined } from '@ant-design/icons';
 import { getCouncilMembership } from '../services/progress/ProgressService';
 import TopicLookup from './TopicLookup';
 
@@ -28,10 +28,10 @@ const HomePage: React.FC = () => {
   };
 
   return (
-    <Layout style={{ background: '#f7f9f7', minHeight: '100vh' }}>
+    <Layout style={{ background: '#f7f9f7' }}>
       <Content style={{ padding: 0 }}>
         <div style={{ overflow: 'hidden', background: '#fff' }}>
-          <section style={{ background: 'linear-gradient(150deg,#0f4a28 0%,#1a6e3c 55%,#2d9e5f 100%)', minHeight: 'calc(100vh - 80px)', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center' }}>
+          <section style={{ background: 'linear-gradient(150deg,#0f4a28 0%,#1a6e3c 55%,#2d9e5f 100%)', minHeight: 'calc(100vh - 50px)', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center' }}>
             <img
               src="/HomePicture.png"
               alt="Toà nhà trung tâm VNUA"
@@ -51,8 +51,18 @@ const HomePage: React.FC = () => {
           {token && showLookup && (
             <section id="lookup" style={{ padding: '40px 24px 64px', background: '#f7f9f7' }}>
               <div style={{ maxWidth: 1120, margin: '0 auto' }}>
-                <Title level={4} style={{ color: '#0f4a28', margin: '0 0 2px' }}>Tra cứu đề tài toàn hệ thống</Title>
-                <Paragraph style={{ color: '#6b7d70', fontSize: 13, marginBottom: 16 }}>Tìm kiếm và xem thông tin công khai của các đề tài trong hệ thống.</Paragraph>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                  <div>
+                    <Title level={4} style={{ color: '#0f4a28', margin: '0 0 2px' }}>Tra cứu đề tài toàn hệ thống</Title>
+                    <Paragraph style={{ color: '#6b7d70', fontSize: 13, marginBottom: 16 }}>Tìm kiếm và xem thông tin công khai của các đề tài trong hệ thống.</Paragraph>
+                  </div>
+                  <Button
+                    type="text"
+                    icon={<CloseOutlined />}
+                    onClick={() => setShowLookup(false)}
+                    style={{ color: '#6b7d70' }}
+                  />
+                </div>
                 <TopicLookup compact />
               </div>
             </section>

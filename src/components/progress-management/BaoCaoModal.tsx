@@ -81,12 +81,21 @@ const BaoCaoModal: React.FC<BaoCaoModalProps> = ({
 
         <Form.Item label="Tài liệu minh chứng">
           <Upload
+            fileList={baoCaoFiles.map((file, idx) => ({
+              uid: `${file.name}-${file.size}-${idx}`,
+              name: file.name,
+              size: file.size,
+              type: file.type,
+              status: 'done' as const,
+            }))}
             beforeUpload={(file) => {
               setBaoCaoFiles((files) => files.some((item) => item.name === file.name && item.size === file.size) ? files : [...files, file]);
               return false;
             }}
             multiple
-            onRemove={(file) => setBaoCaoFiles((files) => files.filter((item) => item.name !== file.name || item.size !== file.size))}
+            onRemove={(file) => {
+              setBaoCaoFiles((files) => files.filter((item) => item !== file.originFileObj && (item.name !== file.name || item.size !== (file.size ?? 0))));
+            }}
           >
             <Button icon={<UploadOutlined />}>Chọn file</Button>
           </Upload>

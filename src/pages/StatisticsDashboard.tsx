@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Row,
   Col,
@@ -31,11 +31,11 @@ import type {
 const { Title, Text } = Typography;
 
 function parseMonthLabel(label: string): number {
-  // label dạng "tháng 08, 2026" -> lấy ra tháng và năm để tính key sắp xếp
+  // Tạo khóa YYYYMM từ nhãn dạng "tháng 08, 2026" để tách tháng/năm ổn định.
   const match = label.match(/(\d{1,2}).*?(\d{4})/);
   if (!match) return 0;
   const [, month, year] = match;
-  return Number(year) * 12 + Number(month);
+  return Number(year) * 100 + Number(month);
 }
 
 export default function StatisticsDashboard() {
@@ -43,6 +43,7 @@ export default function StatisticsDashboard() {
   const [exporting, setExporting] = useState(false);
   const [data, setData] = useState<AdminStatisticsResponse | null>(null);
   const [filters, setFilters] = useState<StatisticsQueryParams>({});
+  const [chartYear, setChartYear] = useState<number>();
 
   useEffect(() => {
     fetchData();
@@ -80,12 +81,35 @@ export default function StatisticsDashboard() {
   ];
 
   const CHART_COLORS = {
-    primary: '#5B8FF9',
-    primaryLight: '#95D5F5',
+    primary: '#1677ff',
     success: '#5AD8A6',
     danger: '#FF9845',
-    gradient: ['l(90) 0:#BAE7FF 1:#1677FF'], // gradient dọc cho cột
-  }
+  };
+
+  const chartYears = useMemo(() => {
+    const years = [...new Set((data?.monthlyTrend || [])
+      .map((item) => Math.floor(parseMonthLabel(item.month) / 100))
+      .filter((year) => year > 0))]
+      .sort((a, b) => b - a);
+    return years.length ? years : [new Date().getFullYear()];
+  }, [data?.monthlyTrend]);
+
+  const selectedChartYear = chartYear ?? chartYears[0];
+
+  const monthlyChartData = useMemo(() => {
+    const trends = data?.monthlyTrend || [];
+    const countByMonth = new Map(
+      trends
+        .filter((item) => Math.floor(parseMonthLabel(item.month) / 100) === selectedChartYear)
+        .map((item) => [parseMonthLabel(item.month) % 100, item.count]),
+    );
+
+    return Array.from({ length: 12 }, (_, index) => ({
+      month: `T${String(index + 1).padStart(2, '0')}`,
+      monthFull: `Tháng ${String(index + 1).padStart(2, '0')}`,
+      count: countByMonth.get(index + 1) || 0,
+    }));
+  }, [data?.monthlyTrend, selectedChartYear]);
 
   return (
     <div style={{ padding: 24 }}>
@@ -98,18 +122,6 @@ export default function StatisticsDashboard() {
         </div>
 
         <Space wrap>
-          <Select
-            style={{ width: 150 }}
-            allowClear
-            placeholder="Tất cả năm học"
-            value={filters.academicYear}
-            onChange={(v) => setFilters((f) => ({ ...f, academicYear: v }))}
-            options={[
-              { value: '2025-2026', label: 'Năm học 2025-2026' },
-              { value: '2026-2027', label: 'Năm học 2026-2027' },
-              { value: '2024-2025', label: 'Năm học 2024-2025' },
-            ]}
-          />
           <Select
             style={{ width: 150 }}
             allowClear
@@ -174,45 +186,62 @@ export default function StatisticsDashboard() {
 
       <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
         <Col xs={24} md={14}>
-          <Card title="Đề tài đăng ký theo tháng" loading={loading}>
+          <Card
+            title="Đề tài đăng ký theo tháng"
+            loading={loading}
+            styles={{ body: { padding: '18px 22px 12px' } }}
+            extra={
+              <Select
+                value={selectedChartYear}
+                onChange={setChartYear}
+                style={{ width: 120 }}
+                options={chartYears.map((year) => ({ value: year, label: `Năm ${year}` }))}
+              />
+            }
+          >
             {data && (
               <Column
-                data={[...data.monthlyTrend].sort(
-                  (a, b) => parseMonthLabel(a.month) - parseMonthLabel(b.month),
-                )}
+                data={monthlyChartData.filter((item) => item.count > 0)}
                 xField="month"
                 yField="count"
-                height={260}
-                style={{
-                  radius: 6,
-                  fill: 'l(90) 0:#BAE7FF 1:#1677FF',
+                height={320}
+                scale={{
+                  x: { domain: monthlyChartData.map((item) => item.month) },
+                  y: { domainMin: 0 },
                 }}
-                maxColumnWidth={48}
+                style={{
+                  radius: 8,
+                  fill: CHART_COLORS.primary,
+                }}
+                maxColumnWidth={44}
                 label={{
                   position: 'top',
-                  offsetY: -8,
+                  offsetY: -6,
                   style: {
-                    fill: '#262626',
-                    fontSize: 14,
-                    fontWeight: 700,
+                    fill: '#595959',
+                    fontSize: 13,
+                    fontWeight: 600,
                   },
                 }}
                 axis={{
                   x: {
-                    labelFill: '#000000',
-                    labelFontSize: 13,
-                    labelFontWeight: 500,
-                    lineStroke: '#e8e8e8',
+                    labelFill: '#8c8c8c',
+                    labelFontSize: 11,
+                    labelAutoRotate: false,
+                    line: false,
+                    tick: false,
                   },
                   y: {
-                    labelFill: '#000000',
-                    labelFontSize: 13,
-                    labelFontWeight: 600,
+                    labelFill: '#8c8c8c',
+                    labelFontSize: 12,
+                    line: false,
+                    tick: false,
                     gridStroke: '#f0f0f0',
+                    gridLineDash: [4, 4],
                   },
                 }}
                 tooltip={{
-                  title: 'month',
+                  title: 'monthFull',
                   items: [
                     {
                       field: 'count',
@@ -220,9 +249,6 @@ export default function StatisticsDashboard() {
                       valueFormatter: (value: number) => `${value} đề tài`,
                     },
                   ],
-                }}
-                interaction={{
-                  elementHighlight: true,
                 }}
               />
             )}
@@ -240,7 +266,7 @@ export default function StatisticsDashboard() {
                 ]}
                 angleField="value"
                 colorField="type"
-                height={260}
+                height={320}
                 radius={0.8}
                 innerRadius={0.6}
                 color={[CHART_COLORS.primary, CHART_COLORS.success, CHART_COLORS.danger]}

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Table, Button, message, Spin, Badge, Modal, Input, Divider, Select, Row, Col } from 'antd';
 import { EyeOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { getNotifications } from '../services/notification/NotificationService';
+import { announceNotificationsChanged, getNotifications, markNotificationAsRead } from '../services/notification/NotificationService';
 import type { Notification } from '../services/notification/NotificationService';
 import ApiAxios from '../axios.config';
 
@@ -45,9 +45,9 @@ const Notifications: React.FC = () => {
         setModalOpen(true);
         setReplyText('');
         try {
-            await ApiAxios.patch(`/notifications/read/${record.idThongBao}`, {
-                TrangThai: true
-            });
+            if (!record.TrangThai) {
+                await markNotificationAsRead(record.idThongBao);
+            }
             setNotifications(prev =>
                 prev.map(n =>
                     n.idThongBao === record.idThongBao ? { ...n, TrangThai: true } : n
@@ -66,6 +66,7 @@ const Notifications: React.FC = () => {
             setNotifications(prev =>
                 prev.filter(n => n.idThongBao !== selectedToDelete.idThongBao)
             );
+            announceNotificationsChanged();
             message.success('Đã xóa thông báo');
         } catch (error) {
             message.error('Lỗi khi xóa thông báo');
@@ -86,6 +87,7 @@ const Notifications: React.FC = () => {
             setNotifications(prev =>
                 prev.filter(n => !selectedRowKeys.includes(n.idThongBao))
             );
+            announceNotificationsChanged();
             message.success(`Đã xóa ${selectedRowKeys.length} thông báo`);
             setSelectedRowKeys([]);
         } catch (error) {

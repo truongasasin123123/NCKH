@@ -79,6 +79,23 @@ const STEP_ICONS: Record<string, React.ReactNode> = {
 
 type Topic = OwnerStatisticsResponse['myTopics'][number];
 
+function getActionMilestone(milestones: Topic['milestones']) {
+  return milestones.find((milestone) => milestone.status === 'in_progress')
+    ?? milestones.find((milestone) => milestone.status !== 'completed');
+}
+
+function getDeadlineLabel(deadline?: string) {
+  if (!deadline) return { text: 'Chưa có hạn', color: 'default' as const };
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dueDate = new Date(deadline);
+  dueDate.setHours(0, 0, 0, 0);
+  const days = Math.ceil((dueDate.getTime() - today.getTime()) / 86_400_000);
+  if (days < 0) return { text: `Quá hạn ${Math.abs(days)} ngày`, color: 'error' as const };
+  if (days === 0) return { text: 'Đến hạn hôm nay', color: 'warning' as const };
+  return { text: `Còn ${days} ngày`, color: days <= 3 ? 'warning' as const : 'blue' as const };
+}
+
 export default function MyTopicsStatistics() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -291,18 +308,22 @@ export default function MyTopicsStatistics() {
                 },
               },
               {
-                title: 'Hạn tiếp theo',
+                title: 'Mốc cần xử lý',
                 dataIndex: 'nextDeadline',
-                width: 150,
-                align: 'right',
-                render: (value?: string) =>
-                  value ? (
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      {new Date(value).toLocaleDateString('vi-VN')}
-                    </Text>
-                  ) : (
-                    <Text type="secondary" style={{ fontSize: 12 }}>—</Text>
-                  ),
+                width: 230,
+                render: (_: string | null, topic) => {
+                  const milestone = getActionMilestone(topic.milestones);
+                  if (!milestone) return <Tag color="success">Đã hoàn thành các mốc</Tag>;
+                  const deadline = getDeadlineLabel(milestone.deadline);
+                  return (
+                    <Space direction="vertical" size={2}>
+                      <Text strong ellipsis style={{ maxWidth: 190 }}>{milestone.name}</Text>
+                      <Tag color={deadline.color} style={{ width: 'fit-content', margin: 0 }}>
+                        {deadline.text}
+                      </Tag>
+                    </Space>
+                  );
+                },
               },
             ] as ColumnsType<OwnerStatisticsResponse['myTopics'][number]>
           }
@@ -317,9 +338,7 @@ export default function MyTopicsStatistics() {
 
 // ---- Expanded row: Steps timeline + card báo cáo mốc hiện tại ----
 function TopicExpandedRow({ topic }: { topic: Topic }) {
-  const activeMilestone =
-    topic.milestones.find((m) => m.status === 'in_progress') ??
-    topic.milestones[topic.milestones.length - 1];
+  const activeMilestone = getActionMilestone(topic.milestones) ?? topic.milestones[topic.milestones.length - 1];
 
   return (
     <div

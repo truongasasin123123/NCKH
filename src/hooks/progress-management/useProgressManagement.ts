@@ -31,6 +31,7 @@ export const useProgressManagement = () => {
 
   const [selectedTopicId, setSelectedTopicId] = useState<string>(maDT || '');
   const [pendingTopicId, setPendingTopicId] = useState<string>(maDT || '');
+  const [topicKeyword, setTopicKeyword] = useState('');
   const [topics, setTopics] = useState<TopicLoad[]>([]);
   const [topicLoading, setTopicLoading] = useState(false);
   const maDTToUse = selectedTopicId || maDT;
@@ -78,6 +79,7 @@ export const useProgressManagement = () => {
 
   const handleTopicChange = async (newMaDT: string) => {
     setPendingTopicId(newMaDT);
+    setTopicKeyword(topics.find((topic) => topic.MaDT === newMaDT)?.TenDT || '');
     setMilestoneMembers([]);
     editForm.resetFields(['ThanhVienIds']);
 
@@ -87,6 +89,13 @@ export const useProgressManagement = () => {
     } catch (err) {
       console.error('Lỗi lấy thành viên đề tài:', err);
       setMembers([]);
+    }
+  };
+
+  const handleTopicKeywordChange = (value: string) => {
+    setTopicKeyword(value);
+    if (!topics.some((topic) => topic.TenDT === value)) {
+      setPendingTopicId('');
     }
   };
 
@@ -275,7 +284,13 @@ export const useProgressManagement = () => {
           ThanhVienDT: [],
         })));
       } else {
-        setTopics(await getMyTopics());
+        const myTopics = await getMyTopics();
+        // API /project/getproject trả về bản ghi thành viên có đề tài nằm trong
+        // trường DeTai. Chuẩn hóa về TopicLoad để giao diện luôn có MaDT/TenDT.
+        setTopics(myTopics.map((item) => {
+          const nestedTopic = (item as TopicLoad & { DeTai?: TopicLoad }).DeTai;
+          return nestedTopic ? { ...nestedTopic, ThanhVienDT: nestedTopic.ThanhVienDT || [] } : item;
+        }));
       }
     } catch (error) {
       message.error('Lỗi khi tải danh sách đề tài');
@@ -515,8 +530,8 @@ export const useProgressManagement = () => {
     // dữ liệu chung
     maDT, maDTToUse, isCommitteeRole, canManageMoc, memberOptions,
     // đề tài
-    selectedTopicId, pendingTopicId, topics, topicLoading, showTopicSearch, setShowTopicSearch,
-    handleTopicChange, handleGoToTopic,
+    selectedTopicId, pendingTopicId, topicKeyword, topics, topicLoading, showTopicSearch, setShowTopicSearch,
+    handleTopicChange, handleTopicKeywordChange, handleGoToTopic,
     // tiến độ / mốc
     progressData, loading, searchText, setSearchText,
     // tabs

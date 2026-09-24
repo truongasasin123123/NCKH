@@ -3,7 +3,7 @@ import { Navigate, Outlet, NavLink, useLocation } from "react-router-dom";
 import { UserOutlined, EditOutlined, BellOutlined, ProfileOutlined, FileOutlined, BarChartOutlined, TeamOutlined, AuditOutlined, PieChartOutlined } from "@ant-design/icons";
 import { useState, useEffect } from "react";
 import { jwtDecode } from 'jwt-decode';
-import { getNotifications } from "../services/notification/NotificationService";
+import { getNotifications, NOTIFICATIONS_CHANGED_EVENT } from "../services/notification/NotificationService";
 import { getCouncilMembership } from '../services/progress/ProgressService';
 import "../style/content.css";
 
@@ -47,10 +47,15 @@ const MainHome: React.FC = () => {
 
   useEffect(() => {
     fetchUnreadCount();
+    const refreshUnreadCount = () => { void fetchUnreadCount(); };
+    window.addEventListener(NOTIFICATIONS_CHANGED_EVENT, refreshUnreadCount);
     const interval = setInterval(() => {
       fetchUnreadCount();
     }, 5000);
-    return () => clearInterval(interval);
+    return () => {
+      window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, refreshUnreadCount);
+      clearInterval(interval);
+    };
   }, []);
 
   useEffect(() => {

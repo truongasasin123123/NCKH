@@ -46,6 +46,7 @@ export interface AdminStatisticsResponse {
 export interface Milestone {
   name: string;
   status: 'completed' | 'in_progress' | 'upcoming' | 'not_started';
+  deadline?: string;
 }
 
 export interface OwnerTopic {

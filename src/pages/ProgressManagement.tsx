@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layout, Card, Button, Space, Tabs, Select, Input } from 'antd';
+import { Layout, AutoComplete, Card, Button, Space, Tabs, Input } from 'antd';
 import { CheckOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import { useProgressManagement } from '../hooks/progress-management/useProgressManagement';
 import ProgressTimeline from '../components/progress-management/ProgressTimeline';
@@ -23,8 +23,8 @@ const { TabPane } = Tabs;
 const ProgressManagement: React.FC = () => {
   const {
     isCommitteeRole, canManageMoc, memberOptions,
-    selectedTopicId, pendingTopicId, topics, topicLoading, showTopicSearch, setShowTopicSearch,
-    handleTopicChange, handleGoToTopic,
+    pendingTopicId, topicKeyword, topics, showTopicSearch, setShowTopicSearch,
+    handleTopicChange, handleTopicKeywordChange, handleGoToTopic,
     progressData, loading, searchText, setSearchText,
     activeTab, setActiveTab,
     isCreateModalVisible, setIsCreateModalVisible,
@@ -71,30 +71,23 @@ const ProgressManagement: React.FC = () => {
 
             {showTopicSearch && (
               <>
-                <Select
-                  showSearch
-                  loading={topicLoading}
-                  placeholder="Chọn đề tài..."
+                <AutoComplete
                   style={{ width: 300 }}
-                  optionFilterProp="children"
-                  value={pendingTopicId || selectedTopicId || undefined}
-                  onChange={handleTopicChange}
-                  filterOption={(input, option) =>
-                    String(option?.children)
-                      .toLowerCase()
-                      .includes(input.toLowerCase())
-                  }
+                  value={topicKeyword}
+                  onChange={handleTopicKeywordChange}
+                  onSelect={(value) => { void handleTopicChange(value); }}
+                  options={topics
+                    .filter((topic) => (topic.TenDT || '').toLocaleLowerCase('vi-VN').includes(topicKeyword.toLocaleLowerCase('vi-VN')))
+                    .slice(0, 10)
+                    .map((topic) => ({ value: topic.MaDT, label: topic.TenDT || topic.MaDT }))}
                 >
-                  {topics.map((topic) => (
-                    <Select.Option key={topic.MaDT} value={topic.MaDT}>
-                      {topic.TenDT}
-                    </Select.Option>
-                  ))}
-                </Select>
+                  <Input allowClear placeholder="Nhập tên đề tài..." />
+                </AutoComplete>
 
                 <Button
                   type="primary"
                   icon={<CheckOutlined />}
+                  disabled={!pendingTopicId}
                   onClick={() => {
                     handleGoToTopic();
                     setShowTopicSearch(false);

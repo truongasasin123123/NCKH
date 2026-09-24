@@ -1,20 +1,25 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Form, Input, Modal, Popconfirm, Select, Space, Table, Tabs, Tag, message, DatePicker, Radio } from 'antd';
-import { DeleteOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import {
   approveCouncilRequest,
+  createCouncil,
   createCouncilType,
   deleteCouncil,
+  deleteCouncilType,
   getCouncilRequests,
   getCouncils,
+  getCouncilTypes,
   rejectCouncilRequest,
+  updateCouncilType,
 } from '../../services/council/CouncilService';
 import type {
   Council,
   CouncilAssignmentRequest,
   CouncilBusiness,
   CouncilMeetingType,
+  CouncilType,
 } from '../../services/council/CouncilService';
 import CouncilRequestDetailModal from './CouncilRequestDetailModal';
 import type { Dayjs } from 'dayjs';
@@ -45,8 +50,13 @@ const CouncilList = () => {
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [keyword, setKeyword] = useState('');
   const [requestKeyword, setRequestKeyword] = useState('');
-  const [typeOpen, setTypeOpen] = useState(false);
-  const [typeForm] = Form.useForm();
+  const [councilTypeKeyword, setCouncilTypeKeyword] = useState('');
+  const [councilOpen, setCouncilOpen] = useState(false);
+  const [councilForm] = Form.useForm();
+  const [councilTypeOpen, setCouncilTypeOpen] = useState(false);
+  const [councilTypeForm] = Form.useForm();
+  const [editingCouncilType, setEditingCouncilType] = useState<CouncilType | null>(null);
+  const [councilTypes, setCouncilTypes] = useState<CouncilType[]>([]);
 
   const [selectedRequest, setSelectedRequest] = useState<CouncilAssignmentRequest | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -77,9 +87,16 @@ const CouncilList = () => {
     }
   };
 
+  const loadCouncilTypes = async () => {
+    try {
+      setCouncilTypes(await getCouncilTypes());
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || 'Không thể tải loại hội đồng');
+    }
+  };
+
   useEffect(() => {
-    loadCouncils();
-    loadRequests();
+    void Promise.all([loadCouncils(), loadRequests(), loadCouncilTypes()]);
   }, []);
 
   const filteredCouncils = useMemo(() => {
@@ -100,20 +117,71 @@ const CouncilList = () => {
     );
   }, [requests, requestKeyword]);
 
-  const submitType = async () => {
+  const filteredCouncilTypes = useMemo(() => {
+    const search = councilTypeKeyword.trim().toLowerCase();
+    if (!search) return councilTypes;
+    return councilTypes.filter((type) =>
+      type.TenLoaiHoiDong.toLowerCase().includes(search) ||
+      type.NghiepVu.toLowerCase().includes(search),
+    );
+  }, [councilTypes, councilTypeKeyword]);
+
+  const submitCouncil = async () => {
     try {
-      const values = await typeForm.validateFields();
+      const values = await councilForm.validateFields();
       const payload = {
         ...values,
         ThoiGianHop: values.ThoiGianHop ? (values.ThoiGianHop as Dayjs).toISOString() : undefined,
       };
-      await createCouncilType(payload);
-      message.success('Đã thêm loại hội đồng');
+      await createCouncil(payload);
+      message.success('Đã tạo hội đồng');
       await loadCouncils();
-      setTypeOpen(false);
-      typeForm.resetFields();
+      setCouncilOpen(false);
+      councilForm.resetFields();
     } catch (error: any) {
-      if (!error?.errorFields) message.error(error?.response?.data?.message || 'Không thể thêm loại hội đồng');
+      if (!error?.errorFields) message.error(error?.response?.data?.message || 'Không thể tạo hội đồng');
+    }
+  };
+
+  const submitCouncilType = async () => {
+    try {
+      const values = await councilTypeForm.validateFields();
+      if (editingCouncilType) {
+        await updateCouncilType(editingCouncilType.MaLoaiHoiDong, values);
+        message.success('Đã cập nhật loại hội đồng');
+      } else {
+        await createCouncilType(values);
+        message.success('Đã tạo loại hội đồng');
+      }
+      await loadCouncilTypes();
+      setCouncilTypeOpen(false);
+      setEditingCouncilType(null);
+      councilTypeForm.resetFields();
+    } catch (error: any) {
+      if (!error?.errorFields) message.error(error?.response?.data?.message || 'Không thể tạo loại hội đồng');
+    }
+  };
+
+  const openCreateCouncilType = () => {
+    setEditingCouncilType(null);
+    councilTypeForm.resetFields();
+    councilTypeForm.setFieldsValue({ NghiepVu: 'other' });
+    setCouncilTypeOpen(true);
+  };
+
+  const openEditCouncilType = (type: CouncilType) => {
+    setEditingCouncilType(type);
+    councilTypeForm.setFieldsValue(type);
+    setCouncilTypeOpen(true);
+  };
+
+  const removeCouncilType = async (id: number) => {
+    try {
+      await deleteCouncilType(id);
+      message.success('Đã xóa loại hội đồng');
+      await loadCouncilTypes();
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || 'Không thể xóa loại hội đồng');
     }
   };
 
@@ -236,7 +304,7 @@ const CouncilList = () => {
           onChange={(event) => setKeyword(event.target.value)}
           style={{ width: 300 }}
         />
-        <Button onClick={() => setTypeOpen(true)}>+ Thêm loại hội đồng</Button>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setCouncilOpen(true)}>Tạo hội đồng</Button>
       </Space>
 
       <Table<Council>
@@ -257,28 +325,6 @@ const CouncilList = () => {
           {
             title: 'Loại hội đồng', render: (_, council) => <Tag>{council.LoaiHoiDong?.TenLoaiHoiDong || '—'}</Tag>
           },
-          {
-            title: 'Thông tin cuộc họp',
-            render: (_, council) => {
-              const type = council.LoaiHoiDong;
-              if (!type?.ThoiGianHop && !type?.HinhThucHop) return '—';
-              return (
-                <div style={{ fontSize: 13 }}>
-                  {type.ThoiGianHop && (
-                    <div>🕒 {new Date(type.ThoiGianHop).toLocaleString('vi-VN')}</div>
-                  )}
-                  {type.HinhThucHop === 'online' && type.LinkHop && (
-                    <div>
-                      📹 <a href={type.LinkHop} target="_blank" rel="noopener noreferrer">{type.LinkHop}</a>
-                    </div>
-                  )}
-                  {type.HinhThucHop === 'offline' && type.DiaDiem && (
-                    <div>📍 {type.DiaDiem}</div>
-                  )}
-                </div>
-              );
-            },
-          },
           { title: 'Ghi chú', dataIndex: 'MoTa', render: renderMoTa },
 
           {
@@ -294,6 +340,49 @@ const CouncilList = () => {
     </>
   );
 
+  const councilTypesTab = (
+    <>
+      <Space style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }} wrap>
+        <Input.Search
+          allowClear
+          placeholder="Tìm theo tên hoặc nghiệp vụ"
+          value={councilTypeKeyword}
+          onChange={(event) => setCouncilTypeKeyword(event.target.value)}
+          style={{ width: 300 }}
+        />
+        <Button type="primary" icon={<PlusOutlined />} onClick={openCreateCouncilType}>Tạo loại hội đồng</Button>
+      </Space>
+
+      <Table<CouncilType>
+        rowKey="MaLoaiHoiDong"
+        dataSource={filteredCouncilTypes}
+        pagination={{ pageSize: 10 }}
+        columns={[
+          { title: 'Mã', dataIndex: 'MaLoaiHoiDong', width: 80 },
+          { title: 'Tên loại hội đồng', dataIndex: 'TenLoaiHoiDong' },
+          { title: 'Nghiệp vụ', dataIndex: 'NghiepVu', render: (value: CouncilBusiness) => businessOptions.find((option) => option.value === value)?.label || value },
+          { title: 'Ghi chú', dataIndex: 'MoTa', render: renderMoTa },
+          {
+            title: 'Thao tác',
+            width: 180,
+            render: (_, type) => (
+              <Space>
+                <Button size="small" icon={<EditOutlined />} onClick={() => openEditCouncilType(type)}>Sửa</Button>
+                <Popconfirm
+                  title="Xóa loại hội đồng này?"
+                  description="Chỉ xóa được khi chưa có hội đồng sử dụng."
+                  onConfirm={() => removeCouncilType(type.MaLoaiHoiDong)}
+                >
+                  <Button danger size="small" icon={<DeleteOutlined />}>Xóa</Button>
+                </Popconfirm>
+              </Space>
+            ),
+          },
+        ]}
+      />
+    </>
+  );
+
   return (
     <div style={{ background: '#fff', padding: 20, borderRadius: 6 }}>
       <Tabs
@@ -301,6 +390,7 @@ const CouncilList = () => {
         items={[
           { key: 'requests', label: 'Yêu cầu chờ xử lý', children: requestsTab },
           { key: 'councils', label: 'Danh sách hội đồng', children: councilsTab },
+          { key: 'types', label: 'Loại hội đồng', children: councilTypesTab },
         ]}
       />
 
@@ -318,14 +408,17 @@ const CouncilList = () => {
         onReject={handleRejectRequest}
       />
 
-      <Modal title="Thêm loại hội đồng" open={typeOpen} onCancel={() => setTypeOpen(false)} onOk={submitType} okText="Thêm" cancelText="Hủy" destroyOnClose>
-        <Form form={typeForm} layout="vertical" initialValues={{ NghiepVu: 'other', HinhThucHop: 'offline' }}>
-          <Form.Item name="TenLoaiHoiDong" label="Tên loại hội đồng" rules={[{ required: true, message: 'Vui lòng nhập tên loại' }]}>
+      <Modal title="Tạo hội đồng" open={councilOpen} onCancel={() => setCouncilOpen(false)} onOk={submitCouncil} okText="Tạo hội đồng" cancelText="Hủy" destroyOnClose>
+        <Form form={councilForm} layout="vertical" initialValues={{ HinhThucHop: 'offline' }}>
+          <Form.Item name="TenHoiDong" label="Tên hội đồng" rules={[{ required: true, message: 'Vui lòng nhập tên hội đồng' }]}>
             <Input />
           </Form.Item>
 
-          <Form.Item name="NghiepVu" label="Nghiệp vụ" rules={[{ required: true }]}>
-            <Select options={businessOptions} />
+          <Form.Item name="MaLoaiHoiDong" label="Loại hội đồng" rules={[{ required: true, message: 'Vui lòng chọn loại hội đồng' }]}>
+            <Select
+              placeholder="Chọn loại hội đồng"
+              options={councilTypes.map((type) => ({ value: type.MaLoaiHoiDong, label: type.TenLoaiHoiDong }))}
+            />
           </Form.Item>
 
           <Form.Item name="ThoiGianHop" label="Thời gian họp">
@@ -372,6 +465,31 @@ const CouncilList = () => {
 
           <Form.Item name="MoTa" label="Ghi chú thêm">
             <Input.TextArea rows={3} placeholder="Nội dung/ghi chú khác cho buổi họp (không bắt buộc)" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title={editingCouncilType ? 'Chỉnh sửa loại hội đồng' : 'Tạo loại hội đồng'}
+        open={councilTypeOpen}
+        onCancel={() => {
+          setCouncilTypeOpen(false);
+          setEditingCouncilType(null);
+        }}
+        onOk={submitCouncilType}
+        okText={editingCouncilType ? 'Lưu thay đổi' : 'Tạo loại'}
+        cancelText="Hủy"
+        destroyOnClose
+      >
+        <Form form={councilTypeForm} layout="vertical">
+          <Form.Item name="TenLoaiHoiDong" label="Tên loại hội đồng" rules={[{ required: true, message: 'Vui lòng nhập tên loại hội đồng' }]}>
+            <Input placeholder="Ví dụ: Hội đồng nghiệm thu cấp khoa" />
+          </Form.Item>
+          <Form.Item name="NghiepVu" label="Nghiệp vụ" rules={[{ required: true, message: 'Vui lòng chọn nghiệp vụ' }]}>
+            <Select options={businessOptions} />
+          </Form.Item>
+          <Form.Item name="MoTa" label="Ghi chú">
+            <Input.TextArea rows={3} placeholder="Mô tả thêm (không bắt buộc)" />
           </Form.Item>
         </Form>
       </Modal>

@@ -4,10 +4,12 @@ import {
   AutoComplete,
   Button,
   Card,
+  DatePicker,
   Descriptions,
   Form,
   Input,
   Popconfirm,
+  Radio,
   Select,
   Space,
 
@@ -15,6 +17,7 @@ import {
   Tag,
   message,
 } from 'antd';
+import dayjs, { type Dayjs } from 'dayjs';
 import { ArrowLeftOutlined, DeleteOutlined, EditOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons';
 import {
   addCouncilMember,
@@ -24,7 +27,7 @@ import {
   searchAccounts,
   updateCouncil,
 } from '../../services/council/CouncilService';
-import type { Council, CouncilMember, CouncilPosition, CouncilType } from '../../services/council/CouncilService';
+import type { Council, CouncilMeetingType, CouncilMember, CouncilPosition, CouncilType } from '../../services/council/CouncilService';
 
 const positions: CouncilPosition[] = ['Chủ tịch', 'Thư ký', 'Ủy viên', 'Phản biện'];
 
@@ -100,7 +103,10 @@ const CouncilDetail = () => {
   const saveCouncil = async () => {
     try {
       const values = await form.validateFields();
-      await updateCouncil(councilId, values);
+      await updateCouncil(councilId, {
+        ...values,
+        ThoiGianHop: values.ThoiGianHop ? (values.ThoiGianHop as Dayjs).toISOString() : undefined,
+      });
       message.success('Đã cập nhật hội đồng');
       setEditing(false);
       loadData();
@@ -110,7 +116,11 @@ const CouncilDetail = () => {
   };
 
   const startEdit = () => {
-    form.setFieldsValue(council);
+    if (!council) return;
+    form.setFieldsValue({
+      ...council,
+      ThoiGianHop: council.ThoiGianHop ? dayjs(council.ThoiGianHop) : undefined,
+    });
     setEditing(true);
   };
 
@@ -145,13 +155,31 @@ const CouncilDetail = () => {
           <Form form={form} layout="vertical">
             <Form.Item name="TenHoiDong" label="Tên hội đồng" rules={[{ required: true }]}><Input /></Form.Item>
             <Form.Item name="MaLoaiHoiDong" label="Loại hội đồng" rules={[{ required: true }]}><Select options={types.map((type) => ({ value: type.MaLoaiHoiDong, label: type.TenLoaiHoiDong }))} /></Form.Item>
+            <Form.Item name="ThoiGianHop" label="Thời gian họp">
+              <DatePicker showTime={{ format: 'HH:mm' }} format="DD/MM/YYYY HH:mm" style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item name="HinhThucHop" label="Hình thức họp" rules={[{ required: true, message: 'Vui lòng chọn hình thức họp' }]}>
+              <Radio.Group>
+                <Radio.Button value="offline">Họp trực tiếp</Radio.Button>
+                <Radio.Button value="online">Họp online</Radio.Button>
+              </Radio.Group>
+            </Form.Item>
+            <Form.Item shouldUpdate={(prev, curr) => prev.HinhThucHop !== curr.HinhThucHop} noStyle>
+              {({ getFieldValue }) => {
+                const meetingType: CouncilMeetingType = getFieldValue('HinhThucHop');
+                return meetingType === 'online' ? (
+                  <Form.Item name="LinkHop" label="Link họp online" rules={[{ required: true, message: 'Vui lòng nhập link họp' }]}>
+                    <Input placeholder="https://meet.google.com/xxx-xxxx-xxx" />
+                  </Form.Item>
+                ) : (
+                  <Form.Item name="DiaDiem" label="Địa điểm họp" rules={[{ required: true, message: 'Vui lòng nhập địa điểm họp' }]}>
+                    <Input placeholder="Ví dụ: Phòng họp A2" />
+                  </Form.Item>
+                );
+              }}
+            </Form.Item>
             <Form.Item name="MoTa" label="Mô tả">
-              <Input.TextArea
-                rows={4}
-                placeholder={
-                  'Ví dụ:\nNgày họp: 15/09/2026 - 08:00\nĐịa điểm: Phòng họp A2, Học viện Nông nghiệp Việt Nam (họp offline)\nLink họp online: https://meet.google.com/xxx-xxxx-xxx'
-                }
-              />
+              <Input.TextArea rows={4} placeholder="Ghi chú thêm về hội đồng (không bắt buộc)" />
             </Form.Item>
 
           </Form>
@@ -160,6 +188,14 @@ const CouncilDetail = () => {
             <Descriptions.Item label="Mã hội đồng">{council.MaHoiDong}</Descriptions.Item>
             <Descriptions.Item label="Tên hội đồng">{council.TenHoiDong}</Descriptions.Item>
             <Descriptions.Item label="Loại hội đồng">{council.LoaiHoiDong?.TenLoaiHoiDong || '—'}</Descriptions.Item>
+            <Descriptions.Item label="Thời gian họp">{council.ThoiGianHop ? new Date(council.ThoiGianHop).toLocaleString('vi-VN') : 'Chưa cập nhật'}</Descriptions.Item>
+            <Descriptions.Item label="Hình thức họp">
+              {council.HinhThucHop === 'online' ? <Tag color="blue">Họp online</Tag> : council.HinhThucHop === 'offline' ? <Tag color="green">Họp trực tiếp</Tag> : 'Chưa cập nhật'}
+            </Descriptions.Item>
+            {council.HinhThucHop === 'online' && <Descriptions.Item label="Link họp">
+              {council.LinkHop ? <a href={council.LinkHop} target="_blank" rel="noopener noreferrer">{council.LinkHop}</a> : 'Chưa cập nhật'}
+            </Descriptions.Item>}
+            {council.HinhThucHop === 'offline' && <Descriptions.Item label="Địa điểm họp">{council.DiaDiem || 'Chưa cập nhật'}</Descriptions.Item>}
             <Descriptions.Item label="Mô tả">{renderMoTa(council.MoTa)}</Descriptions.Item>
           </Descriptions>
         )}

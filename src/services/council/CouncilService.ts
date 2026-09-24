@@ -9,10 +9,6 @@ export interface CouncilType {
   TenLoaiHoiDong: string;
   NghiepVu: CouncilBusiness;
   MoTa?: string;
-  ThoiGianHop?: string;       // ISO datetime string
-  HinhThucHop?: CouncilMeetingType;
-  DiaDiem?: string;           // dùng khi HinhThucHop === 'offline'
-  LinkHop?: string;           // dùng khi HinhThucHop === 'online'
 }
 
 export type CouncilMeetingType = 'online' | 'offline';
@@ -29,6 +25,10 @@ export interface Council {
   TenHoiDong: string;
   MaLoaiHoiDong: number;
   MoTa?: string;
+  ThoiGianHop?: string;
+  HinhThucHop?: CouncilMeetingType;
+  DiaDiem?: string;
+  LinkHop?: string;
   NgayTao?: string;
   LoaiHoiDong?: CouncilType;
   ThanhVienHoiDong?: CouncilMember[];
@@ -68,8 +68,16 @@ export const getAvailableCouncilTypes = async (): Promise<CouncilType[]> =>
 
 export const createCouncilType = async (
   payload: Pick<CouncilType, 'TenLoaiHoiDong'> &
-    Partial<Pick<CouncilType, 'NghiepVu' | 'MoTa' | 'ThoiGianHop' | 'HinhThucHop' | 'DiaDiem' | 'LinkHop'>>,
+    Partial<Pick<CouncilType, 'NghiepVu' | 'MoTa'>>,
 ) => (await ApiAxios.post('/admin/councils/types', payload)).data;
+
+export const updateCouncilType = async (
+  id: number,
+  payload: Partial<Pick<CouncilType, 'TenLoaiHoiDong' | 'NghiepVu' | 'MoTa'>>,
+) => (await ApiAxios.patch(`/admin/councils/types/${id}`, payload)).data;
+
+export const deleteCouncilType = async (id: number) =>
+  (await ApiAxios.delete(`/admin/councils/types/${id}`)).data;
 
 export const getCouncils = async (typeId?: number): Promise<Council[]> =>
   (await ApiAxios.get('/admin/councils', { params: { typeId } })).data;
@@ -77,10 +85,10 @@ export const getCouncils = async (typeId?: number): Promise<Council[]> =>
 export const getCouncilDetail = async (id: number): Promise<Council> =>
   (await ApiAxios.get(`/admin/councils/${id}`)).data;
 
-export const createCouncil = async (payload: Pick<Council, 'TenHoiDong' | 'MaLoaiHoiDong'> & Partial<Pick<Council, 'MoTa'>>) =>
+export const createCouncil = async (payload: Pick<Council, 'TenHoiDong' | 'MaLoaiHoiDong' | 'HinhThucHop'> & Partial<Pick<Council, 'MoTa' | 'ThoiGianHop' | 'DiaDiem' | 'LinkHop'>>) =>
   (await ApiAxios.post('/admin/councils', payload)).data;
 
-export const updateCouncil = async (id: number, payload: Partial<Pick<Council, 'TenHoiDong' | 'MaLoaiHoiDong' | 'MoTa'>>) =>
+export const updateCouncil = async (id: number, payload: Partial<Pick<Council, 'TenHoiDong' | 'MaLoaiHoiDong' | 'MoTa' | 'ThoiGianHop' | 'HinhThucHop' | 'DiaDiem' | 'LinkHop'>>) =>
   (await ApiAxios.patch(`/admin/councils/${id}`, payload)).data;
 
 export const deleteCouncil = async (id: number) =>

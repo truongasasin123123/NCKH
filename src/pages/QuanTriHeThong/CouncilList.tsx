@@ -51,6 +51,8 @@ const CouncilList = () => {
   const [keyword, setKeyword] = useState('');
   const [requestKeyword, setRequestKeyword] = useState('');
   const [councilTypeKeyword, setCouncilTypeKeyword] = useState('');
+  const [councilPage, setCouncilPage] = useState(1);
+  const [councilTypePage, setCouncilTypePage] = useState(1);
   const [councilOpen, setCouncilOpen] = useState(false);
   const [councilForm] = Form.useForm();
   const [councilTypeOpen, setCouncilTypeOpen] = useState(false);
@@ -301,7 +303,10 @@ const CouncilList = () => {
           allowClear
           placeholder="Tìm theo tên hoặc loại hội đồng"
           value={keyword}
-          onChange={(event) => setKeyword(event.target.value)}
+          onChange={(event) => {
+            setKeyword(event.target.value);
+            setCouncilPage(1);
+          }}
           style={{ width: 300 }}
         />
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setCouncilOpen(true)}>Tạo hội đồng</Button>
@@ -311,11 +316,11 @@ const CouncilList = () => {
         rowKey="MaHoiDong"
         loading={loadingCouncils}
         dataSource={filteredCouncils}
-        pagination={{ pageSize: 10 }}
+        pagination={{ current: councilPage, pageSize: 10, onChange: (page) => setCouncilPage(page) }}
         columns={[
           {
-            title: 'Mã', dataIndex: 'MaHoiDong', width: 80, sorter: (a: Council, b: Council) => a.MaHoiDong - b.MaHoiDong,
-            defaultSortOrder: 'ascend',
+            title: 'STT', width: 80,
+            render: (_, __, index) => (councilPage - 1) * 10 + index + 1,
           },
           {
             title: 'Tên hội đồng',
@@ -347,7 +352,10 @@ const CouncilList = () => {
           allowClear
           placeholder="Tìm theo tên hoặc nghiệp vụ"
           value={councilTypeKeyword}
-          onChange={(event) => setCouncilTypeKeyword(event.target.value)}
+          onChange={(event) => {
+            setCouncilTypeKeyword(event.target.value);
+            setCouncilTypePage(1);
+          }}
           style={{ width: 300 }}
         />
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreateCouncilType}>Tạo loại hội đồng</Button>
@@ -356,9 +364,9 @@ const CouncilList = () => {
       <Table<CouncilType>
         rowKey="MaLoaiHoiDong"
         dataSource={filteredCouncilTypes}
-        pagination={{ pageSize: 10 }}
+        pagination={{ current: councilTypePage, pageSize: 10, onChange: (page) => setCouncilTypePage(page) }}
         columns={[
-          { title: 'Mã', dataIndex: 'MaLoaiHoiDong', width: 80 },
+          { title: 'STT', width: 80, render: (_, __, index) => (councilTypePage - 1) * 10 + index + 1 },
           { title: 'Tên loại hội đồng', dataIndex: 'TenLoaiHoiDong' },
           { title: 'Nghiệp vụ', dataIndex: 'NghiepVu', render: (value: CouncilBusiness) => businessOptions.find((option) => option.value === value)?.label || value },
           { title: 'Ghi chú', dataIndex: 'MoTa', render: renderMoTa },

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Input, Popover, Select, Space, Spin, Table, Tabs, Tag, Tooltip, Typography, message } from 'antd';
+import { Button, Input, Popover, Select, Space, Spin, Table, Tabs, Tag, Tooltip, Typography, message, Descriptions, Grid } from 'antd';
 import { EyeOutlined, FileTextOutlined, FilterOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { getDeTaiTheoHoiDong } from '../services/progress/ProgressService';
@@ -135,24 +135,176 @@ export default function ApprovedTopics() {
     </Tooltip>
   );
 
+  const screens = Grid.useBreakpoint();
+  const isMobile = screens.md === false;
+
+  const mobileColumns = [
+    {
+      title: 'Tên đề tài',
+      key: 'topicInfo',
+      render: (_: unknown, row: DeTaiTheoDoi) => (
+        <div style={{ paddingRight: 4 }}>
+          <div style={{ fontWeight: 600, color: '#1f1f1f', fontSize: 14, lineHeight: 1.4 }}>
+            {row.TenDT}
+          </div>
+          <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 2 }}>
+            Mã: <span style={{ color: '#595959', fontWeight: 500 }}>{row.MaDT}</span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'Nghiệp vụ',
+      key: 'NghiepVuHoiDong',
+      width: 130,
+      align: 'right' as const,
+      render: (_: unknown, row: DeTaiTheoDoi) => (
+        <Tag style={{ margin: 0 }}>
+          {row.LoaiNghiemThu === 'tung-phan' ? 'Nghiệm thu từng phần' : (row.NghiepVuHoiDong ? businessLabels[row.NghiepVuHoiDong] : '') || row.NghiepVuHoiDong || '—'}
+        </Tag>
+      ),
+    },
+  ];
+
+  const renderExpandedContent = (row: DeTaiTheoDoi) => {
+    const secondaryAction = row.NghiepVuHoiDong === 'monitoring' ? (
+      <Button
+        size="small"
+        icon={<FileTextOutlined />}
+        onClick={() => navigate(`/mainhome/hoi-dong-theo-doi/${row.MaDT}`)}
+      >
+        Xem báo cáo tiến độ
+      </Button>
+    ) : row.NghiepVuHoiDong === 'scoring' ? (
+      <Button
+        size="small"
+        icon={<FileTextOutlined />}
+        onClick={() => navigate(
+          row.LoaiNghiemThu === 'tung-phan'
+            ? `/mainhome/hoi-dong-theo-doi/${row.MaDT}?reportId=${row.MaBaoCaoTienDo}`
+            : `/mainhome/acceptance/${row.MaDT}`,
+        )}
+      >
+        {row.LoaiNghiemThu === 'tung-phan' ? 'Hồ sơ nghiệm thu từng phần' : 'Hồ sơ nghiệm thu'}
+      </Button>
+    ) : null;
+
+    return (
+      <div style={{ padding: '6px 2px', background: '#fafafa', borderRadius: 6 }}>
+        <Descriptions size="small" column={1} bordered={false}>
+          <Descriptions.Item label="Hội đồng">
+            {row.TenHoiDong || '—'}
+          </Descriptions.Item>
+          <Descriptions.Item label="Chủ nhiệm">
+            {row.ChuNhiem || '—'}
+          </Descriptions.Item>
+          <Descriptions.Item label="Vai trò">
+            <Tag color="purple" style={{ margin: 0 }}>{row.VaiTroTrongHoiDong || 'Thành viên'}</Tag>
+          </Descriptions.Item>
+        </Descriptions>
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px dashed #d9d9d9', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Button
+            type="primary"
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => navigate(`/mainhome/topic-committee/${row.MaDT}`)}
+          >
+            Xem chi tiết đề tài
+          </Button>
+          {secondaryAction}
+        </div>
+      </div>
+    );
+  };
+
+  const desktopColumns = [
+    { title: 'Mã đề tài', dataIndex: 'MaDT', width: 96, align: 'center' as const, ellipsis: true },
+    { title: 'Tên đề tài', dataIndex: 'TenDT', width: 250, render: (value: string) => renderEllipsisText(value) },
+    { title: 'Hội đồng', dataIndex: 'TenHoiDong', width: 210, render: (value: string) => renderEllipsisText(value) },
+    {
+      title: 'Nghiệp vụ',
+      dataIndex: 'NghiepVuHoiDong',
+      width: 120,
+      align: 'center' as const,
+      render: (value: string, row: DeTaiTheoDoi) => (
+        <Tag style={{ margin: 0 }}>
+          {row.LoaiNghiemThu === 'tung-phan' ? 'Nghiệm thu từng phần' : businessLabels[value] || value}
+        </Tag>
+      ),
+    },
+    { title: 'Người gửi', dataIndex: 'ChuNhiem', width: 160, render: (value: string) => renderEllipsisText(value) },
+    {
+      title: 'Vai trò trong hội đồng',
+      dataIndex: 'VaiTroTrongHoiDong',
+      width: 180,
+      align: 'center' as const,
+      render: (value: string) => <Tag color="purple" style={{ margin: 0 }}>{value || 'Thành viên'}</Tag>,
+    },
+    {
+      title: 'Thao tác',
+      width: 180,
+      align: 'right' as const,
+      render: (_: unknown, row: DeTaiTheoDoi) => {
+        const secondaryAction = row.NghiepVuHoiDong === 'monitoring' ? (
+          <Tooltip title="Xem báo cáo tiến độ">
+            <Button
+              size="middle"
+              icon={<FileTextOutlined />}
+              aria-label="Xem báo cáo tiến độ"
+              onClick={() => navigate(`/mainhome/hoi-dong-theo-doi/${row.MaDT}`)}
+            />
+          </Tooltip>
+        ) : row.NghiepVuHoiDong === 'scoring' ? (
+          <Tooltip title={row.LoaiNghiemThu === 'tung-phan' ? 'Mở hồ sơ nghiệm thu từng phần' : 'Mở hồ sơ nghiệm thu'}>
+            <Button
+              size="middle"
+              icon={<FileTextOutlined />}
+              aria-label={row.LoaiNghiemThu === 'tung-phan' ? 'Mở hồ sơ nghiệm thu từng phần' : 'Mở hồ sơ nghiệm thu'}
+              onClick={() => navigate(
+                row.LoaiNghiemThu === 'tung-phan'
+                  ? `/mainhome/hoi-dong-theo-doi/${row.MaDT}?reportId=${row.MaBaoCaoTienDo}`
+                  : `/mainhome/acceptance/${row.MaDT}`,
+              )}
+            />
+          </Tooltip>
+        ) : null;
+
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: '32px 32px', gap: 6, justifyContent: 'end' }}>
+            <Tooltip title="Xem chi tiết đề tài">
+              <Button
+                type="primary"
+                size="middle"
+                icon={<EyeOutlined />}
+                aria-label="Xem chi tiết đề tài"
+                onClick={() => navigate(`/mainhome/topic-committee/${row.MaDT}`)}
+              />
+            </Tooltip>
+            {secondaryAction || <span aria-hidden="true" />}
+          </div>
+        );
+      },
+    },
+  ];
+
   return (
-    <div style={{ padding: 20 }}>
-      <div style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 1px 4px rgba(0, 0, 0, 0.06)' }}>
+    <div style={{ padding: isMobile ? 12 : 20 }}>
+      <div style={{ background: '#fff', borderRadius: 12, padding: isMobile ? 12 : 20, boxShadow: '0 1px 4px rgba(0, 0, 0, 0.06)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'center', marginBottom: 18 }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: 20 }}>Đề tài được phân công cho hội đồng</h2>
+            <h2 style={{ margin: 0, fontSize: isMobile ? 18 : 20 }}>Đề tài được phân công cho hội đồng</h2>
             <Typography.Text type="secondary">Theo dõi các đề tài thuộc hội đồng của bạn</Typography.Text>
           </div>
           <Tag color="blue" style={{ margin: 0 }}>{visibleTopics.length} đề tài</Tag>
         </div>
 
-        <Space wrap size={[10, 10]} style={{ marginBottom: 16 }}>
+        <Space wrap size={[10, 10]} style={{ marginBottom: 16, width: '100%' }}>
           <Input.Search
             allowClear
             value={keyword}
             onChange={(event) => setKeyword(event.target.value)}
             placeholder="Tìm mã, tên đề tài, chủ nhiệm, hội đồng..."
-            style={{ width: 320 }}
+            style={{ width: isMobile ? '100%' : 320 }}
           />
           <Popover content={filterContent} trigger="click" placement="bottomLeft">
             <Button icon={<FilterOutlined />}>
@@ -172,78 +324,19 @@ export default function ApprovedTopics() {
           <Table
             rowKey={(topic) => `${topic.MaDT}-${topic.MaHoiDong || topic.NghiepVuHoiDong}-${topic.MaBaoCaoTienDo || 'project'}`}
             dataSource={visibleTopics}
-            tableLayout="fixed"
-            scroll={{ x: 1220 }}
-            pagination={{ showSizeChanger: false, showTotal: (total) => `${total} đề tài` }}
-            columns={[
-            { title: 'Mã đề tài', dataIndex: 'MaDT', width: 96, align: 'center', ellipsis: true },
-            { title: 'Tên đề tài', dataIndex: 'TenDT', width: 250, render: (value: string) => renderEllipsisText(value) },
-            { title: 'Hội đồng', dataIndex: 'TenHoiDong', width: 210, render: (value: string) => renderEllipsisText(value) },
-            {
-              title: 'Nghiệp vụ',
-              dataIndex: 'NghiepVuHoiDong',
-              width: 120,
-              align: 'center',
-              render: (value: string, row: DeTaiTheoDoi) => (
-                <Tag style={{ margin: 0 }}>
-                  {row.LoaiNghiemThu === 'tung-phan' ? 'Nghiệm thu từng phần' : businessLabels[value] || value}
-                </Tag>
-              ),
-            },
-            { title: 'Người gửi', dataIndex: 'ChuNhiem', width: 160, render: (value: string) => renderEllipsisText(value) },
-            {
-              title: 'Vai trò trong hội đồng',
-              dataIndex: 'VaiTroTrongHoiDong',
-              width: 180,
-              align: 'center',
-              render: (value: string) => <Tag color="purple" style={{ margin: 0 }}>{value || 'Thành viên'}</Tag>,
-            },
-            {
-              title: 'Thao tác',
-              width: 180,
-              align: 'right',
-              render: (_: unknown, row: DeTaiTheoDoi) => {
-                const secondaryAction = row.NghiepVuHoiDong === 'monitoring' ? (
-                  <Tooltip title="Xem báo cáo tiến độ">
-                    <Button
-                      size="middle"
-                      icon={<FileTextOutlined />}
-                      aria-label="Xem báo cáo tiến độ"
-                      onClick={() => navigate(`/mainhome/hoi-dong-theo-doi/${row.MaDT}`)}
-                    />
-                  </Tooltip>
-                ) : row.NghiepVuHoiDong === 'scoring' ? (
-                  <Tooltip title={row.LoaiNghiemThu === 'tung-phan' ? 'Mở hồ sơ nghiệm thu từng phần' : 'Mở hồ sơ nghiệm thu'}>
-                    <Button
-                      size="middle"
-                      icon={<FileTextOutlined />}
-                      aria-label={row.LoaiNghiemThu === 'tung-phan' ? 'Mở hồ sơ nghiệm thu từng phần' : 'Mở hồ sơ nghiệm thu'}
-                      onClick={() => navigate(
-                        row.LoaiNghiemThu === 'tung-phan'
-                          ? `/mainhome/hoi-dong-theo-doi/${row.MaDT}?reportId=${row.MaBaoCaoTienDo}`
-                          : `/mainhome/acceptance/${row.MaDT}`,
-                      )}
-                    />
-                  </Tooltip>
-                ) : null;
-
-                return (
-                  <div style={{ display: 'grid', gridTemplateColumns: '32px 32px', gap: 6, justifyContent: 'end' }}>
-                    <Tooltip title="Xem chi tiết đề tài">
-                      <Button
-                        type="primary"
-                        size="middle"
-                        icon={<EyeOutlined />}
-                        aria-label="Xem chi tiết đề tài"
-                        onClick={() => navigate(`/mainhome/topic-committee/${row.MaDT}`)}
-                      />
-                    </Tooltip>
-                    {secondaryAction || <span aria-hidden="true" />}
-                  </div>
-                );
-              },
-            },
-            ]}
+            tableLayout={isMobile ? 'auto' : 'fixed'}
+            size={isMobile ? 'small' : 'middle'}
+            scroll={isMobile ? undefined : { x: 1220 }}
+            pagination={{
+              showSizeChanger: !isMobile,
+              simple: isMobile,
+              showTotal: isMobile ? undefined : (total) => `${total} đề tài`,
+            }}
+            expandable={isMobile ? {
+              expandedRowRender: renderExpandedContent,
+              expandRowByClick: true,
+            } : undefined}
+            columns={isMobile ? mobileColumns : desktopColumns}
           />
         </Spin>
       </div>

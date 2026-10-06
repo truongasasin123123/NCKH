@@ -45,3 +45,22 @@
 .li-link:hover{
     color: green;
 }
+
+/* Responsive navigation for Mobile vs Desktop */
+@media (max-width: 767px) {
+    .desktop-sider-col {
+        display: none !important;
+    }
+    .mobile-dropdown-col {
+        display: block !important;
+    }
+}
+
+@media (min-width: 768px) {
+    .mobile-dropdown-col {
+        display: none !important;
+    }
+    .desktop-sider-col {
+        display: block !important;
+    }
+}

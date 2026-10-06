@@ -2,6 +2,7 @@ import { Button, Divider, Input, Modal, Tag, Upload } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
 import type { TopicLoad } from '../../services/topic/TopicService';
+import DOMPurify from 'dompurify';
 
 interface Props {
   topic: TopicLoad | null;
@@ -62,15 +63,12 @@ export default function ApprovalSubmitModal({
           <p>
             <strong>Mô tả:</strong>
           </p>
-          <div
-            style={{
-              padding: 12,
-              background: '#f5f5f5',
-              borderRadius: 4,
-              whiteSpace: 'pre-wrap',
-            }}
-          >
-            {topic.MoTa}
+          <div className="topic-description-modal">
+            <div
+              dangerouslySetInnerHTML={{
+                __html: DOMPurify.sanitize(topic.MoTa || ''),
+              }}
+            />
           </div>
 
           <Divider />

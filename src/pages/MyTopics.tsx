@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { jwtDecode } from 'jwt-decode';
-import { Table, Tag, Space, Button, message, Spin, Popconfirm, Input, Popover, Select } from 'antd';
+import { Table, Tag, Space, Button, message, Spin, Popconfirm, Input, Popover, Select, Descriptions, Grid } from 'antd';
 import { EyeOutlined, DeleteOutlined, FileTextOutlined, FilterOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { deleteProject, getMyTopics, getPendingTopics } from '../services/topic/TopicService';
@@ -449,28 +449,154 @@ const MyTopics: React.FC = () => {
         },
     ];
 
+    const screens = Grid.useBreakpoint();
+    const isMobile = screens.md === false;
+
+    const mobileColumns: ColumnsType<TopicLoad> = [
+        {
+            title: 'Tên đề tài',
+            key: 'topicInfo',
+            render: (_, record: TopicLoad) => {
+                const topic = (record as any).DeTai || record;
+                return (
+                    <div style={{ paddingRight: 4 }}>
+                        <div style={{ fontWeight: 600, color: '#1f1f1f', fontSize: 14, lineHeight: 1.4 }}>
+                            {topic.TenDT}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 2 }}>
+                            Mã: <span style={{ color: '#595959', fontWeight: 500 }}>{record.MaDT}</span>
+                        </div>
+                    </div>
+                );
+            },
+        },
+        {
+            title: 'Trạng thái',
+            key: 'status',
+            width: 115,
+            align: 'right',
+            render: (_, record: TopicLoad) => {
+                const topic = (record as any).DeTai || record;
+                if (isCommitteeRole) {
+                    return <Tag color="blue" style={{ margin: 0 }}>Chờ duyệt</Tag>;
+                }
+                return getStatusTag(topic.TrangThai || '');
+            },
+        },
+    ];
+
+    const renderExpandedContent = (record: TopicLoad) => {
+        const topic = (record as any).DeTai || record;
+        const isLeader = (record as any).VaiTroDT === 'Nhóm trưởng';
+        const progress = record.progress;
+
+        return (
+            <div style={{ padding: '6px 2px', background: '#fafafa', borderRadius: 6 }}>
+                <Descriptions size="small" column={1} bordered={false}>
+                    {topic.PhanLoai && (
+                        <Descriptions.Item label="Phân loại">
+                            {topic.PhanLoai}
+                        </Descriptions.Item>
+                    )}
+                    {progress !== undefined && (
+                        <Descriptions.Item label="Tiến độ">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', maxWidth: 220 }}>
+                                <div style={{ flex: 1, background: '#f0f0f0', borderRadius: 4, overflow: 'hidden', height: 10 }}>
+                                    <div
+                                        style={{
+                                            background: progress >= 80 ? '#52c41a' : progress >= 50 ? '#1890ff' : '#ff4d4f',
+                                            height: '100%',
+                                            width: `${progress}%`,
+                                            transition: 'width 0.3s',
+                                        }}
+                                    />
+                                </div>
+                                <span style={{ fontSize: 12, fontWeight: 600 }}>{progress}%</span>
+                            </div>
+                        </Descriptions.Item>
+                    )}
+                    {(record as any).VaiTroDT && (
+                        <Descriptions.Item label="Vai trò">
+                            <Tag color={isLeader ? 'gold' : 'cyan'} style={{ margin: 0 }}>
+                                {(record as any).VaiTroDT}
+                            </Tag>
+                        </Descriptions.Item>
+                    )}
+                    {isAdvisorRole && (
+                        <Descriptions.Item label="Sinh viên">
+                            {getStudentName(record)}
+                        </Descriptions.Item>
+                    )}
+                    {isCommitteeRole && (
+                        <>
+                            <Descriptions.Item label="Người gửi">
+                                {getApprovalSender(record)}
+                            </Descriptions.Item>
+                            <Descriptions.Item label="Ngày gửi">
+                                {getApprovalDate(record)}
+                            </Descriptions.Item>
+                        </>
+                    )}
+                </Descriptions>
+
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px dashed #d9d9d9', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <Button
+                        type="primary"
+                        size="small"
+                        icon={<EyeOutlined />}
+                        onClick={() => navigate(isCommitteeRole ? `/mainhome/topic-committee/${record.MaDT}` : `/mainhome/topic/${record.MaDT}`)}
+                    >
+                        Xem chi tiết
+                    </Button>
+                    {!isCommitteeRole && !isAdvisorRole && canDeleteTopic(record) && (
+                        <Popconfirm
+                            title="Xóa đề tài"
+                            description="Bạn có chắc muốn xóa đề tài này? Thao tác không thể hoàn tác."
+                            okText="Xóa"
+                            cancelText="Hủy"
+                            okButtonProps={{ danger: true }}
+                            onConfirm={() => handleDeleteProject(record.MaDT)}
+                        >
+                            <Button danger size="small" icon={<DeleteOutlined />}>
+                                Xóa đề tài
+                            </Button>
+                        </Popconfirm>
+                    )}
+                    {!isCommitteeRole && !isAdvisorRole && isLeader && ['Chờ nghiệm thu', 'Đang nghiệm thu', 'Đã nghiệm thu', 'Không đạt nghiệm thu'].includes(topic.TrangThai) && (
+                        <Button
+                            size="small"
+                            icon={<FileTextOutlined />}
+                            onClick={() => navigate(`/mainhome/acceptance/${record.MaDT}`)}
+                        >
+                            Hồ sơ nghiệm thu
+                        </Button>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
     const currentColumns = isCommitteeRole ? approvalColumns : isAdvisorRole ? advisorColumns : studentColumns;
     const pageTitle = isCommitteeRole ? 'Đề tài chờ phê duyệt' : isAdvisorRole ? 'Đề tài đang hướng dẫn' : 'Đề tài của tôi';
     return (
         <>
             {user && (
-                <div style={{ background: '#fff', padding: 20, marginBottom: 16 }}>
-                    <h2 style={{ color: '#333', margin: 0 }}>
+                <div style={{ background: '#fff', padding: isMobile ? 12 : 20, marginBottom: 16, borderRadius: 4 }}>
+                    <h2 style={{ color: '#333', margin: 0, fontSize: isMobile ? 18 : 24 }}>
                         Chào mừng trở lại, <strong>{displayName}</strong> — {displayRole}
                     </h2>
-
                 </div>
             )}
-            <div style={{ background: '#fff', padding: 20, borderRadius: 4 }}>
-                <h2>{pageTitle}</h2>
+            <div style={{ background: '#fff', padding: isMobile ? 12 : 20, borderRadius: 4 }}>
+                <h2 style={{ fontSize: isMobile ? 18 : 24 }}>{pageTitle}</h2>
 
-                <Space style={{ marginBottom: 16, display: 'flex' }} wrap>
+                <Space style={{ marginBottom: 16, display: 'flex', width: '100%' }} wrap>
                     <Input.Search
                         allowClear
-                        placeholder="Tìm theo mã, tên hoặc phân loại đề tài..."
+                        placeholder="Tìm theo mã, tên hoặc phân loại..."
                         value={keyword}
                         onChange={(e) => setKeyword(e.target.value)}
-                        style={{ width: 320 }}
+                        style={{ width: isMobile ? '100%' : 320 }}
                     />
                     {!isCommitteeRole && (
                         <Popover content={filterContent} trigger="click" placement="bottomLeft">
@@ -483,19 +609,25 @@ const MyTopics: React.FC = () => {
 
                 <Spin spinning={loading}>
                     <Table
-                        columns={currentColumns}
+                        columns={isMobile ? mobileColumns : currentColumns}
                         dataSource={filteredTopics}
                         rowKey="MaDT"
+                        size={isMobile ? "small" : "middle"}
+                        expandable={isMobile ? {
+                            expandedRowRender: renderExpandedContent,
+                            expandRowByClick: true,
+                        } : undefined}
                         pagination={{
                             current: pagination.current,
                             pageSize: pagination.pageSize,
                             onChange: (page, pageSize) => setPagination({ current: page, pageSize }),
+                            simple: isMobile,
+                            showSizeChanger: !isMobile,
                         }}
-                        scroll={{ x: 1000 }}
+                        scroll={isMobile ? undefined : { x: 1000 }}
                     />
                 </Spin>
             </div>
-
         </>
     );
 };

@@ -14,8 +14,9 @@ import {
   Button,
   Dropdown,
   Table,
-  List,
   Badge,
+  Grid,
+  Descriptions,
 } from 'antd';
 import {
   ClockCircleOutlined,
@@ -33,6 +34,7 @@ import {
   UploadOutlined,
   CalendarOutlined,
   FolderOpenOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
 import { exportMyTopicsReport, getMyStatistics } from '../services/statistics/StatisticsService';
 import type { ExportFormat, OwnerStatisticsResponse, TopicStatus } from '../services/statistics/StatisticsService';
@@ -130,6 +132,9 @@ export default function MyTopicsStatistics() {
     }
   }
 
+  const screens = Grid.useBreakpoint();
+  const isMobile = screens.md === false;
+
   const topics = data?.myTopics ?? [];
   const overview = {
     total: topics.length,
@@ -138,9 +143,91 @@ export default function MyTopicsStatistics() {
     overdue: topics.filter((t) => t.status === 'overdue').length,
   };
 
+  const desktopColumns: ColumnsType<OwnerStatisticsResponse['myTopics'][number]> = [
+    {
+      title: 'Tên đề tài',
+      dataIndex: 'topicName',
+      render: (value: string) => <Text strong>{value}</Text>,
+    },
+    {
+      title: 'Trạng thái',
+      dataIndex: 'status',
+      width: 150,
+      filters: [
+        { text: 'Đang thực hiện', value: 'in_progress' },
+        { text: 'Hoàn thành', value: 'completed' },
+        { text: 'Trễ hạn', value: 'overdue' },
+      ],
+      onFilter: (value, record) => record.status === value,
+      render: (status: TopicStatus) => (
+        <Tag color={STATUS_LABEL[status].color}>{STATUS_LABEL[status].text}</Tag>
+      ),
+    },
+    {
+      title: 'Tiến độ mốc',
+      dataIndex: 'milestones',
+      width: 150,
+      render: (milestones: OwnerStatisticsResponse['myTopics'][number]['milestones']) => {
+        const done = milestones.filter((m) => m.status === 'completed').length;
+        return <Text type="secondary">{done}/{milestones.length} mốc hoàn thành</Text>;
+      },
+    },
+    {
+      title: 'Mốc cần xử lý',
+      dataIndex: 'nextDeadline',
+      width: 230,
+      render: (_: string | null, topic) => {
+        const milestone = getActionMilestone(topic.milestones);
+        if (!milestone) return <Tag color="success">Đã hoàn thành các mốc</Tag>;
+        const deadline = getDeadlineLabel(milestone.deadline);
+        return (
+          <Space direction="vertical" size={2}>
+            <Text strong ellipsis style={{ maxWidth: 190 }}>{milestone.name}</Text>
+            <Tag color={deadline.color} style={{ width: 'fit-content', margin: 0 }}>
+              {deadline.text}
+            </Tag>
+          </Space>
+        );
+      },
+    },
+  ];
+
+  const mobileColumns: ColumnsType<OwnerStatisticsResponse['myTopics'][number]> = [
+    {
+      title: 'Đề tài',
+      key: 'topic',
+      render: (_, topic) => {
+        const done = topic.milestones.filter((m) => m.status === 'completed').length;
+        return (
+          <div>
+            <div style={{ fontWeight: 600, color: '#1677ff', lineHeight: 1.4 }}>{topic.topicName}</div>
+            <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 3 }}>
+              Tiến độ: {done}/{topic.milestones.length} mốc
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      title: 'Trạng thái',
+      dataIndex: 'status',
+      width: 125,
+      align: 'right',
+      render: (status: TopicStatus) => (
+        <Tag color={STATUS_LABEL[status].color} style={{ margin: 0 }}>
+          {STATUS_LABEL[status].text}
+        </Tag>
+      ),
+    },
+  ];
+
   return (
-    <div style={{ padding: 24 }}>
-      <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 20 }} wrap>
+    <div style={{ padding: isMobile ? 12 : 24 }}>
+      <Space
+        style={{ width: '100%', justifyContent: 'space-between', marginBottom: 20 }}
+        direction={isMobile ? 'vertical' : 'horizontal'}
+        wrap
+      >
         <div>
           <Title level={4} style={{ margin: 0 }}>Thống kê đề tài của tôi</Title>
           <Text type="secondary">Tổng quan tiến độ và mốc thời gian các đề tài bạn tham gia hoặc hướng dẫn</Text>
@@ -156,7 +243,14 @@ export default function MyTopicsStatistics() {
           }}
           disabled={exporting}
         >
-          <Button type="primary" icon={<DownloadOutlined />} loading={exporting}>Xuất báo cáo</Button>
+          <Button
+            type="primary"
+            icon={<DownloadOutlined />}
+            loading={exporting}
+            style={{ width: isMobile ? '100%' : 'auto' }}
+          >
+            Xuất báo cáo
+          </Button>
         </Dropdown>
       </Space>
 
@@ -178,9 +272,10 @@ export default function MyTopicsStatistics() {
         }
         loading={loading}
         style={{ marginBottom: 20, borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}
+        styles={{ body: { padding: isMobile ? '12px' : '16px 24px' } }}
       >
         {!loading && (data?.todoItems.length ?? 0) === 0 ? (
-          <div style={{ textAlign: 'center', padding: '32px 16px' }}>
+          <div style={{ textAlign: 'center', padding: isMobile ? '24px 12px' : '32px 16px' }}>
             <CheckCircleTwoTone twoToneColor="#52c41a" style={{ fontSize: 44, marginBottom: 12 }} />
             <Title level={5} style={{ margin: '0 0 6px 0', color: '#262626' }}>
               Tuyệt vời! Không có việc nào cần xử lý gấp
@@ -198,68 +293,84 @@ export default function MyTopicsStatistics() {
             </Button>
           </div>
         ) : (
-          <List
-            itemLayout="horizontal"
-            dataSource={data?.todoItems}
-            renderItem={(item) => {
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {data?.todoItems?.map((item) => {
               const isOverdue = item.level === 'overdue';
               return (
-                <List.Item
+                <div
                   key={item.id}
                   style={{
-                    padding: '14px 16px',
-                    marginBottom: 10,
+                    padding: isMobile ? '12px' : '14px 18px',
                     borderRadius: 8,
                     border: isOverdue ? '1px solid #ffa39e' : '1px solid #ffe58f',
                     backgroundColor: isOverdue ? '#fff1f0' : '#fffbe6',
+                    display: 'flex',
+                    flexDirection: isMobile ? 'column' : 'row',
+                    justifyContent: 'space-between',
+                    alignItems: isMobile ? 'stretch' : 'center',
+                    gap: 12,
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
                   }}
-                  actions={[
+                >
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                    <div style={{ paddingTop: 2, flexShrink: 0 }}>
+                      {isOverdue ? (
+                        <ExclamationCircleOutlined style={{ fontSize: 22, color: '#ff4d4f' }} />
+                      ) : (
+                        <ClockCircleOutlined style={{ fontSize: 22, color: '#faad14' }} />
+                      )}
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 4 }}>
+                        <Tag
+                          color={isOverdue ? 'error' : 'warning'}
+                          style={{ margin: 0, fontWeight: 500 }}
+                        >
+                          {isOverdue ? `Quá hạn ${item.days} ngày` : `Còn ${item.days} ngày`}
+                        </Tag>
+                        <Text
+                          strong
+                          style={{
+                            fontSize: 14,
+                            cursor: 'pointer',
+                            color: '#1677ff',
+                            wordBreak: 'break-word',
+                          }}
+                          onClick={() => navigate(`/mainhome/topic/${item.id}`)}
+                        >
+                          {item.content}
+                        </Text>
+                      </div>
+                      <div style={{ fontSize: 12, color: '#666', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        <span>
+                          <CalendarOutlined style={{ marginRight: 4 }} />
+                          Mã đề tài: <b>{item.id}</b>
+                        </span>
+                        {!isMobile && (
+                          <>
+                            <span>•</span>
+                            <span>Cần nộp báo cáo hoặc cập nhật trạng thái mốc tiến độ</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ flexShrink: 0 }}>
                     <Button
                       type="primary"
                       danger={isOverdue}
                       icon={isOverdue ? <UploadOutlined /> : <ArrowRightOutlined />}
                       onClick={() => navigate(`/mainhome/progress/${item.id}`)}
+                      block={isMobile}
                     >
                       {isOverdue ? 'Xử lý ngay' : 'Cập nhật tiến độ'}
-                    </Button>,
-                  ]}
-                >
-                  <List.Item.Meta
-                    avatar={
-                      isOverdue ? (
-                        <ExclamationCircleOutlined style={{ fontSize: 24, color: '#ff4d4f', marginTop: 4 }} />
-                      ) : (
-                        <ClockCircleOutlined style={{ fontSize: 24, color: '#faad14', marginTop: 4 }} />
-                      )
-                    }
-                    title={
-                      <Space wrap>
-                        <Tag color={isOverdue ? 'error' : 'warning'}>
-                          {isOverdue ? `Quá hạn ${item.days} ngày` : `Còn ${item.days} ngày`}
-                        </Tag>
-                        <Text
-                          strong
-                          style={{ fontSize: 14, cursor: 'pointer' }}
-                          onClick={() => navigate(`/mainhome/topic/${item.id}`)}
-                        >
-                          {item.content}
-                        </Text>
-                      </Space>
-                    }
-                    description={
-                      <Space style={{ marginTop: 4, color: '#595959', fontSize: 12 }}>
-                        <span>
-                          <CalendarOutlined /> Mã đề tài: <b>{item.id}</b>
-                        </span>
-                        <span>•</span>
-                        <span>Nhấn nút bên phải để nộp báo cáo hoặc cập nhật trạng thái mốc</span>
-                      </Space>
-                    }
-                  />
-                </List.Item>
+                    </Button>
+                  </div>
+                </div>
               );
-            }}
-          />
+            })}
+          </div>
         )}
       </Card>
 
@@ -276,59 +387,36 @@ export default function MyTopicsStatistics() {
           rowKey="id"
           dataSource={topics}
           locale={{ emptyText: <Empty description="Bạn chưa chủ trì đề tài nào" /> }}
-          pagination={{ pageSize: 5, hideOnSinglePage: true }}
-          columns={
-            [
-              {
-                title: 'Tên đề tài',
-                dataIndex: 'topicName',
-                render: (value: string) => <Text strong>{value}</Text>,
-              },
-              {
-                title: 'Trạng thái',
-                dataIndex: 'status',
-                width: 150,
-                filters: [
-                  { text: 'Đang thực hiện', value: 'in_progress' },
-                  { text: 'Hoàn thành', value: 'completed' },
-                  { text: 'Trễ hạn', value: 'overdue' },
-                ],
-                onFilter: (value, record) => record.status === value,
-                render: (status: TopicStatus) => (
-                  <Tag color={STATUS_LABEL[status].color}>{STATUS_LABEL[status].text}</Tag>
-                ),
-              },
-              {
-                title: 'Tiến độ mốc',
-                dataIndex: 'milestones',
-                width: 150,
-                render: (milestones: OwnerStatisticsResponse['myTopics'][number]['milestones']) => {
-                  const done = milestones.filter((m) => m.status === 'completed').length;
-                  return <Text type="secondary">{done}/{milestones.length} mốc hoàn thành</Text>;
-                },
-              },
-              {
-                title: 'Mốc cần xử lý',
-                dataIndex: 'nextDeadline',
-                width: 230,
-                render: (_: string | null, topic) => {
-                  const milestone = getActionMilestone(topic.milestones);
-                  if (!milestone) return <Tag color="success">Đã hoàn thành các mốc</Tag>;
-                  const deadline = getDeadlineLabel(milestone.deadline);
-                  return (
-                    <Space direction="vertical" size={2}>
-                      <Text strong ellipsis style={{ maxWidth: 190 }}>{milestone.name}</Text>
-                      <Tag color={deadline.color} style={{ width: 'fit-content', margin: 0 }}>
-                        {deadline.text}
-                      </Tag>
-                    </Space>
-                  );
-                },
-              },
-            ] as ColumnsType<OwnerStatisticsResponse['myTopics'][number]>
-          }
+          pagination={{ pageSize: 5, hideOnSinglePage: true, simple: isMobile }}
+          size={isMobile ? 'small' : 'middle'}
+          columns={isMobile ? mobileColumns : desktopColumns}
+          scroll={isMobile ? undefined : { x: 750 }}
           expandable={{
-            expandedRowRender: (topic) => <TopicExpandedRow topic={topic} />,
+            expandedRowRender: (topic) => (
+              <div>
+                {isMobile && (
+                  <div style={{ marginBottom: 12 }}>
+                    <Descriptions size="small" column={1} bordered={false}>
+                      <Descriptions.Item label="Mốc cần xử lý">
+                        {(() => {
+                          const milestone = getActionMilestone(topic.milestones);
+                          if (!milestone) return <Tag color="success">Đã hoàn thành các mốc</Tag>;
+                          const deadline = getDeadlineLabel(milestone.deadline);
+                          return (
+                            <Space wrap size={4}>
+                              <Text strong>{milestone.name}</Text>
+                              <Tag color={deadline.color}>{deadline.text}</Tag>
+                            </Space>
+                          );
+                        })()}
+                      </Descriptions.Item>
+                    </Descriptions>
+                  </div>
+                )}
+                <TopicExpandedRow topic={topic} isMobile={isMobile} />
+              </div>
+            ),
+            expandRowByClick: isMobile,
           }}
         />
       </Card>
@@ -337,13 +425,14 @@ export default function MyTopicsStatistics() {
 }
 
 // ---- Expanded row: Steps timeline + card báo cáo mốc hiện tại ----
-function TopicExpandedRow({ topic }: { topic: Topic }) {
+function TopicExpandedRow({ topic, isMobile }: { topic: Topic; isMobile?: boolean }) {
+  const navigate = useNavigate();
   const activeMilestone = getActionMilestone(topic.milestones) ?? topic.milestones[topic.milestones.length - 1];
 
   return (
     <div
       style={{
-        padding: '16px 20px',
+        padding: isMobile ? '12px' : '16px 20px',
         backgroundColor: '#fafbfc',
         borderRadius: 8,
         border: '1px solid #f0f0f0',
@@ -354,7 +443,8 @@ function TopicExpandedRow({ topic }: { topic: Topic }) {
       <div style={{ marginBottom: 18, padding: '4px 8px' }}>
         <Steps
           size="small"
-          labelPlacement="vertical"
+          direction={isMobile ? 'vertical' : 'horizontal'}
+          labelPlacement={isMobile ? 'horizontal' : 'vertical'}
           items={topic.milestones.map((m) => ({
             title: <span style={{ fontWeight: 500 }}>{m.name}</span>,
             icon: STEP_ICONS[m.status],
@@ -433,6 +523,37 @@ function TopicExpandedRow({ topic }: { topic: Topic }) {
           description={<span style={{ fontSize: 12 }}>Đề tài chưa có mốc nào</span>}
         />
       )}
+
+      {/* 3. Hành động mở rộng */}
+      <div
+        style={{
+          marginTop: 16,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          borderTop: '1px dashed #d9d9d9',
+          paddingTop: 14,
+          flexWrap: 'wrap',
+        }}
+      >
+        <Button
+          size="middle"
+          icon={<EyeOutlined />}
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/mainhome/topic/${topic.id}`);
+          }}
+          style={{
+            color: '#262626',
+            borderColor: '#d9d9d9',
+            backgroundColor: '#fff',
+            borderRadius: 6,
+          }}
+        >
+          Xem chi tiết
+        </Button>
+        
+      </div>
     </div>
   );
 }

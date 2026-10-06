@@ -34,11 +34,17 @@ export default function CouncilRequestDetailModal({
 
   useEffect(() => {
     if (open) {
-      approveForm.resetFields();
-      rejectForm.resetFields();
       setAction(null);
     }
-  }, [open, request?.Id, approveForm, rejectForm]);
+  }, [open, request?.Id]);
+
+  useEffect(() => {
+    if (action === 'approve') {
+      approveForm.resetFields();
+    } else if (action === 'reject') {
+      rejectForm.resetFields();
+    }
+  }, [action, approveForm, rejectForm]);
 
   if (!request) return null;
 
@@ -82,7 +88,8 @@ export default function CouncilRequestDetailModal({
                 <Button key="approve" type="primary" onClick={() => setAction('approve')}>Chấp nhận</Button>,
               ]
       }
-      destroyOnClose
+      destroyOnClose={false}
+      destroyOnHidden
     >
       <Descriptions column={1} size="small" bordered>
         <Descriptions.Item label="Đề tài">{request.DeTai?.TenDT || request.MaDT}</Descriptions.Item>

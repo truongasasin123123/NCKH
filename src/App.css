@@ -77,3 +77,32 @@
   background-color: #58bf8c;
   padding: 32px 24px;
 }
+
+.topic-description {
+  counter-reset: section;
+}
+
+.topic-description ol {
+  padding-left: 30px;
+  list-style: none !important;
+}
+
+.topic-description ol > li {
+  list-style: none !important;
+  counter-increment: section;
+  position: relative;
+}
+
+.topic-description ol > li::before {
+  content: counter(section) ". ";
+  position: absolute;
+  left: -30px;
+}
+
+.topic-description ul {
+  padding-left: 30px;
+}
+
+.topic-description ul > li {
+  list-style-type: disc !important;
+}

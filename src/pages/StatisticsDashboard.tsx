@@ -11,6 +11,8 @@ import {
   Progress,
   Typography,
   Space,
+  Grid,
+  Descriptions,
   message,
 } from 'antd';
 import {
@@ -111,9 +113,43 @@ export default function StatisticsDashboard() {
     }));
   }, [data?.monthlyTrend, selectedChartYear]);
 
+  const screens = Grid.useBreakpoint();
+  const isMobile = screens.md === false;
+
+  const desktopOverdueColumns = [
+    { title: 'Đề tài', dataIndex: 'topicName' },
+    { title: 'Chủ nhiệm', dataIndex: 'owner', width: 180 },
+    {
+      title: 'Số ngày trễ',
+      dataIndex: 'daysOverdue',
+      width: 120,
+      align: 'right' as const,
+      render: (v: number) => <Text type="danger">{v} ngày</Text>,
+    },
+  ];
+
+  const mobileOverdueColumns = [
+    {
+      title: 'Đề tài trễ hạn',
+      dataIndex: 'topicName',
+      render: (text: string) => <Text strong style={{ color: '#cf1322' }}>{text}</Text>,
+    },
+    {
+      title: 'Trễ hạn',
+      dataIndex: 'daysOverdue',
+      width: 110,
+      align: 'right' as const,
+      render: (v: number) => <Text type="danger" strong>{v} ngày</Text>,
+    },
+  ];
+
   return (
-    <div style={{ padding: 24 }}>
-      <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 20 }} wrap>
+    <div style={{ padding: isMobile ? 12 : 24 }}>
+      <Space
+        style={{ width: '100%', justifyContent: 'space-between', marginBottom: 20 }}
+        direction={isMobile ? 'vertical' : 'horizontal'}
+        wrap
+      >
         <div>
           <Title level={4} style={{ margin: 0 }}>
             Thống kê đề tài nghiên cứu
@@ -121,9 +157,9 @@ export default function StatisticsDashboard() {
           <Text type="secondary">Tổng quan tiến độ và mốc thời gian toàn hệ thống</Text>
         </div>
 
-        <Space wrap>
+        <Space wrap style={{ width: isMobile ? '100%' : 'auto' }}>
           <Select
-            style={{ width: 150 }}
+            style={{ width: isMobile ? '100%' : 150 }}
             allowClear
             placeholder="Tất cả khoa"
             value={filters.departmentId}
@@ -142,7 +178,12 @@ export default function StatisticsDashboard() {
             }}
             disabled={exporting}
           >
-            <Button type="primary" icon={<DownloadOutlined />} loading={exporting}>
+            <Button
+              type="primary"
+              icon={<DownloadOutlined />}
+              loading={exporting}
+              style={{ width: isMobile ? '100%' : 'auto' }}
+            >
               Xuất báo cáo
             </Button>
           </Dropdown>
@@ -304,17 +345,27 @@ export default function StatisticsDashboard() {
             size="small"
             pagination={false}
             dataSource={data.overdueTopics}
-            columns={[
-              { title: 'Đề tài', dataIndex: 'topicName' },
-              { title: 'Chủ nhiệm', dataIndex: 'owner', width: 180 },
-              {
-                title: 'Số ngày trễ',
-                dataIndex: 'daysOverdue',
-                width: 120,
-                align: 'right',
-                render: (v) => <Text type="danger">{v} ngày</Text>,
-              },
-            ]}
+            columns={isMobile ? mobileOverdueColumns : desktopOverdueColumns}
+            scroll={isMobile ? undefined : { x: 500 }}
+            expandable={
+              isMobile
+                ? {
+                    expandedRowRender: (record) => (
+                      <div style={{ padding: '4px 0' }}>
+                        <Descriptions size="small" column={1} bordered={false}>
+                          <Descriptions.Item label="Chủ nhiệm đề tài">
+                            {record.owner || '—'}
+                          </Descriptions.Item>
+                          <Descriptions.Item label="Thời gian trễ hạn">
+                            <Text type="danger">{record.daysOverdue} ngày</Text>
+                          </Descriptions.Item>
+                        </Descriptions>
+                      </div>
+                    ),
+                    expandRowByClick: true,
+                  }
+                : undefined
+            }
           />
         </Card>
       )}

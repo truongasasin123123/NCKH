@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layout, AutoComplete, Card, Button, Space, Tabs, Input } from 'antd';
+import { Layout, AutoComplete, Card, Button, Tabs, Input, Grid } from 'antd';
 import { CheckOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import { useProgressManagement } from '../hooks/progress-management/useProgressManagement';
 import ProgressTimeline from '../components/progress-management/ProgressTimeline';
@@ -21,6 +21,9 @@ const { TabPane } = Tabs;
  * và nghiệp vụ nằm ở hooks/progress-management/useProgressManagement.ts.
  */
 const ProgressManagement: React.FC = () => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = screens.md === false;
+
   const {
     isCommitteeRole, canManageMoc, memberOptions,
     pendingTopicId, topicKeyword, topics, showTopicSearch, setShowTopicSearch,
@@ -50,29 +53,34 @@ const ProgressManagement: React.FC = () => {
   const partialAcceptanceReports = baoCaoList.filter((report) => report.LoaiBaoCao === 'Nghiệm thu từng phần');
 
   return (
-    <Content style={{ padding: 24 }}>
+    <Content style={{ padding: isMobile ? 12 : 24 }}>
       <Card
         title={
-          <Space>
-            <span>
-              {isCommitteeRole ? 'Xem tiến độ đề tài:' : 'Quản lý tiến độ đề tài:'}
+          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 10, alignItems: isMobile ? 'stretch' : 'center', width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <span>
+                {isCommitteeRole ? 'Xem tiến độ đề tài:' : 'Quản lý tiến độ đề tài:'}
+                {!showTopicSearch && (
+                  <>
+                    {' '}
+                    <strong>{progressData?.TenDT}</strong>
+                  </>
+                )}
+              </span>
               {!showTopicSearch && (
-                <>
-                  {' '}
-                  <strong>{progressData?.TenDT}</strong>
-                  <Button
-                    type="text"
-                    icon={<EditOutlined />}
-                    onClick={() => setShowTopicSearch(true)}
-                  />
-                </>
+                <Button
+                  type="text"
+                  icon={<EditOutlined />}
+                  onClick={() => setShowTopicSearch(true)}
+                  title="Chọn đề tài khác"
+                />
               )}
-            </span>
+            </div>
 
             {showTopicSearch && (
-              <>
+              <div style={{ display: 'flex', gap: 8, width: '100%', maxWidth: isMobile ? '100%' : 420 }}>
                 <AutoComplete
-                  style={{ width: 300 }}
+                  style={{ flex: 1 }}
                   value={topicKeyword}
                   onChange={handleTopicKeywordChange}
                   onSelect={(value) => { void handleTopicChange(value); }}
@@ -91,43 +99,44 @@ const ProgressManagement: React.FC = () => {
                   onClick={() => {
                     handleGoToTopic();
                     setShowTopicSearch(false);
-
                   }}
                 >
                   Tìm
                 </Button>
-              </>
+              </div>
             )}
-          </Space>
+          </div>
         }
       >
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
-          tabBarExtraContent={
-            activeTab === 'table' && (
-              <Space>
-                <Input.Search
-                  allowClear
-                  placeholder="Tìm kiếm mốc..."
-                  style={{ width: 250 }}
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                />
-                {canManageMoc && (
-                  <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateMoc}>
-                    Thêm mốc
-                  </Button>
-                )}
-              </Space>
-            )
-          }
         >
           <TabPane tab="Timeline" key="timeline">
             <ProgressTimeline mocList={progressData?.MocTienDo} />
           </TabPane>
 
           <TabPane tab="Bảng" key="table">
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+              <Input.Search
+                allowClear
+                placeholder="Tìm kiếm mốc..."
+                style={{ width: isMobile ? '100%' : 260 }}
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+              />
+              {canManageMoc && (
+                <Button
+                  type="primary"
+                  block={isMobile}
+                  icon={<PlusOutlined />}
+                  onClick={handleCreateMoc}
+                >
+                  Thêm mốc
+                </Button>
+              )}
+            </div>
+
             <ProgressTable
               mocList={progressData?.MocTienDo}
               searchText={searchText}

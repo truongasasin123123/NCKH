@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Form, Input, Modal, Popconfirm, Select, Space, Table, Tabs, Tag, message, DatePicker, Radio } from 'antd';
+import { Button, Form, Input, Modal, Popconfirm, Select, Space, Table, Tabs, Tag, message, DatePicker, Radio, Descriptions, Grid } from 'antd';
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -59,6 +59,9 @@ const CouncilList = () => {
   const [councilTypeForm] = Form.useForm();
   const [editingCouncilType, setEditingCouncilType] = useState<CouncilType | null>(null);
   const [councilTypes, setCouncilTypes] = useState<CouncilType[]>([]);
+
+  const screens = Grid.useBreakpoint();
+  const isMobile = screens.md === false;
 
   const [selectedRequest, setSelectedRequest] = useState<CouncilAssignmentRequest | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -251,6 +254,111 @@ const CouncilList = () => {
       </div>
     );
   };
+
+  // --- Requests Tab Responsive Setup ---
+  const desktopRequestColumns = [
+    {
+      title: 'Đề tài / hồ sơ',
+      render: (_: any, request: CouncilAssignmentRequest) => (
+        <>
+          {request.DeTai?.TenDT || request.MaDT}
+          {request.MaBaoCaoTienDo && (
+            <div style={{ color: '#8c8c8c', fontSize: 12 }}>
+              Nghiệm thu từng phần · Hồ sơ #{request.MaBaoCaoTienDo}
+            </div>
+          )}
+        </>
+      ),
+    },
+    {
+      title: 'Loại hội đồng yêu cầu',
+      render: (_: any, request: CouncilAssignmentRequest) => (
+        <Tag color="purple">
+          {request.LoaiHoiDong?.TenLoaiHoiDong || `Loại #${request.MaLoaiHoiDong}`}
+        </Tag>
+      ),
+    },
+    {
+      title: 'Người gửi',
+      render: (_: any, request: CouncilAssignmentRequest) =>
+        request.NguoiGui?.TenDayDu || request.TaiKhoanNguoiGui,
+    },
+    {
+      title: 'Ngày gửi',
+      dataIndex: 'NgayGui',
+      render: (value: string) => new Date(value).toLocaleDateString('vi-VN'),
+    },
+    {
+      title: 'Trạng thái',
+      dataIndex: 'TrangThai',
+      render: (value: CouncilAssignmentRequest['TrangThai']) => requestStatusTag(value),
+    },
+    {
+      title: 'Thao tác',
+      render: (_: any, request: CouncilAssignmentRequest) => (
+        <Button type="link" onClick={() => openRequestDetail(request)}>
+          Xem chi tiết
+        </Button>
+      ),
+    },
+  ];
+
+  const mobileRequestColumns = [
+    {
+      title: 'Đề tài / Yêu cầu',
+      key: 'topic',
+      render: (_: any, request: CouncilAssignmentRequest) => (
+        <div>
+          <div style={{ fontWeight: 600, color: '#1677ff', lineHeight: 1.4 }}>
+            {request.DeTai?.TenDT || request.MaDT}
+          </div>
+          <div style={{ fontSize: 12, color: '#722ed1', marginTop: 2 }}>
+            {request.LoaiHoiDong?.TenLoaiHoiDong || `Loại #${request.MaLoaiHoiDong}`}
+          </div>
+          {request.MaBaoCaoTienDo && (
+            <div style={{ color: '#8c8c8c', fontSize: 11 }}>
+              Hồ sơ #{request.MaBaoCaoTienDo}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: 'Trạng thái',
+      dataIndex: 'TrangThai',
+      width: 110,
+      align: 'right' as const,
+      render: (value: CouncilAssignmentRequest['TrangThai']) => (
+        <div style={{ display: 'inline-block' }}>{requestStatusTag(value)}</div>
+      ),
+    },
+  ];
+
+  const renderExpandedRequest = (request: CouncilAssignmentRequest) => (
+    <div style={{ padding: '4px 0' }}>
+      <Descriptions size="small" column={1} bordered={false}>
+        <Descriptions.Item label="Người gửi">
+          {request.NguoiGui?.TenDayDu || request.TaiKhoanNguoiGui}
+        </Descriptions.Item>
+        <Descriptions.Item label="Ngày gửi">
+          {new Date(request.NgayGui).toLocaleDateString('vi-VN')}
+        </Descriptions.Item>
+      </Descriptions>
+      <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
+        <Button
+          type="primary"
+          size="small"
+          onClick={(e) => {
+            e.stopPropagation();
+            openRequestDetail(request);
+          }}
+        >
+          Xem chi tiết & Phân công
+        </Button>
+      </div>
+    </div>
+  );
+
   const requestsTab = (
     <>
       <Space style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }} wrap>
@@ -259,7 +367,7 @@ const CouncilList = () => {
           placeholder="Tìm theo tên đề tài hoặc người gửi"
           value={requestKeyword}
           onChange={(event) => setRequestKeyword(event.target.value)}
-          style={{ width: 300 }}
+          style={{ width: isMobile ? '100%' : 300 }}
         />
       </Space>
 
@@ -267,38 +375,133 @@ const CouncilList = () => {
         rowKey="Id"
         loading={loadingRequests}
         dataSource={filteredRequests}
-        pagination={{ pageSize: 10 }}
-        columns={[
-          { title: 'Đề tài / hồ sơ', render: (_, request) => <>{request.DeTai?.TenDT || request.MaDT}{request.MaBaoCaoTienDo && <div style={{ color: '#8c8c8c', fontSize: 12 }}>Nghiệm thu từng phần · Hồ sơ #{request.MaBaoCaoTienDo}</div>}</> },
-          {
-            title: 'Loại hội đồng yêu cầu',
-            render: (_, request) => <Tag color="purple">{request.LoaiHoiDong?.TenLoaiHoiDong || `Loại #${request.MaLoaiHoiDong}`}</Tag>,
-          },
-          { title: 'Người gửi', render: (_, request) => request.NguoiGui?.TenDayDu || request.TaiKhoanNguoiGui },
-          {
-            title: 'Ngày gửi',
-            dataIndex: 'NgayGui',
-            render: (value: string) => new Date(value).toLocaleDateString('vi-VN'),
-          },
-          {
-            title: 'Trạng thái',
-            dataIndex: 'TrangThai',
-            render: (value: CouncilAssignmentRequest['TrangThai']) => requestStatusTag(value),
-          },
-          {
-            title: 'Thao tác',
-            render: (_, request) => (
-              <Button type="link" onClick={() => openRequestDetail(request)}>Xem chi tiết</Button>
-            ),
-          },
-        ]}
+        size={isMobile ? 'small' : 'middle'}
+        columns={isMobile ? mobileRequestColumns : desktopRequestColumns}
+        scroll={isMobile ? undefined : { x: 800 }}
+        expandable={
+          isMobile
+            ? {
+                expandedRowRender: renderExpandedRequest,
+                expandRowByClick: true,
+              }
+            : undefined
+        }
+        pagination={{ pageSize: 10, simple: isMobile }}
       />
     </>
   );
 
+  // --- Councils Tab Responsive Setup ---
+  const desktopCouncilColumns = [
+    {
+      title: 'STT',
+      width: 80,
+      render: (_: any, __: any, index: number) => (councilPage - 1) * 10 + index + 1,
+    },
+    {
+      title: 'Tên hội đồng',
+      dataIndex: 'TenHoiDong',
+      render: (name: string, council: Council) => (
+        <Button
+          type="link"
+          style={{ padding: 0 }}
+          onClick={() => navigate(`/mainhome/admin/councils/${council.MaHoiDong}`)}
+        >
+          {name}
+        </Button>
+      ),
+    },
+    {
+      title: 'Loại hội đồng',
+      render: (_: any, council: Council) => <Tag>{council.LoaiHoiDong?.TenLoaiHoiDong || '—'}</Tag>,
+    },
+    { title: 'Ghi chú', dataIndex: 'MoTa', render: renderMoTa },
+    {
+      title: 'Thao tác',
+      render: (_: any, council: Council) => (
+        <Popconfirm
+          title="Xóa hội đồng này?"
+          description="Chỉ xóa được hội đồng chưa gán đề tài."
+          onConfirm={() => removeCouncil(council.MaHoiDong)}
+        >
+          <Button danger size="small" icon={<DeleteOutlined />}>
+            Xóa
+          </Button>
+        </Popconfirm>
+      ),
+    },
+  ];
+
+  const mobileCouncilColumns = [
+    {
+      title: 'Hội đồng',
+      key: 'council',
+      render: (_: any, council: Council) => (
+        <div>
+          <div style={{ fontWeight: 600, color: '#1677ff' }}>{council.TenHoiDong}</div>
+          <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 2 }}>
+            {council.LoaiHoiDong?.TenLoaiHoiDong || '—'}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'Chi tiết',
+      key: 'action',
+      width: 100,
+      align: 'right' as const,
+      render: (_: any, council: Council) => (
+        <Button
+          type="primary"
+          ghost
+          size="small"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/mainhome/admin/councils/${council.MaHoiDong}`);
+          }}
+        >
+          Vào xem
+        </Button>
+      ),
+    },
+  ];
+
+  const renderExpandedCouncil = (council: Council) => (
+    <div style={{ padding: '4px 0' }}>
+      <Descriptions size="small" column={1} bordered={false}>
+        <Descriptions.Item label="Loại hội đồng">
+          {council.LoaiHoiDong?.TenLoaiHoiDong || '—'}
+        </Descriptions.Item>
+        <Descriptions.Item label="Ghi chú">
+          {renderMoTa(council.MoTa)}
+        </Descriptions.Item>
+      </Descriptions>
+      <div style={{ marginTop: 12, display: 'flex', gap: 8, justifyContent: 'flex-end', borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
+        <Popconfirm
+          title="Xóa hội đồng này?"
+          description="Chỉ xóa được hội đồng chưa gán đề tài."
+          onConfirm={() => removeCouncil(council.MaHoiDong)}
+        >
+          <Button danger size="small" icon={<DeleteOutlined />}>
+            Xóa hội đồng
+          </Button>
+        </Popconfirm>
+      </div>
+    </div>
+  );
+
   const councilsTab = (
     <>
-      <Space style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }} wrap>
+      <Space
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          marginBottom: 16,
+          width: '100%',
+        }}
+        direction={isMobile ? 'vertical' : 'horizontal'}
+        wrap
+      >
         <Input.Search
           allowClear
           placeholder="Tìm theo tên hoặc loại hội đồng"
@@ -307,47 +510,159 @@ const CouncilList = () => {
             setKeyword(event.target.value);
             setCouncilPage(1);
           }}
-          style={{ width: 300 }}
+          style={{ width: isMobile ? '100%' : 300 }}
         />
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setCouncilOpen(true)}>Tạo hội đồng</Button>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => setCouncilOpen(true)}
+          style={{ width: isMobile ? '100%' : 'auto' }}
+        >
+          Tạo hội đồng
+        </Button>
       </Space>
 
       <Table<Council>
         rowKey="MaHoiDong"
         loading={loadingCouncils}
         dataSource={filteredCouncils}
-        pagination={{ current: councilPage, pageSize: 10, onChange: (page) => setCouncilPage(page) }}
-        columns={[
-          {
-            title: 'STT', width: 80,
-            render: (_, __, index) => (councilPage - 1) * 10 + index + 1,
-          },
-          {
-            title: 'Tên hội đồng',
-            dataIndex: 'TenHoiDong',
-            render: (name: string, council) => <Button type="link" onClick={() => navigate(`/mainhome/admin/councils/${council.MaHoiDong}`)}>{name}</Button>,
-          },
-          {
-            title: 'Loại hội đồng', render: (_, council) => <Tag>{council.LoaiHoiDong?.TenLoaiHoiDong || '—'}</Tag>
-          },
-          { title: 'Ghi chú', dataIndex: 'MoTa', render: renderMoTa },
-
-          {
-            title: 'Thao tác',
-            render: (_, council) => (
-              <Popconfirm title="Xóa hội đồng này?" description="Chỉ xóa được hội đồng chưa gán đề tài." onConfirm={() => removeCouncil(council.MaHoiDong)}>
-                <Button danger size="small" icon={<DeleteOutlined />}>Xóa</Button>
-              </Popconfirm>
-            ),
-          },
-        ]}
+        size={isMobile ? 'small' : 'middle'}
+        columns={isMobile ? mobileCouncilColumns : desktopCouncilColumns}
+        scroll={isMobile ? undefined : { x: 750 }}
+        expandable={
+          isMobile
+            ? {
+                expandedRowRender: renderExpandedCouncil,
+                expandRowByClick: true,
+              }
+            : undefined
+        }
+        pagination={{
+          current: councilPage,
+          pageSize: 10,
+          simple: isMobile,
+          onChange: (page) => setCouncilPage(page),
+        }}
       />
     </>
   );
 
+  // --- Council Types Tab Responsive Setup ---
+  const desktopCouncilTypeColumns = [
+    {
+      title: 'STT',
+      width: 80,
+      render: (_: any, __: any, index: number) => (councilTypePage - 1) * 10 + index + 1,
+    },
+    { title: 'Tên loại hội đồng', dataIndex: 'TenLoaiHoiDong' },
+    {
+      title: 'Nghiệp vụ',
+      dataIndex: 'NghiepVu',
+      render: (value: CouncilBusiness) =>
+        businessOptions.find((option) => option.value === value)?.label || value,
+    },
+    { title: 'Ghi chú', dataIndex: 'MoTa', render: renderMoTa },
+    {
+      title: 'Thao tác',
+      width: 180,
+      render: (_: any, type: CouncilType) => (
+        <Space>
+          <Button size="small" icon={<EditOutlined />} onClick={() => openEditCouncilType(type)}>
+            Sửa
+          </Button>
+          <Popconfirm
+            title="Xóa loại hội đồng này?"
+            description="Chỉ xóa được khi chưa có hội đồng sử dụng."
+            onConfirm={() => removeCouncilType(type.MaLoaiHoiDong)}
+          >
+            <Button danger size="small" icon={<DeleteOutlined />}>
+              Xóa
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  const mobileCouncilTypeColumns = [
+    {
+      title: 'Loại hội đồng',
+      key: 'type',
+      render: (_: any, type: CouncilType) => (
+        <div>
+          <div style={{ fontWeight: 600, color: '#1677ff' }}>{type.TenLoaiHoiDong}</div>
+          <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 2 }}>
+            {businessOptions.find((option) => option.value === type.NghiepVu)?.label || type.NghiepVu}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'Thao tác',
+      key: 'action',
+      width: 120,
+      align: 'right' as const,
+      render: (_: any, type: CouncilType) => (
+        <Button
+          size="small"
+          icon={<EditOutlined />}
+          onClick={(e) => {
+            e.stopPropagation();
+            openEditCouncilType(type);
+          }}
+        >
+          Sửa
+        </Button>
+      ),
+    },
+  ];
+
+  const renderExpandedCouncilType = (type: CouncilType) => (
+    <div style={{ padding: '4px 0' }}>
+      <Descriptions size="small" column={1} bordered={false}>
+        <Descriptions.Item label="Nghiệp vụ">
+          {businessOptions.find((option) => option.value === type.NghiepVu)?.label || type.NghiepVu}
+        </Descriptions.Item>
+        <Descriptions.Item label="Ghi chú">
+          {renderMoTa(type.MoTa)}
+        </Descriptions.Item>
+      </Descriptions>
+      <div style={{ marginTop: 12, display: 'flex', gap: 8, justifyContent: 'flex-end', borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
+        <Button
+          size="small"
+          icon={<EditOutlined />}
+          onClick={(e) => {
+            e.stopPropagation();
+            openEditCouncilType(type);
+          }}
+        >
+          Sửa
+        </Button>
+        <Popconfirm
+          title="Xóa loại hội đồng này?"
+          description="Chỉ xóa được khi chưa có hội đồng sử dụng."
+          onConfirm={() => removeCouncilType(type.MaLoaiHoiDong)}
+        >
+          <Button danger size="small" icon={<DeleteOutlined />}>
+            Xóa
+          </Button>
+        </Popconfirm>
+      </div>
+    </div>
+  );
+
   const councilTypesTab = (
     <>
-      <Space style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }} wrap>
+      <Space
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          marginBottom: 16,
+          width: '100%',
+        }}
+        direction={isMobile ? 'vertical' : 'horizontal'}
+        wrap
+      >
         <Input.Search
           allowClear
           placeholder="Tìm theo tên hoặc nghiệp vụ"
@@ -356,43 +671,44 @@ const CouncilList = () => {
             setCouncilTypeKeyword(event.target.value);
             setCouncilTypePage(1);
           }}
-          style={{ width: 300 }}
+          style={{ width: isMobile ? '100%' : 300 }}
         />
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreateCouncilType}>Tạo loại hội đồng</Button>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={openCreateCouncilType}
+          style={{ width: isMobile ? '100%' : 'auto' }}
+        >
+          Tạo loại hội đồng
+        </Button>
       </Space>
 
       <Table<CouncilType>
         rowKey="MaLoaiHoiDong"
         dataSource={filteredCouncilTypes}
-        pagination={{ current: councilTypePage, pageSize: 10, onChange: (page) => setCouncilTypePage(page) }}
-        columns={[
-          { title: 'STT', width: 80, render: (_, __, index) => (councilTypePage - 1) * 10 + index + 1 },
-          { title: 'Tên loại hội đồng', dataIndex: 'TenLoaiHoiDong' },
-          { title: 'Nghiệp vụ', dataIndex: 'NghiepVu', render: (value: CouncilBusiness) => businessOptions.find((option) => option.value === value)?.label || value },
-          { title: 'Ghi chú', dataIndex: 'MoTa', render: renderMoTa },
-          {
-            title: 'Thao tác',
-            width: 180,
-            render: (_, type) => (
-              <Space>
-                <Button size="small" icon={<EditOutlined />} onClick={() => openEditCouncilType(type)}>Sửa</Button>
-                <Popconfirm
-                  title="Xóa loại hội đồng này?"
-                  description="Chỉ xóa được khi chưa có hội đồng sử dụng."
-                  onConfirm={() => removeCouncilType(type.MaLoaiHoiDong)}
-                >
-                  <Button danger size="small" icon={<DeleteOutlined />}>Xóa</Button>
-                </Popconfirm>
-              </Space>
-            ),
-          },
-        ]}
+        size={isMobile ? 'small' : 'middle'}
+        columns={isMobile ? mobileCouncilTypeColumns : desktopCouncilTypeColumns}
+        scroll={isMobile ? undefined : { x: 750 }}
+        expandable={
+          isMobile
+            ? {
+                expandedRowRender: renderExpandedCouncilType,
+                expandRowByClick: true,
+              }
+            : undefined
+        }
+        pagination={{
+          current: councilTypePage,
+          pageSize: 10,
+          simple: isMobile,
+          onChange: (page) => setCouncilTypePage(page),
+        }}
       />
     </>
   );
 
   return (
-    <div style={{ background: '#fff', padding: 20, borderRadius: 6 }}>
+    <div style={{ background: '#fff', padding: isMobile ? 12 : 20, borderRadius: 6 }}>
       <Tabs
         defaultActiveKey="requests"
         items={[

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Collapse, Space, Tag } from 'antd';
+import { Button, Collapse, Space, Tag, Grid } from 'antd';
 import { SendOutlined, DownloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { BaoCaoTienDo } from '../../services/progress/ProgressService';
@@ -27,12 +27,16 @@ const BaoCaoTab: React.FC<BaoCaoTabProps> = ({
   canManageMoc, baoCaoList, baoCaoLoading, submittingBaoCao,
   onOpenCreate, onEdit, onDelete, onDeleteDocument, onSubmitExisting, downloadDocument, partialAcceptance = false, onRequestCouncil,
 }) => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = screens.md === false;
   const itemName = partialAcceptance ? 'hồ sơ nghiệm thu' : 'báo cáo';
+
   return (
     <>
       {canManageMoc && (
         <Button
           type="primary"
+          block={isMobile}
           icon={<SendOutlined />}
           onClick={onOpenCreate}
           style={{ marginBottom: 16 }}
@@ -44,8 +48,28 @@ const BaoCaoTab: React.FC<BaoCaoTabProps> = ({
       <Collapse
         items={baoCaoList.map((bc) => ({
           key: bc.Id,
-          label: (
-            <Space size="middle">
+          label: isMobile ? (
+            <div style={{ width: '100%' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <span style={{ fontWeight: 600, fontSize: 14 }}>{bc.KyBaoCao}</span>
+                <Tag color={
+                  bc.TrangThai === 'Đạt' ? 'success' :
+                    bc.TrangThai === 'Đã gửi' ? 'processing' :
+                      ['Yêu cầu điều chỉnh', 'Đề xuất thanh lý', 'Không đạt'].includes(bc.TrangThai) ? 'error' : 'warning'
+                } style={{ margin: 0 }}>
+                  {bc.TrangThai}
+                </Tag>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#888', flexWrap: 'wrap' }}>
+                <Tag color={bc.LoaiBaoCao === 'Theo mốc' ? 'blue' : 'purple'} style={{ margin: 0, fontSize: 11 }}>{bc.LoaiBaoCao}</Tag>
+                {bc.LoaiBaoCao !== 'Nghiệm thu từng phần' && bc.TienDoBaoCao !== undefined && (
+                  <span style={{ fontWeight: 600, color: '#1677ff' }}>{bc.TienDoBaoCao}%</span>
+                )}
+                <span>📅 {bc.NgayGui ? dayjs(bc.NgayGui).format('DD/MM/YYYY') : 'Chưa gửi'}</span>
+              </div>
+            </div>
+          ) : (
+            <Space size="middle" wrap>
               <span style={{ fontWeight: 500 }}>{bc.KyBaoCao}</span>
               <Tag color={bc.LoaiBaoCao === 'Theo mốc' ? 'blue' : 'purple'}>{bc.LoaiBaoCao}</Tag>
               {bc.LoaiBaoCao !== 'Nghiệm thu từng phần' && bc.TienDoBaoCao !== undefined && <span>{bc.TienDoBaoCao}%</span>}

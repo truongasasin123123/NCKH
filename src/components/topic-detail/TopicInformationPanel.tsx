@@ -78,9 +78,10 @@ export default function TopicInformationPanel({
       <Card title="Mô tả" style={{ marginTop: 16 }}>
         {topic.MoTa ? (
           <div
-            className="ql-editor"
-            style={{ padding: 0 }}
-            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(topic.MoTa) }}
+            className="topic-description"
+            dangerouslySetInnerHTML={{
+              __html: DOMPurify.sanitize(topic.MoTa),
+            }}
           />
         ) : (
           <p style={{ color: '#8c8c8c' }}>Chưa có mô tả</p>

@@ -1,6 +1,17 @@
-import { Layout, Row, Col, Badge } from "antd";
-import { Navigate, Outlet, NavLink, useLocation } from "react-router-dom";
-import { UserOutlined, EditOutlined, BellOutlined, ProfileOutlined, FileOutlined, BarChartOutlined, TeamOutlined, AuditOutlined, PieChartOutlined } from "@ant-design/icons";
+import { Layout, Row, Col, Badge, Dropdown, Button } from "antd";
+import { Navigate, Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
+import {
+  UserOutlined,
+  EditOutlined,
+  BellOutlined,
+  ProfileOutlined,
+  FileOutlined,
+  BarChartOutlined,
+  TeamOutlined,
+  AuditOutlined,
+  PieChartOutlined,
+  DownOutlined,
+} from "@ant-design/icons";
 import { useState, useEffect } from "react";
 import { jwtDecode } from 'jwt-decode';
 import { getNotifications, NOTIFICATIONS_CHANGED_EVENT } from "../services/notification/NotificationService";
@@ -12,7 +23,14 @@ const { Content } = Layout;
 interface JwtPayload {
   VaiTro?: string;
   DaHoanThienHoSo?: boolean;
-  TaiKhoan?: string; // TODO: xác nhận đúng tên claim tài khoản trong JWT của bạn (có thể là sub, username...)
+  TaiKhoan?: string;
+}
+
+interface NavItem {
+  path: string;
+  label: string;
+  icon: React.ReactNode;
+  badge?: number;
 }
 
 const MainHome: React.FC = () => {
@@ -22,6 +40,7 @@ const MainHome: React.FC = () => {
   const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
   const user: JwtPayload | null = token ? jwtDecode<JwtPayload>(token) : null;
   const location = useLocation();
+  const navigate = useNavigate();
   const displayRole = user?.VaiTro || null;
   const normalizedRole = (displayRole || '')
     .normalize('NFD')
@@ -32,8 +51,6 @@ const MainHome: React.FC = () => {
   const isCommitteeRole = normalizedRole.includes('hoidong');
   const isAdmin = normalizedRole === 'admin' || normalizedRole === 'quantri';
   const canAccessCouncil = isCommitteeRole || isCouncilMember;
-
-
 
   const fetchUnreadCount = async () => {
     try {
@@ -71,112 +88,186 @@ const MainHome: React.FC = () => {
   if (isAdmin && location.pathname === '/mainhome') {
     return <Navigate to="/mainhome/admin/topics" replace />;
   }
+
+  // Danh sách các chức năng theo quyền người dùng
+  const navItems: NavItem[] = [];
+
+  if (!isAdmin && !canAccessCouncil) {
+    navItems.push(
+      { path: '/mainhome', label: 'Đề tài của tôi', icon: <ProfileOutlined style={{ fontSize: 18 }} /> },
+      { path: '/mainhome/registertopic', label: 'Đăng ký đề tài', icon: <EditOutlined style={{ fontSize: 18 }} /> },
+    );
+  }
+
+  navItems.push({
+    path: '/mainhome/profile',
+    label: 'Thông tin cá nhân',
+    icon: <UserOutlined style={{ fontSize: 18 }} />,
+  });
+
+  if (isAdmin || !isCommitteeRole) {
+    navItems.push({
+      path: '/mainhome/statistics',
+      label: 'Thống kê',
+      icon: <PieChartOutlined style={{ fontSize: 18 }} />,
+    });
+  }
+
+  navItems.push({
+    path: '/mainhome/notifications',
+    label: 'Thông báo',
+    icon: <BellOutlined style={{ fontSize: 18 }} />,
+    badge: unreadCount,
+  });
+
+  if (isAdmin) {
+    navItems.push(
+      { path: '/mainhome/admin/users', label: 'Quản lý tài khoản', icon: <TeamOutlined style={{ fontSize: 18 }} /> },
+      { path: '/mainhome/admin/councils', label: 'Quản lý hội đồng', icon: <AuditOutlined style={{ fontSize: 18 }} /> },
+      { path: '/mainhome/admin/topics', label: 'Quản lý đề tài', icon: <FileOutlined style={{ fontSize: 18 }} /> },
+    );
+  }
+
+  if (!isAdmin || canAccessCouncil) {
+    navItems.push({
+      path: '/mainhome/progress-demo',
+      label: 'Quản lý tiến độ',
+      icon: <BarChartOutlined style={{ fontSize: 18 }} />,
+    });
+  }
+
+  if (canAccessCouncil) {
+    navItems.push(
+      { path: '/mainhome/approvedtopics', label: 'Đề tài hội đồng', icon: <FileOutlined style={{ fontSize: 18 }} /> },
+      { path: '/mainhome/statistics/council', label: 'Thống kê hội đồng', icon: <AuditOutlined style={{ fontSize: 18 }} /> },
+    );
+  }
+
+  // Xác định mục hiện tại đang được chọn
+  const currentItem = navItems.find((item) => {
+    if (item.path === '/mainhome') {
+      return location.pathname === '/mainhome';
+    }
+    return location.pathname.startsWith(item.path);
+  }) || navItems[0];
+
+  // Menu items cho Dropdown trên điện thoại
+  const dropdownMenuItems = navItems.map((item) => {
+    const isActive = item.path === '/mainhome'
+      ? location.pathname === '/mainhome'
+      : location.pathname.startsWith(item.path);
+
+    return {
+      key: item.path,
+      icon: item.icon,
+      label: (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, minWidth: 200 }}>
+          <span>{item.label}</span>
+          {item.badge && item.badge > 0 ? (
+            <Badge count={item.badge} style={{ backgroundColor: '#ff4d4f' }} />
+          ) : null}
+        </div>
+      ),
+      onClick: () => navigate(item.path),
+      style: isActive
+        ? {
+            backgroundColor: '#f6ffed',
+            color: '#389e0d',
+            fontWeight: 600,
+            borderRadius: 6,
+          }
+        : {
+            borderRadius: 6,
+          },
+    };
+  });
+
   return (
     <>
       <Content style={{ marginTop: 60 }}>
         <Row gutter={16}>
-          <Col xs={24} md={4}>
+          {/* MOBILE DROPDOWN (chỉ hiển thị trên điện thoại < 768px) */}
+          <Col xs={24} md={0} className="mobile-dropdown-col" style={{ padding: '0 12px 14px 12px' }}>
+            <Dropdown
+              menu={{
+                items: dropdownMenuItems,
+                style: {
+                  maxHeight: '70vh',
+                  overflowY: 'auto',
+                  padding: 8,
+                  borderRadius: 10,
+                  boxShadow: '0 6px 20px rgba(0, 0, 0, 0.15)',
+                },
+              }}
+              trigger={['click']}
+              placement="bottomLeft"
+            >
+              <Button
+                block
+                size="large"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  height: 48,
+                  borderRadius: 8,
+                  border: '1.5px solid #52c41a',
+                  backgroundColor: '#fff',
+                  boxShadow: '0 2px 6px rgba(0, 0, 0, 0.06)',
+                  padding: '0 14px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, overflow: 'hidden' }}>
+                  <span style={{ color: '#52c41a', fontSize: 18, display: 'flex', alignItems: 'center' }}>
+                    {currentItem?.icon}
+                  </span>
+                  <span
+                    style={{
+                      fontWeight: 600,
+                      fontSize: 15,
+                      color: '#262626',
+                      textOverflow: 'ellipsis',
+                      overflow: 'hidden',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {currentItem?.label || 'Chức năng'}
+                  </span>
+                  {currentItem?.badge && currentItem.badge > 0 ? (
+                    <Badge count={currentItem.badge} style={{ backgroundColor: '#ff4d4f' }} />
+                  ) : null}
+                </div>
+                <DownOutlined style={{ color: '#52c41a', fontSize: 14 }} />
+              </Button>
+            </Dropdown>
+          </Col>
+
+          {/* DESKTOP SIDER (chỉ hiển thị trên máy tính >= 768px) */}
+          <Col xs={0} md={4} className="desktop-sider-col">
             <ul className="item-sider">
-              {!isAdmin && !canAccessCouncil && (
-                <>
-                  <li>
-                    <NavLink to="/mainhome" className="li-link">
-                      <ProfileOutlined style={{ fontSize: 18, marginRight: 5 }} />
-                      <span>Đề tài của tôi</span>
-                    </NavLink>
-                  </li>
-                  <li>
-                    <NavLink to="/mainhome/registertopic" className="li-link">
-                      <EditOutlined style={{ fontSize: 18, marginRight: 5 }} />
-                      <span>Đăng ký đề tài</span>
-                    </NavLink>
-                  </li>
-                </>
-              )}
-              
-              <li>
-                <NavLink
-                  to="/mainhome/profile"
-                  className="li-link"
-                >
-                  <UserOutlined style={{ fontSize: 18, marginRight: 5 }} />
-                  <span>Thông tin cá nhân</span>
-                </NavLink>
-              </li>
-              {(isAdmin || !isCommitteeRole) && (
-                <li>
-                  <NavLink to="/mainhome/statistics" className="li-link">
-                    <PieChartOutlined style={{ fontSize: 18, marginRight: 5 }} />
-                    <span>Thống kê</span>
-                  </NavLink>
-                </li>
-              )}
-              <li>
-                <NavLink
-                  to="/mainhome/notifications"
-                  className="li-link"
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <BellOutlined style={{ fontSize: 18 }} />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <span>Thông báo</span>
-                      <Badge count={unreadCount} style={{ backgroundColor: '#ff4d4f', textAlign: 'center' }} />
+              {navItems.map((item) => (
+                <li key={item.path}>
+                  <NavLink
+                    to={item.path}
+                    end={item.path === '/mainhome'}
+                    className="li-link"
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ display: 'flex', alignItems: 'center' }}>{item.icon}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>{item.label}</span>
+                        {item.badge && item.badge > 0 ? (
+                          <Badge count={item.badge} style={{ backgroundColor: '#ff4d4f', textAlign: 'center' }} />
+                        ) : null}
+                      </div>
                     </div>
-                  </div>
-                </NavLink>
-              </li>
-              {isAdmin && (
-                <>
-                  <li>
-                    <NavLink to="/mainhome/admin/users" className="li-link">
-                      <TeamOutlined style={{ fontSize: 18, marginRight: 5 }} />
-                      <span>Quản lý tài khoản</span>
-                    </NavLink>
-                  </li>
-                  <li>
-                    <NavLink to="/mainhome/admin/councils" className="li-link">
-                      <AuditOutlined style={{ fontSize: 18, marginRight: 5 }} />
-                      <span>Quản lý hội đồng</span>
-                    </NavLink>
-                  </li>
-                  <li>
-                    <NavLink to="/mainhome/admin/topics" className="li-link">
-                      <FileOutlined style={{ fontSize: 18, marginRight: 5 }} />
-                      <span>Quản lý đề tài</span>
-                    </NavLink>
-                  </li>
-                </>
-              )}
-              {(!isAdmin || canAccessCouncil) && (
-                <li>
-                  <NavLink to="/mainhome/progress-demo" className="li-link">
-                    <BarChartOutlined style={{ fontSize: 18, marginRight: 5 }} />
-                    <span>Quản lý tiến độ</span>
                   </NavLink>
                 </li>
-              )}
-              
-                
-              
-              {canAccessCouncil && (
-                <>
-                  <li>
-                    <NavLink to="/mainhome/approvedtopics" className="li-link">
-                      <FileOutlined style={{ fontSize: 18, marginRight: 5 }} />
-                      <span>Đề tài hội đồng</span>
-                    </NavLink>
-                  </li>
-                  <li>
-                    <NavLink to="/mainhome/statistics/council" className="li-link">
-                      <AuditOutlined style={{ fontSize: 18, marginRight: 5 }} />
-                      <span>Thống kê hội đồng</span>
-                    </NavLink>
-                  </li>
-                </>
-              )}
+              ))}
             </ul>
           </Col>
 
+          {/* NỘI DUNG CHÍNH */}
           <Col xs={24} md={20}>
             <Outlet />
           </Col>

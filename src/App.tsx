@@ -34,6 +34,7 @@ import StatisticsDashboard from "./pages/StatisticsDashboard";
 import MyTopicsStatistics from "./pages/MyTopicsStatistics";
 import CouncilStatistics from "./pages/CouncilStatistics";
 import { getAvatarUrl, PROFILE_UPDATED_EVENT } from "./services/auth/AuthService";
+import ScrollToTop from "./components/common/ScrollToTop";
 
 interface JwtPayload {
   TaiKhoan: string;
@@ -114,6 +115,7 @@ function App() {
 
   return (
     <>
+      <ScrollToTop />
       <header className="main-menu">
         <div className="item-nvarbar">
           <Link to="/"  >

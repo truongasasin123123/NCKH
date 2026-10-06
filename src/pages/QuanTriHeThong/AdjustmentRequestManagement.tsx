@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type Key } from 'react';
-import { Button, DatePicker, Descriptions, Drawer, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, message } from 'antd';
+import { Button, DatePicker, Descriptions, Drawer, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Grid, message } from 'antd';
 import { DownloadOutlined, EyeOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -184,7 +184,10 @@ export default function AdjustmentRequestManagement({ embedded = false }: Adjust
     }
   };
 
-  const columns: ColumnsType<AdjustmentRequest> = [
+  const screens = Grid.useBreakpoint();
+  const isMobile = screens.md === false;
+
+  const desktopColumns: ColumnsType<AdjustmentRequest> = [
     { title: 'Đề tài', render: (_, item) => item.DeTai?.TenDT || item.MaDT },
     { title: 'Người gửi', render: (_, item) => item.NguoiGui?.TenDayDu || item.TaiKhoanNguoiGui },
     { title: 'Ngày gửi', dataIndex: 'NgayGui', width: 120, render: (value) => new Date(value).toLocaleDateString('vi-VN') },
@@ -199,14 +202,80 @@ export default function AdjustmentRequestManagement({ embedded = false }: Adjust
     },
   ];
 
+  const mobileColumns: ColumnsType<AdjustmentRequest> = [
+    {
+      title: 'Đề tài',
+      key: 'topic',
+      render: (_, item) => (
+        <div>
+          <div style={{ fontWeight: 600, color: '#1677ff', lineHeight: 1.4 }}>
+            {item.DeTai?.TenDT || item.MaDT}
+          </div>
+          <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 2 }}>
+            Mã: {item.MaDT}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'Trạng thái',
+      dataIndex: 'TrangThai',
+      width: 120,
+      align: 'right',
+      render: (value: AdjustmentRequestStatus) => (
+        <Tag color={statusColor[value]} style={{ margin: 0 }}>
+          {value}
+        </Tag>
+      ),
+    },
+  ];
+
+  const renderExpandedContent = (item: AdjustmentRequest) => (
+    <div style={{ padding: '4px 0' }}>
+      <Descriptions size="small" column={1} bordered={false}>
+        <Descriptions.Item label="Người gửi">
+          {item.NguoiGui?.TenDayDu || item.TaiKhoanNguoiGui}
+        </Descriptions.Item>
+        <Descriptions.Item label="Ngày gửi">
+          {new Date(item.NgayGui).toLocaleDateString('vi-VN')}
+        </Descriptions.Item>
+        <Descriptions.Item label="Lý do">
+          {item.LyDo || '—'}
+        </Descriptions.Item>
+      </Descriptions>
+      <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
+        <Button
+          type="primary"
+          size="small"
+          icon={<EyeOutlined />}
+          onClick={(e) => {
+            e.stopPropagation();
+            setSelected(item);
+          }}
+        >
+          Xem chi tiết
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
-    <div style={embedded ? undefined : { background: '#fff', padding: 20, borderRadius: 6 }}>
-      <Space style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }} wrap>
+    <div style={embedded ? undefined : { background: '#fff', padding: isMobile ? 12 : 20, borderRadius: 6 }}>
+      <Space
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          marginBottom: 16,
+          width: '100%',
+        }}
+        direction={isMobile ? 'vertical' : 'horizontal'}
+        wrap
+      >
         <Select
           value={status}
           allowClear
           placeholder="Lọc trạng thái"
-          style={{ width: 190 }}
+          style={{ width: isMobile ? '100%' : 190 }}
           onChange={setStatus}
           options={Object.keys(statusColor).map((value) => ({ value, label: value }))}
         />
@@ -219,7 +288,12 @@ export default function AdjustmentRequestManagement({ embedded = false }: Adjust
           onConfirm={deleteSelected}
           disabled={!selectedRowKeys.length}
         >
-          <Button danger disabled={!selectedRowKeys.length} loading={submitting}>
+          <Button
+            danger
+            disabled={!selectedRowKeys.length}
+            loading={submitting}
+            style={{ width: isMobile ? '100%' : 'auto' }}
+          >
             Xóa phiếu {selectedRowKeys.length ? `(${selectedRowKeys.length})` : ''}
           </Button>
         </Popconfirm>
@@ -228,12 +302,27 @@ export default function AdjustmentRequestManagement({ embedded = false }: Adjust
         rowKey="Id"
         loading={loading}
         dataSource={data}
-        columns={columns}
-        rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys }}
-        pagination={{ total, pageSize: 50, showSizeChanger: false }}
+        size={isMobile ? 'small' : 'middle'}
+        columns={isMobile ? mobileColumns : desktopColumns}
+        scroll={isMobile ? undefined : { x: 700 }}
+        rowSelection={isMobile ? undefined : { selectedRowKeys, onChange: setSelectedRowKeys }}
+        expandable={
+          isMobile
+            ? {
+                expandedRowRender: renderExpandedContent,
+                expandRowByClick: true,
+              }
+            : undefined
+        }
+        pagination={{ total, pageSize: 50, showSizeChanger: false, simple: isMobile }}
       />
 
-      <Drawer title="Chi tiết phiếu điều chỉnh" open={Boolean(selected)} onClose={() => setSelected(undefined)} width={680}>
+      <Drawer
+        title="Chi tiết phiếu điều chỉnh"
+        open={Boolean(selected)}
+        onClose={() => setSelected(undefined)}
+        width={isMobile ? '100%' : 680}
+      >
         {selected && <>
           <Descriptions bordered column={1} size="small">
             <Descriptions.Item label="Đề tài">{selected.DeTai?.TenDT || selected.MaDT}</Descriptions.Item>

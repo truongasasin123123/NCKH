@@ -7,12 +7,12 @@ import {
   DatePicker,
   Descriptions,
   Form,
+  Grid,
   Input,
   Popconfirm,
   Radio,
   Select,
   Space,
-
   Table,
   Tag,
   message,
@@ -145,8 +145,82 @@ const CouncilDetail = () => {
   if (loading) return <div style={{ padding: 24 }}>Đang tải...</div>;
   if (!council) return <div style={{ padding: 24 }}>Không tìm thấy hội đồng.</div>;
 
+  const screens = Grid.useBreakpoint();
+  const isMobile = screens.md === false;
+
+  const desktopColumns = [
+    { title: 'Tài khoản', dataIndex: 'TaiKhoan' },
+    { title: 'Họ tên', render: (_: any, member: CouncilMember) => member.NguoiDung?.TenDayDu || '—' },
+    { title: 'Role gốc', render: (_: any, member: CouncilMember) => member.NguoiDung?.VaiTro || '—' },
+    {
+      title: 'Chức danh',
+      dataIndex: 'ChucDanh',
+      render: (value: string) => (
+        <Tag color={value === 'Chủ tịch' ? 'gold' : value === 'Thư ký' ? 'blue' : 'default'}>
+          {value}
+        </Tag>
+      ),
+    },
+    {
+      title: 'Thao tác',
+      render: (_: any, member: CouncilMember) => (
+        <Popconfirm title="Xóa thành viên này?" onConfirm={() => removeMember(member)}>
+          <Button danger size="small" icon={<DeleteOutlined />}>
+            Xóa
+          </Button>
+        </Popconfirm>
+      ),
+    },
+  ];
+
+  const mobileColumns = [
+    {
+      title: 'Thành viên',
+      key: 'member',
+      render: (_: any, member: CouncilMember) => (
+        <div>
+          <div style={{ fontWeight: 600, color: '#1677ff' }}>
+            {member.NguoiDung?.TenDayDu || member.TaiKhoan}
+          </div>
+          <div style={{ fontSize: 12, color: '#8c8c8c' }}>@{member.TaiKhoan}</div>
+        </div>
+      ),
+    },
+    {
+      title: 'Chức danh',
+      dataIndex: 'ChucDanh',
+      width: 110,
+      align: 'right' as const,
+      render: (value: string) => (
+        <Tag
+          color={value === 'Chủ tịch' ? 'gold' : value === 'Thư ký' ? 'blue' : 'default'}
+          style={{ margin: 0 }}
+        >
+          {value}
+        </Tag>
+      ),
+    },
+  ];
+
+  const renderExpandedContent = (member: CouncilMember) => (
+    <div style={{ padding: '4px 0' }}>
+      <Descriptions size="small" column={1} bordered={false}>
+        <Descriptions.Item label="Role gốc">
+          {member.NguoiDung?.VaiTro || '—'}
+        </Descriptions.Item>
+      </Descriptions>
+      <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
+        <Popconfirm title="Xóa thành viên này?" onConfirm={() => removeMember(member)}>
+          <Button danger size="small" icon={<DeleteOutlined />}>
+            Xóa khỏi hội đồng
+          </Button>
+        </Popconfirm>
+      </div>
+    </div>
+  );
+
   return (
-    <div style={{ background: '#fff', padding: 20, borderRadius: 6 }}>
+    <div style={{ background: '#fff', padding: isMobile ? 12 : 20, borderRadius: 6 }}>
       <Space style={{ marginBottom: 16 }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/mainhome/admin/councils')}>Danh sách hội đồng</Button>
       </Space>
@@ -203,23 +277,51 @@ const CouncilDetail = () => {
 
 
 
-      <Card title="Thành viên hội đồng">
-        <Space style={{ display: 'flex', marginBottom: 16 }} wrap>
-          <AutoComplete style={{ minWidth: 300 }} options={accountOptions} value={account} onSearch={findAccounts} onChange={setAccount} onSelect={(value) => setAccount(value)} placeholder="Tìm giảng viên hoặc người hướng dẫn" />
-          <Select value={position} onChange={setPosition} style={{ width: 150 }} options={positions.map((item) => ({ value: item, label: item }))} />
-          <Button type="primary" icon={<PlusOutlined />} onClick={addMember}>Thêm thành viên</Button>
+      <Card title="Thành viên hội đồng" style={{ marginTop: 16 }}>
+        <Space
+          style={{ display: 'flex', marginBottom: 16, width: '100%' }}
+          direction={isMobile ? 'vertical' : 'horizontal'}
+          wrap
+        >
+          <AutoComplete
+            style={{ width: isMobile ? '100%' : 300 }}
+            options={accountOptions}
+            value={account}
+            onSearch={findAccounts}
+            onChange={setAccount}
+            onSelect={(value) => setAccount(value)}
+            placeholder="Tìm giảng viên hoặc người hướng dẫn"
+          />
+          <Select
+            value={position}
+            onChange={setPosition}
+            style={{ width: isMobile ? '100%' : 150 }}
+            options={positions.map((item) => ({ value: item, label: item }))}
+          />
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={addMember}
+            style={{ width: isMobile ? '100%' : 'auto' }}
+          >
+            Thêm thành viên
+          </Button>
         </Space>
         <Table<CouncilMember>
           rowKey="Id"
           dataSource={members}
+          size={isMobile ? 'small' : 'middle'}
+          columns={isMobile ? mobileColumns : desktopColumns}
+          scroll={isMobile ? undefined : { x: 600 }}
+          expandable={
+            isMobile
+              ? {
+                  expandedRowRender: renderExpandedContent,
+                  expandRowByClick: true,
+                }
+              : undefined
+          }
           pagination={false}
-          columns={[
-            { title: 'Tài khoản', dataIndex: 'TaiKhoan' },
-            { title: 'Họ tên', render: (_, member) => member.NguoiDung?.TenDayDu || '—' },
-            { title: 'Role gốc', render: (_, member) => member.NguoiDung?.VaiTro || '—' },
-            { title: 'Chức danh', dataIndex: 'ChucDanh', render: (value) => <Tag color={value === 'Chủ tịch' ? 'gold' : value === 'Thư ký' ? 'blue' : 'default'}>{value}</Tag> },
-            { title: 'Thao tác', render: (_, member) => <Popconfirm title="Xóa thành viên này?" onConfirm={() => removeMember(member)}><Button danger size="small" icon={<DeleteOutlined />}>Xóa</Button></Popconfirm> },
-          ]}
         />
       </Card>
     </div>

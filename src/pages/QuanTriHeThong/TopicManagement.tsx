@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Table, Input, Select, Space, Tag, Button, message, Popover, Tabs } from "antd";
+import { Table, Input, Select, Space, Tag, Button, message, Popover, Tabs, Descriptions, Grid } from "antd";
 import { ReloadOutlined, EyeOutlined, FilterOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { useNavigate } from "react-router-dom";
@@ -35,6 +35,9 @@ const TopicManagement = () => {
   const [pageSize, setPageSize] = useState(10);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  const screens = Grid.useBreakpoint();
+  const isMobile = screens.md === false;
 
   const [search, setSearch] = useState("");
   const [phanLoai, setPhanLoai] = useState<string | undefined>();
@@ -82,6 +85,21 @@ const TopicManagement = () => {
     setPage(1);
   };
 
+  const getLeaderName = (record: TopicLoad) => {
+    if (record.NhomTruong) {
+      return record.NhomTruong.TenDayDu || record.NhomTruong.TaiKhoan;
+    }
+    const leader = record.ThanhVienDT?.find((tv) => {
+      const role = tv.VaiTroDT
+        ?.normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/đ/g, "d");
+      return role?.includes("truong nhom") || role?.includes("nhom truong");
+    });
+    return leader?.NguoiDung?.TenDayDu || leader?.TaiKhoan || "-";
+  };
+
   const activeFilterCount = Number(Boolean(phanLoai)) + Number(Boolean(trangThai));
   const filterContent = (
     <Space direction="vertical" size="middle" style={{ width: 260 }}>
@@ -112,7 +130,7 @@ const TopicManagement = () => {
     </Space>
   );
 
-  const columns: ColumnsType<TopicLoad> = [
+  const desktopColumns: ColumnsType<TopicLoad> = [
     { title: "Mã đề tài", dataIndex: "MaDT", key: "MaDT", width: 120 },
     { title: "Tên đề tài", dataIndex: "TenDT", key: "TenDT" },
     { title: "Phân loại", dataIndex: "PhanLoai", key: "PhanLoai", width: 160 },
@@ -129,20 +147,7 @@ const TopicManagement = () => {
       title: "Nhóm trưởng",
       key: "leader",
       width: 160,
-      render: (_, record) => {
-        if (record.NhomTruong) {
-          return record.NhomTruong.TenDayDu || record.NhomTruong.TaiKhoan;
-        }
-        const leader = record.ThanhVienDT?.find((tv) => {
-          const role = tv.VaiTroDT
-            ?.normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .toLowerCase()
-            .replace(/đ/g, "d");
-          return role?.includes("truong nhom") || role?.includes("nhom truong");
-        });
-        return leader?.NguoiDung?.TenDayDu || leader?.TaiKhoan || "-";
-      },
+      render: (_, record) => getLeaderName(record),
     },
     {
       title: "Thao tác",
@@ -161,10 +166,57 @@ const TopicManagement = () => {
     },
   ];
 
+  const mobileColumns: ColumnsType<TopicLoad> = [
+    {
+      title: "Đề tài",
+      key: "topic",
+      render: (_, record) => (
+        <div>
+          <div style={{ fontWeight: 600, color: '#1677ff', lineHeight: 1.4 }}>{record.TenDT}</div>
+          <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 2 }}>Mã: {record.MaDT}</div>
+        </div>
+      ),
+    },
+    {
+      title: "Trạng thái",
+      dataIndex: "TrangThai",
+      key: "TrangThai",
+      width: 130,
+      align: "right",
+      render: (value: string) => (
+        <Tag color={STATUS_COLOR_MAP[value] ?? "default"} style={{ margin: 0, whiteSpace: 'normal', textAlign: 'center' }}>
+          {value}
+        </Tag>
+      ),
+    },
+  ];
+
+  const renderExpandedContent = (record: TopicLoad) => (
+    <div style={{ padding: '4px 0' }}>
+      <Descriptions size="small" column={1} bordered={false}>
+        <Descriptions.Item label="Phân loại">{record.PhanLoai || '—'}</Descriptions.Item>
+        <Descriptions.Item label="Nhóm trưởng">{getLeaderName(record)}</Descriptions.Item>
+      </Descriptions>
+      <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
+        <Button
+          type="primary"
+          size="small"
+          icon={<EyeOutlined />}
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/mainhome/admin/topics/${record.MaDT}`);
+          }}
+        >
+          Xem chi tiết
+        </Button>
+      </div>
+    </div>
+  );
+
   const topicsTab = (
     <>
-      <Space style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }} wrap>
-        <Space wrap>
+      <Space style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, width: '100%' }} wrap>
+        <Space wrap style={{ width: isMobile ? '100%' : 'auto' }}>
           <Input.Search
             placeholder="Tìm theo mã hoặc tên đề tài"
             allowClear
@@ -174,7 +226,7 @@ const TopicManagement = () => {
               setPage(1);
               fetchData();
             }}
-            style={{ width: 300 }}
+            style={{ width: isMobile ? '100%' : 300 }}
           />
 
           <Popover content={filterContent} trigger="click" placement="bottomLeft">
@@ -187,15 +239,26 @@ const TopicManagement = () => {
 
       <Table
         rowKey="MaDT"
-        columns={columns}
+        columns={isMobile ? mobileColumns : desktopColumns}
         dataSource={topics}
         loading={loading}
+        size={isMobile ? 'small' : 'middle'}
+        scroll={isMobile ? undefined : { x: 800 }}
+        expandable={
+          isMobile
+            ? {
+                expandedRowRender: renderExpandedContent,
+                expandRowByClick: true,
+              }
+            : undefined
+        }
         pagination={{
           current: page,
           pageSize,
           total,
           showSizeChanger: false,
-          showTotal: (count) => `Tổng ${count} đề tài`,
+          simple: isMobile,
+          showTotal: isMobile ? undefined : (count) => `Tổng ${count} đề tài`,
           onChange: (nextPage, nextPageSize) => {
             setPage(nextPage);
             setPageSize(nextPageSize);
@@ -206,7 +269,7 @@ const TopicManagement = () => {
   );
 
   return (
-    <div style={{ background: '#fff', padding: 20, borderRadius: 6 }}>
+    <div style={{ background: '#fff', padding: isMobile ? 12 : 20, borderRadius: 6 }}>
       <Tabs
         defaultActiveKey="topics"
         items={[

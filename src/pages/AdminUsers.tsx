@@ -6,6 +6,9 @@ import {
   Select,
   Space,
   Table,
+  Tag,
+  Descriptions,
+  Grid,
   message,
 } from 'antd';
 import { LockOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -152,23 +155,129 @@ const AdminUsers = () => {
     </>
   );
 
-  return (
-    <div style={{ background: '#fff', padding: 20, borderRadius: 6 }}>
-      <Space style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }} wrap>
+  const screens = Grid.useBreakpoint();
+  const isMobile = screens.md === false;
+
+  const renderExpandedContent = (user: UserItem) => (
+    <div style={{ padding: '4px 0' }}>
+      <Descriptions size="small" column={1} bordered={false}>
+        <Descriptions.Item label="Email">{user.Gmail || '—'}</Descriptions.Item>
+        <Descriptions.Item label="Số điện thoại">{user.SDT || '—'}</Descriptions.Item>
+      </Descriptions>
+      <div style={{ marginTop: 12, display: 'flex', gap: 8, justifyContent: 'flex-end', borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
+        <Button
+          size="small"
+          onClick={(e) => {
+            e.stopPropagation();
+            setEditingUser(user);
+            editForm.setFieldsValue(user);
+          }}
+        >
+          Sửa thông tin
+        </Button>
+        <Button
+          size="small"
+          icon={<LockOutlined />}
+          onClick={(e) => {
+            e.stopPropagation();
+            setResettingUser(user);
+          }}
+        >
+          Mật khẩu
+        </Button>
+      </div>
+    </div>
+  );
+
+  const desktopColumns = [
+    { title: 'Tài khoản', dataIndex: 'TaiKhoan' },
+    { title: 'Họ tên', dataIndex: 'TenDayDu', render: (value: any) => value || '—' },
+    { title: 'Email', dataIndex: 'Gmail' },
+    {
+      title: 'Vai trò',
+      dataIndex: 'VaiTro',
+      render: (value: string) => (value ? <Tag color="blue">{value}</Tag> : '—'),
+    },
+    {
+      title: 'Thao tác',
+      render: (_: any, user: UserItem) => (
         <Space wrap>
+          <Button
+            size="small"
+            onClick={() => {
+              setEditingUser(user);
+              editForm.setFieldsValue(user);
+            }}
+          >
+            Sửa
+          </Button>
+          <Button size="small" icon={<LockOutlined />} onClick={() => setResettingUser(user)}>
+            Mật khẩu
+          </Button>
+        </Space>
+      ),
+    },
+  ];
+
+  const mobileColumns = [
+    {
+      title: 'Tài khoản / Họ tên',
+      key: 'user',
+      render: (_: any, user: UserItem) => (
+        <div>
+          <div style={{ fontWeight: 600, color: '#1677ff' }}>{user.TenDayDu || user.TaiKhoan}</div>
+          <div style={{ fontSize: 12, color: '#8c8c8c' }}>@{user.TaiKhoan}</div>
+        </div>
+      ),
+    },
+    {
+      title: 'Vai trò',
+      dataIndex: 'VaiTro',
+      width: 120,
+      align: 'right' as const,
+      render: (value: string) => (value ? <Tag color="blue" style={{ margin: 0 }}>{value}</Tag> : '—'),
+    },
+  ];
+
+  return (
+    <div style={{ background: '#fff', padding: isMobile ? 12 : 20, borderRadius: 6 }}>
+      <Space
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          marginBottom: 16,
+          width: '100%',
+        }}
+        direction={isMobile ? 'vertical' : 'horizontal'}
+        wrap
+      >
+        <Space wrap style={{ width: isMobile ? '100%' : 'auto' }}>
           <Input.Search
             allowClear
-            placeholder="Tài khoản, họ tên hoặc email"
+            placeholder="Tài khoản, họ tên, email"
             value={keyword}
             onChange={(event) => setKeyword(event.target.value)}
             onSearch={loadUsers}
-            style={{ width: 260 }}
+            style={{ width: isMobile ? '100%' : 260 }}
           />
-          <Select allowClear placeholder="Vai trò" value={role} onChange={setRole} style={{ width: 180 }}
-            options={roles.map((item) => ({ value: item, label: item }))} />
-          <Button icon={<ReloadOutlined />} onClick={loadUsers}>Lọc</Button>
+          <Select
+            allowClear
+            placeholder="Vai trò"
+            value={role}
+            onChange={setRole}
+            style={{ width: isMobile ? '100%' : 180 }}
+            options={roles.map((item) => ({ value: item, label: item }))}
+          />
+          <Button icon={<ReloadOutlined />} onClick={loadUsers} style={{ width: isMobile ? '100%' : 'auto' }}>
+            Lọc
+          </Button>
         </Space>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => setCreateOpen(true)}
+          style={{ width: isMobile ? '100%' : 'auto' }}
+        >
           Cấp tài khoản
         </Button>
       </Space>
@@ -177,22 +286,23 @@ const AdminUsers = () => {
         rowKey="TaiKhoan"
         loading={loading}
         dataSource={data}
-        pagination={{ total, pageSize: 100, showSizeChanger: false }}
-        columns={[
-          { title: 'Tài khoản', dataIndex: 'TaiKhoan' },
-          { title: 'Họ tên', dataIndex: 'TenDayDu', render: (value) => value || '—' },
-          { title: 'Email', dataIndex: 'Gmail' },
-          { title: 'Vai trò', dataIndex: 'VaiTro', render: (value) => value || '—' },
-          {
-            title: 'Thao tác',
-            render: (_, user) => (
-              <Space wrap>
-                <Button size="small" onClick={() => { setEditingUser(user); editForm.setFieldsValue(user); }}>Sửa</Button>
-                <Button size="small" icon={<LockOutlined />} onClick={() => setResettingUser(user)}>Mật khẩu</Button>
-              </Space>
-            ),
-          },
-        ]}
+        size={isMobile ? 'small' : 'middle'}
+        columns={isMobile ? mobileColumns : desktopColumns}
+        scroll={isMobile ? undefined : { x: 750 }}
+        expandable={
+          isMobile
+            ? {
+                expandedRowRender: renderExpandedContent,
+                expandRowByClick: true,
+              }
+            : undefined
+        }
+        pagination={{
+          total,
+          pageSize: 100,
+          showSizeChanger: false,
+          simple: isMobile,
+        }}
       />
 
       <Modal title="Cấp tài khoản" open={createOpen} onCancel={() => setCreateOpen(false)} footer={null} destroyOnClose>

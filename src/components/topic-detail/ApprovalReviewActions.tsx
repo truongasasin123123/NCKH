@@ -5,12 +5,16 @@ interface ApprovalReviewActionsProps {
   canReview: boolean;
   onApprove: () => void;
   onReject: () => void;
+  approveText?: string;
+  rejectText?: string;
 }
 
 export default function ApprovalReviewActions({
   canReview,
   onApprove,
   onReject,
+  approveText,
+  rejectText,
 }: ApprovalReviewActionsProps) {
   if (!canReview) return null;
 
@@ -22,7 +26,7 @@ export default function ApprovalReviewActions({
         block
         onClick={onApprove}
       >
-        Phê duyệt đề tài
+        {approveText || 'Phê duyệt đề tài'}
       </Button>
       <Button
         danger
@@ -30,7 +34,7 @@ export default function ApprovalReviewActions({
         block
         onClick={onReject}
       >
-        Từ chối phê duyệt
+        {rejectText || 'Từ chối phê duyệt'}
       </Button>
     </div>
   );

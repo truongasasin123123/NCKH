@@ -1,8 +1,9 @@
-import { Alert, Form, Input, Button, message, Card, Row, Col, Avatar, Upload, Modal } from "antd";
-import { EditOutlined, SaveOutlined, CloseOutlined, UserOutlined, UploadOutlined } from "@ant-design/icons";
-import { useState, useEffect, } from "react";
+import { Alert, Form, Input, Button, message, Card, Row, Col, Avatar, Upload, Modal, Popconfirm, Space } from "antd";
+import { EditOutlined, SaveOutlined, CloseOutlined, UserOutlined, UploadOutlined, DeleteOutlined } from "@ant-design/icons";
+import { useState, useEffect } from "react";
 import { jwtDecode } from 'jwt-decode';
 import ApiAxios from "../axios.config";
+import { getAvatarUrl, uploadAvatar, removeAvatar } from "../services/auth/AuthService";
 
 interface UserProfile {
   TaiKhoan: string;
@@ -10,6 +11,7 @@ interface UserProfile {
   VaiTro?: string;
   Gmail?: string;
   SDT?: string;
+  Avatar?: string;
   AvatarUrl?: string;
   role?: string;
   DaHoanThienHoSo?: boolean;
@@ -23,6 +25,7 @@ interface JwtPayload {
 function Profile() {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [editing, setEditing] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
@@ -44,7 +47,7 @@ function Profile() {
       };
 
       setUserProfile(profileData);
-      setAvatarUrl(data.AvatarUrl);
+      setAvatarUrl(data.Avatar || data.AvatarUrl);
       form.setFieldsValue(profileData);
       setEditing(data.DaHoanThienHoSo === false);
     } catch (error: any) {
@@ -57,7 +60,7 @@ function Profile() {
       setLoading(true);
       const profileToSave = {
         ...values,
-        AvatarUrl: avatarUrl,
+        Avatar: avatarUrl,
         VaiTro: userProfile?.VaiTro || values.VaiTro,
       };
       await ApiAxios.put(`/auth/profile`, profileToSave);
@@ -82,15 +85,33 @@ function Profile() {
     });
   };
 
-  const beforeUpload = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      setAvatarUrl(result);
-      form.setFieldsValue({ AvatarUrl: result });
-    };
-    reader.readAsDataURL(file);
-    return false; // chặn upload thực tế
+  const handleUploadAvatar = async (file: File) => {
+    try {
+      setUploadingAvatar(true);
+      const result = await uploadAvatar(file);
+      message.success("Tải lên ảnh đại diện thành công!");
+      setAvatarUrl(result.avatarUrl);
+      setUserProfile((prev) => (prev ? { ...prev, Avatar: result.avatarUrl } : null));
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || "Tải ảnh đại diện thất bại");
+    } finally {
+      setUploadingAvatar(false);
+    }
+    return false; // Chặn upload mặc định của Antd
+  };
+
+  const handleRemoveAvatar = async () => {
+    try {
+      setUploadingAvatar(true);
+      await removeAvatar();
+      message.success("Đã gỡ bỏ ảnh đại diện");
+      setAvatarUrl(undefined);
+      setUserProfile((prev) => (prev ? { ...prev, Avatar: undefined } : null));
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || "Gỡ ảnh đại diện thất bại");
+    } finally {
+      setUploadingAvatar(false);
+    }
   };
 
   const handleEdit = () => {
@@ -119,7 +140,7 @@ function Profile() {
             <Row gutter={[16, 16]} align="middle">
               <Col xs={24} md={18}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                  <Avatar size={64} src={avatarUrl} icon={!avatarUrl ? <UserOutlined /> : undefined} />
+                  <Avatar size={72} src={getAvatarUrl(avatarUrl)} icon={!avatarUrl ? <UserOutlined /> : undefined} />
                   <div>
                     <h1 style={{ margin: '0 0 8px 0' }}>{userProfile.TenDayDu}</h1>
                     <p style={{ margin: 0, color: '#666' }}>@{userProfile.TaiKhoan}</p>
@@ -127,13 +148,30 @@ function Profile() {
                 </div>
                 {editing && (
                   <div style={{ marginTop: 12 }}>
-                    <Upload
-                      accept="image/*"
-                      showUploadList={false}
-                      beforeUpload={beforeUpload}
-                    >
-                      <Button icon={<UploadOutlined />}>Tải ảnh đại diện</Button>
-                    </Upload>
+                    <Space>
+                      <Upload
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        showUploadList={false}
+                        beforeUpload={handleUploadAvatar}
+                      >
+                        <Button icon={<UploadOutlined />} loading={uploadingAvatar}>
+                          {avatarUrl ? 'Thay đổi ảnh đại diện' : 'Tải ảnh đại diện'}
+                        </Button>
+                      </Upload>
+                      {avatarUrl && (
+                        <Popconfirm
+                          title="Gỡ ảnh đại diện?"
+                          description="Bạn có chắc muốn gỡ bỏ ảnh đại diện hiện tại?"
+                          onConfirm={handleRemoveAvatar}
+                          okText="Gỡ bỏ"
+                          cancelText="Hủy"
+                        >
+                          <Button danger icon={<DeleteOutlined />} loading={uploadingAvatar}>
+                            Gỡ ảnh
+                          </Button>
+                        </Popconfirm>
+                      )}
+                    </Space>
                   </div>
                 )}
               </Col>

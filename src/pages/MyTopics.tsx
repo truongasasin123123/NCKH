@@ -71,6 +71,7 @@ const MyTopics: React.FC = () => {
             "Nháp": { color: 'default', label: 'Nháp' },
             "Đã phê duyệt": { color: 'green', label: 'Bắt đầu' },
             "Bắt đầu": { color: 'green', label: 'Bắt đầu' },
+            "Đang thực hiện": { color: 'blue', label: 'Đang thực hiện' },
             "Sắp hạn": { color: 'orange', label: 'Sắp hạn' },
             "Khẩn cấp": { color: 'red', label: 'Khẩn cấp' },
             "Chờ phê duyệt": { color: 'blue', label: 'Chờ phê duyệt' },
@@ -78,13 +79,16 @@ const MyTopics: React.FC = () => {
             "Chờ phân công hội đồng xét duyệt": { color: 'gold', label: 'Chờ phân công hội đồng xét duyệt' },
             "Chờ phân công hội đồng theo dõi": { color: 'gold', label: 'Chờ phân công đội ngũ theo dõi' },
             "Chờ phân công hội đồng nghiệm thu": { color: 'gold', label: 'Chờ phân công hội đồng nghiệm thu' },
+            "Chờ phân công hội đồng thanh lý": { color: 'volcano', label: 'Chờ phân công hội đồng thanh lý' },
+            "Chờ thanh lý": { color: 'orange', label: 'Chờ thanh lý' },
+            "Đã thanh lý": { color: 'default', label: 'Đã thanh lý' },
             "Từ chối": { color: 'red', label: 'Từ chối' },
             "Chờ nghiệm thu": { color: 'gold', label: 'Chờ nghiệm thu' },
             "Đang nghiệm thu": { color: 'processing', label: 'Đang nghiệm thu' },
             "Đã nghiệm thu": { color: 'green', label: 'Đã nghiệm thu' },
             "Không đạt nghiệm thu": { color: 'red', label: 'Không đạt nghiệm thu' },
         };
-        const statusInfo = statusMap[status] || { color: 'default', label: 'Không xác định' };
+        const statusInfo = statusMap[status] || { color: 'default', label: status || 'Không xác định' };
         return <Tag color={statusInfo.color}>{statusInfo.label}</Tag>;
     };
 

@@ -36,6 +36,8 @@ const TopicDetailCommittee: React.FC = () => {
     const [members, setMembers] = useState<ThanhVienDT[]>([]);
     const [loading, setLoading] = useState(true);
     const [myApprovalStatus, setMyApprovalStatus] = useState<string | null>(null);
+    const [myApprovalType, setMyApprovalType] = useState<string>('Xét duyệt');
+    const isLiquidationReview = myApprovalType === 'Thanh lý';
 
     // State cho modal phê duyệt
     const [approveModalOpen, setApproveModalOpen] = useState(false);
@@ -97,8 +99,9 @@ const TopicDetailCommittee: React.FC = () => {
                     LoaiHoiDong?: string;
                     TrangThai: string;
                 }) => approval.TaiKhoanHoiDong === user?.TaiKhoan
-                    && (approval.LoaiHoiDong || 'Xét duyệt') === 'Xét duyệt');
+                    && ['Xét duyệt', 'Thanh lý'].includes(approval.LoaiHoiDong || 'Xét duyệt'));
                 setMyApprovalStatus(myApproval?.TrangThai || null);
+                setMyApprovalType(myApproval?.LoaiHoiDong || 'Xét duyệt');
                 await fetchProjectDocuments(MaDT);
                 await fetchComments(MaDT);
                 try {
@@ -178,6 +181,7 @@ const TopicDetailCommittee: React.FC = () => {
             "Nháp": { color: 'default', label: 'Nháp' },
             "Đã phê duyệt": { color: 'green', label: 'Bắt đầu' },
             "Bắt đầu": { color: 'green', label: 'Bắt đầu' },
+            "Đang thực hiện": { color: 'blue', label: 'Đang thực hiện' },
             "Sắp hạn": { color: 'orange', label: 'Sắp hạn' },
             "Khẩn cấp": { color: 'red', label: 'Khẩn cấp' },
             "Chờ phê duyệt": { color: 'blue', label: 'Chờ phê duyệt' },
@@ -185,20 +189,23 @@ const TopicDetailCommittee: React.FC = () => {
             "Chờ phân công hội đồng xét duyệt": { color: 'gold', label: 'Chờ phân công hội đồng xét duyệt' },
             "Chờ phân công hội đồng theo dõi": { color: 'gold', label: 'Chờ phân công đội ngũ theo dõi' },
             "Chờ phân công hội đồng nghiệm thu": { color: 'gold', label: 'Chờ phân công hội đồng nghiệm thu' },
+            "Chờ phân công hội đồng thanh lý": { color: 'volcano', label: 'Chờ phân công hội đồng thanh lý' },
+            "Chờ thanh lý": { color: 'orange', label: 'Chờ thanh lý' },
+            "Đã thanh lý": { color: 'default', label: 'Đã thanh lý' },
             "Từ chối": { color: 'red', label: 'Từ chối' },
             "Chờ nghiệm thu": { color: 'gold', label: 'Chờ nghiệm thu' },
             "Đang nghiệm thu": { color: 'processing', label: 'Đang nghiệm thu' },
             "Đã nghiệm thu": { color: 'green', label: 'Đã nghiệm thu' },
             "Không đạt nghiệm thu": { color: 'red', label: 'Không đạt nghiệm thu' },
         };
-        const statusInfo = statusMap[status] || { color: 'default', label: 'Không xác định' };
+        const statusInfo = statusMap[status] || { color: 'default', label: status || 'Không xác định' };
         return <Tag color={statusInfo.color}>{statusInfo.label}</Tag>;
     };
 
     // Xử lý phê duyệt
     const handleApprove = async () => {
         if (!approveNote.trim()) {
-            message.warning('Vui lòng nhập nhận xét trước khi phê duyệt');
+            message.warning(isLiquidationReview ? 'Vui lòng nhập nhận xét / ý kiến thanh lý' : 'Vui lòng nhập nhận xét trước khi phê duyệt');
             return;
         }
 
@@ -209,11 +216,19 @@ const TopicDetailCommittee: React.FC = () => {
             const result = await reviewProject(topic.MaDT, 'approved', approveNote);
             setTopic({ ...topic, TrangThai: result.projectStatus });
             setMyApprovalStatus('Đã phê duyệt');
-            message.success(
-                result.allApproved
-                    ? 'Tất cả hội đồng đã phê duyệt. Đề tài được bắt đầu.'
-                    : `Đã ghi nhận phê duyệt (${result.approvedReviewers}/${result.totalReviewers}).`,
-            );
+            if (isLiquidationReview) {
+                message.success(
+                    result.allApproved
+                        ? 'Tất cả thành viên hội đồng đã đồng ý. Đề tài đã được thanh lý.'
+                        : `Đã ghi nhận ý kiến đồng ý thanh lý (${result.approvedReviewers}/${result.totalReviewers}).`,
+                );
+            } else {
+                message.success(
+                    result.allApproved
+                        ? 'Tất cả hội đồng đã phê duyệt. Đề tài được bắt đầu.'
+                        : `Đã ghi nhận phê duyệt (${result.approvedReviewers}/${result.totalReviewers}).`,
+                );
+            }
             setApproveModalOpen(false);
             setApproveNote('');
 
@@ -222,7 +237,7 @@ const TopicDetailCommittee: React.FC = () => {
             }, 100);
         } catch (error) {
             console.error(error);
-            message.error('Lỗi khi phê duyệt đề tài');
+            message.error(isLiquidationReview ? 'Lỗi khi đồng ý thanh lý đề tài' : 'Lỗi khi phê duyệt đề tài');
         } finally {
             setLoading(false);
         }
@@ -230,7 +245,7 @@ const TopicDetailCommittee: React.FC = () => {
 
     const handleReject = async () => {
         if (!rejectReason.trim()) {
-            message.warning('Vui lòng nhập lý do từ chối');
+            message.warning(isLiquidationReview ? 'Vui lòng nhập lý do không đồng ý thanh lý' : 'Vui lòng nhập lý do từ chối');
             return;
         }
 
@@ -244,7 +259,11 @@ const TopicDetailCommittee: React.FC = () => {
             const result = await reviewProject(topic.MaDT, 'rejected', rejectReason);
             setTopic({ ...topic, TrangThai: result.projectStatus });
             setMyApprovalStatus('Từ chối');
-            message.error('Đã từ chối đề tài');
+            if (isLiquidationReview) {
+                message.info('Đã từ chối thanh lý đề tài. Đề tài quay về trạng thái trước đó để sinh viên tiếp tục thực hiện.');
+            } else {
+                message.error('Đã từ chối đề tài');
+            }
             setRejectModalOpen(false);
             setRejectReason('');
         } catch (error) {
@@ -290,6 +309,8 @@ const TopicDetailCommittee: React.FC = () => {
                                 <Col xs={24} md={6}>
                                     <ApprovalReviewActions
                                         canReview={myApprovalStatus === 'Chờ phê duyệt'}
+                                        approveText={isLiquidationReview ? 'Đồng ý thanh lý' : 'Phê duyệt đề tài'}
+                                        rejectText={isLiquidationReview ? 'Không đồng ý thanh lý' : 'Từ chối phê duyệt'}
                                         onApprove={() => setApproveModalOpen(true)}
                                         onReject={() => setRejectModalOpen(true)}
                                     />
@@ -415,7 +436,7 @@ const TopicDetailCommittee: React.FC = () => {
 
                         {/* Modal Phê duyệt */}
                         <Modal
-                            title="Xác nhận phê duyệt đề tài"
+                            title={isLiquidationReview ? "Xác nhận đồng ý thanh lý đề tài" : "Xác nhận phê duyệt đề tài"}
                             open={approveModalOpen}
                             onCancel={() => {
                                 setApproveModalOpen(false);
@@ -431,31 +452,35 @@ const TopicDetailCommittee: React.FC = () => {
                                     icon={<CheckCircleOutlined />}
                                     onClick={handleApprove}
                                 >
-                                    Xác nhận phê duyệt
+                                    {isLiquidationReview ? 'Đồng ý thanh lý' : 'Xác nhận phê duyệt'}
                                 </Button>,
                             ]}
                         >
-                            <p>Bạn có chắc chắn muốn <strong>phê duyệt</strong> đề tài <strong>{topic.TenDT}</strong> không?</p>
+                            {isLiquidationReview ? (
+                                <p>Bạn có chắc chắn muốn <strong>đồng ý thanh lý</strong> đề tài <strong>{topic.TenDT}</strong> không? Đề tài sẽ kết thúc nghiên cứu và chuyển sang trạng thái <strong>Đã thanh lý</strong>.</p>
+                            ) : (
+                                <p>Bạn có chắc chắn muốn <strong>phê duyệt</strong> đề tài <strong>{topic.TenDT}</strong> không?</p>
+                            )}
                             <Divider />
                             <p style={{ marginBottom: 8 }}>
-                                Nhận xét khi phê duyệt <span style={{ color: 'red' }}>*</span>:
+                                {isLiquidationReview ? 'Ý kiến / Nhận xét thanh lý' : 'Nhận xét khi phê duyệt'} <span style={{ color: 'red' }}>*</span>:
                             </p>
                             <Input.TextArea
                                 rows={4}
-                                placeholder="Nhập nhận xét đánh giá đề tài trước khi phê duyệt..."
+                                placeholder={isLiquidationReview ? "Nhập nhận xét đánh giá lý do thanh lý đề tài..." : "Nhập nhận xét đánh giá đề tài trước khi phê duyệt..."}
                                 value={approveNote}
                                 onChange={(e) => setApproveNote(e.target.value)}
                             />
                             {!approveNote.trim() && (
                                 <p style={{ color: '#ff4d4f', fontSize: 12, marginTop: 4, marginBottom: 0 }}>
-                                    Vui lòng nhập nhận xét trước khi phê duyệt
+                                    {isLiquidationReview ? 'Vui lòng nhập nhận xét / ý kiến thanh lý' : 'Vui lòng nhập nhận xét trước khi phê duyệt'}
                                 </p>
                             )}
                         </Modal>
 
                         {/* Modal Từ chối */}
                         <Modal
-                            title="Từ chối phê duyệt đề tài"
+                            title={isLiquidationReview ? "Từ chối yêu cầu thanh lý đề tài" : "Từ chối phê duyệt đề tài"}
                             open={rejectModalOpen}
                             onCancel={() => {
                                 setRejectModalOpen(false);
@@ -471,18 +496,22 @@ const TopicDetailCommittee: React.FC = () => {
                                     icon={<CloseCircleOutlined />}
                                     onClick={handleReject}
                                 >
-                                    Xác nhận từ chối
+                                    {isLiquidationReview ? 'Không đồng ý thanh lý' : 'Xác nhận từ chối'}
                                 </Button>,
                             ]}
                         >
-                            <p>Bạn sắp <strong>từ chối</strong> đề tài <strong>{topic.TenDT}</strong>.</p>
+                            {isLiquidationReview ? (
+                                <p>Bạn sắp <strong>từ chối yêu cầu thanh lý</strong> đề tài <strong>{topic.TenDT}</strong>. Đề tài sẽ quay về trạng thái trước đó để sinh viên tiếp tục thực hiện.</p>
+                            ) : (
+                                <p>Bạn sắp <strong>từ chối</strong> đề tài <strong>{topic.TenDT}</strong>.</p>
+                            )}
                             <Divider />
                             <p style={{ marginBottom: 8 }}>
-                                Lý do từ chối <span style={{ color: 'red' }}>*</span>:
+                                {isLiquidationReview ? 'Lý do không đồng ý thanh lý' : 'Lý do từ chối'} <span style={{ color: 'red' }}>*</span>:
                             </p>
                             <Input.TextArea
                                 rows={4}
-                                placeholder="Nhập lý do từ chối (bắt buộc)..."
+                                placeholder={isLiquidationReview ? "Nhập lý do không đồng ý thanh lý (bắt buộc)..." : "Nhập lý do từ chối (bắt buộc)..."}
                                 value={rejectReason}
                                 onChange={(e) => setRejectReason(e.target.value)}
                             />

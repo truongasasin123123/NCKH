@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { getDeTaiTheoHoiDong } from '../services/progress/ProgressService';
 import type { DeTaiTheoDoi } from '../services/progress/ProgressService';
 
-type CouncilWorkTab = 'approval' | 'monitoring' | 'final-acceptance' | 'partial-acceptance' | 'other';
+type CouncilWorkTab = 'approval' | 'monitoring' | 'final-acceptance' | 'partial-acceptance' | 'liquidation' | 'other';
 
 const businessLabels: Record<string, string> = {
   approval: 'Xét duyệt',
@@ -72,7 +72,8 @@ export default function ApprovedTopics() {
     if (tab === 'partial-acceptance') {
       return topic.NghiepVuHoiDong === 'scoring' && topic.LoaiNghiemThu === 'tung-phan';
     }
-    return !['approval', 'monitoring', 'scoring'].includes(topic.NghiepVuHoiDong || '');
+    if (tab === 'liquidation') return topic.NghiepVuHoiDong === 'liquidation';
+    return !['approval', 'monitoring', 'scoring', 'liquidation'].includes(topic.NghiepVuHoiDong || '');
   };
 
   const visibleTopics = useMemo(
@@ -87,6 +88,7 @@ export default function ApprovedTopics() {
       { key: 'monitoring', label: `Theo dõi (${count('monitoring')})` },
       { key: 'final-acceptance', label: `Nghiệm thu toàn bộ (${count('final-acceptance')})` },
       { key: 'partial-acceptance', label: `Nghiệm thu từng phần (${count('partial-acceptance')})` },
+      { key: 'liquidation', label: `Thanh lý (${count('liquidation')})` },
       { key: 'other', label: `Khác (${count('other')})` },
     ];
   }, [filteredTopics]);

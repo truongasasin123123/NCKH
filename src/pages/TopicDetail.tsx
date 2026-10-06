@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import type { CollapseProps } from 'antd';
-import { Collapse, Spin, Button, Tag, Card, Row, Col, message, Form, Segmented } from 'antd';
+import { Collapse, Spin, Button, Tag, Card, Row, Col, message, Form, Segmented, Alert } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import { ArrowLeftOutlined, EditOutlined, CloseOutlined, SendOutlined, BarChartOutlined } from '@ant-design/icons';
@@ -93,21 +93,45 @@ const TopicDetail: React.FC = () => {
             && (memberRole?.includes('truong nhom') || memberRole?.includes('nhom truong'));
     });
     const canEditProject = (topic?.TrangThai === 'Nháp' || isRejected) && isTopicLeader;
-    const requestBusiness: CouncilBusiness | undefined = (() => {
-        if (['Nháp', 'Chờ phân công hội đồng xét duyệt'].includes(topic?.TrangThai || '')) return 'approval';
-        if (['Đã phê duyệt', 'Bắt đầu'].includes(topic?.TrangThai || '')) return 'monitoring';
-        if (['Chờ nghiệm thu', 'Chờ phân công hội đồng nghiệm thu'].includes(topic?.TrangThai || '')) return 'scoring';
-        return undefined;
-    })();
-    const requestTypes = councilTypes.filter((type) => type.NghiepVu === requestBusiness);
-    const relatedRequests = councilRequests.filter((request) =>
-        request.MaDT === MaDT && request.LoaiHoiDong?.NghiepVu === requestBusiness,
-    );
+    const requestBusinesses: CouncilBusiness[] = useMemo(() => {
+        const status = topic?.TrangThai || '';
+        if (['Nháp', 'Chờ phân công hội đồng xét duyệt'].includes(status)) return ['approval'];
+        if (['Đã phê duyệt', 'Bắt đầu'].includes(status)) return ['monitoring', 'liquidation'];
+        if (['Chờ nghiệm thu', 'Chờ phân công hội đồng nghiệm thu'].includes(status)) return ['scoring'];
+        return [];
+    }, [topic?.TrangThai]);
+
+    const acceptedBusinesses = useMemo(() => {
+        return councilRequests
+            .filter((request) => request.MaDT === MaDT && request.TrangThai === 'Đã chấp nhận')
+            .map((request) => request.LoaiHoiDong?.NghiepVu)
+            .filter(Boolean) as CouncilBusiness[];
+    }, [councilRequests, MaDT]);
+
+    const acceptedCouncilTypeIds = useMemo(() => {
+        return councilRequests
+            .filter((request) => request.MaDT === MaDT && request.TrangThai === 'Đã chấp nhận')
+            .map((request) => request.MaLoaiHoiDong);
+    }, [councilRequests, MaDT]);
+
+    const remainingBusinesses = useMemo(() => {
+        return requestBusinesses.filter((b) => !acceptedBusinesses.includes(b));
+    }, [requestBusinesses, acceptedBusinesses]);
+
+    const requestTypes = councilTypes.filter((type) => remainingBusinesses.includes(type.NghiepVu));
     const latestCouncilRequest = councilRequests.find((request) => request.MaDT === MaDT);
-    const pendingRequest = relatedRequests.find((request) => request.TrangThai === 'Chờ duyệt');
-    const rejectedRequest = relatedRequests.find((request) => request.TrangThai === 'Từ chối');
-    const acceptedRequest = relatedRequests.find((request) => request.TrangThai === 'Đã chấp nhận');
-    const canRequestCouncil = isTopicLeader && !!requestBusiness && !pendingRequest && !acceptedRequest;
+    const pendingRequest = councilRequests.find((request) => request.MaDT === MaDT && request.TrangThai === 'Chờ duyệt');
+    const rejectedRequestForSelectedType = useMemo(() => {
+        if (!selectedCouncilTypeId) return undefined;
+        return councilRequests.find(
+            (request) =>
+                request.MaDT === MaDT &&
+                request.MaLoaiHoiDong === selectedCouncilTypeId &&
+                request.TrangThai === 'Từ chối',
+        );
+    }, [councilRequests, MaDT, selectedCouncilTypeId]);
+    const isFinalStatus = ['Đã thanh lý', 'Đã nghiệm thu', 'Không đạt nghiệm thu'].includes(topic?.TrangThai || '');
+    const canRequestCouncil = isTopicLeader && remainingBusinesses.length > 0 && !pendingRequest && !isFinalStatus;
     const canSubmitApproval = isTopicLeader
         && ['Chờ phê duyệt', 'Chờ xét duyệt'].includes(topic?.TrangThai || '')
         && !hasSubmittedForApproval;
@@ -312,13 +336,13 @@ const TopicDetail: React.FC = () => {
                 MaLoaiHoiDong: selectedCouncilTypeId,
                 LyDoYeuCau: submitNotes,
             };
-            if (rejectedRequest) {
-                await resubmitCouncilAssignmentRequest(rejectedRequest.Id, payload);
+            if (rejectedRequestForSelectedType) {
+                await resubmitCouncilAssignmentRequest(rejectedRequestForSelectedType.Id, payload);
             } else {
                 await createCouncilAssignmentRequest(MaDT, payload);
             }
 
-            message.success(rejectedRequest ? 'Đã gửi lại yêu cầu phân công hội đồng' : 'Đã gửi yêu cầu phân công hội đồng');
+            message.success(rejectedRequestForSelectedType ? 'Đã gửi lại yêu cầu phân công hội đồng' : 'Đã gửi yêu cầu phân công hội đồng');
             setSubmitModalOpen(false);
             setSubmitNotes('');
             setAttachedFiles([]);
@@ -351,6 +375,7 @@ const TopicDetail: React.FC = () => {
             "Nháp": { color: 'default', label: 'Nháp' },
             "Đã phê duyệt": { color: 'green', label: 'Bắt đầu' },
             "Bắt đầu": { color: 'green', label: 'Bắt đầu' },
+            "Đang thực hiện": { color: 'blue', label: 'Đang thực hiện' },
             "Sắp hạn": { color: 'orange', label: 'Sắp hạn' },
             "Khẩn cấp": { color: 'red', label: 'Khẩn cấp' },
             "Chờ phê duyệt": { color: 'blue', label: 'Chờ phê duyệt' },
@@ -358,13 +383,16 @@ const TopicDetail: React.FC = () => {
             "Chờ phân công hội đồng xét duyệt": { color: 'gold', label: 'Chờ phân công hội đồng xét duyệt' },
             "Chờ phân công hội đồng nghiệm thu": { color: 'gold', label: 'Chờ phân công hội đồng nghiệm thu' },
             "Chờ phân công hội đồng theo dõi": { color: 'gold', label: 'Chờ phân công đội ngũ theo dõi' },
+            "Chờ phân công hội đồng thanh lý": { color: 'volcano', label: 'Chờ phân công hội đồng thanh lý' },
+            "Chờ thanh lý": { color: 'orange', label: 'Chờ thanh lý' },
+            "Đã thanh lý": { color: 'default', label: 'Đã thanh lý' },
             "Từ chối": { color: 'red', label: 'Từ chối' },
             "Chờ nghiệm thu": { color: 'gold', label: 'Chờ nghiệm thu' },
             "Đang nghiệm thu": { color: 'processing', label: 'Đang nghiệm thu' },
             "Đã nghiệm thu": { color: 'green', label: 'Đã nghiệm thu' },
             "Không đạt nghiệm thu": { color: 'red', label: 'Không đạt nghiệm thu' },
         };
-        const statusInfo = statusMap[status] || { color: 'default', label: 'Không xác định' };
+        const statusInfo = statusMap[status] || { color: 'default', label: status || 'Không xác định' };
         return <Tag color={statusInfo.color}>{statusInfo.label}</Tag>;
     };
 
@@ -449,6 +477,22 @@ const TopicDetail: React.FC = () => {
                                         <div style={{ marginBottom: 12 }}>
                                             {getStatusTag(topic.TrangThai)}
                                         </div>
+                                        {topic.TrangThai === 'Chờ thanh lý' && (
+                                            <Alert
+                                                type="warning"
+                                                showIcon
+                                                message="Đề tài đang chờ Hội đồng thanh lý xem xét đánh giá dừng trước hạn."
+                                                style={{ marginTop: 8 }}
+                                            />
+                                        )}
+                                        {topic.TrangThai === 'Đã thanh lý' && (
+                                            <Alert
+                                                type="info"
+                                                showIcon
+                                                message="Đề tài đã hoàn tất thanh lý và dừng nghiên cứu."
+                                                style={{ marginTop: 8 }}
+                                            />
+                                        )}
                                     </div>
                                 </Col>
                                 {!isCommitteeRole && (
@@ -479,16 +523,19 @@ const TopicDetail: React.FC = () => {
                                                     icon={<SendOutlined />}
                                                     block
                                                     onClick={() => {
-                                                        setSelectedCouncilTypeId(rejectedRequest?.MaLoaiHoiDong || requestTypes[0]?.MaLoaiHoiDong);
+                                                        const preferredBusiness = remainingBusinesses.find((b) => b !== 'liquidation') || remainingBusinesses[0];
+                                                        const preferredType = councilTypes.find((t) => t.NghiepVu === preferredBusiness);
+                                                        const defaultTypeId = preferredType?.MaLoaiHoiDong || requestTypes[0]?.MaLoaiHoiDong || councilTypes.find((t) => remainingBusinesses.includes(t.NghiepVu))?.MaLoaiHoiDong;
+                                                        setSelectedCouncilTypeId(defaultTypeId);
                                                         setSubmitModalOpen(true);
                                                     }}
                                                 >
-                                                    {rejectedRequest ? 'Gửi lại yêu cầu hội đồng' : 'Yêu cầu phân công hội đồng'}
+                                                    Yêu cầu phân công hội đồng
                                                 </Button>
                                             )}
                                             {pendingRequest && (
-                                                <Tag color="blue" style={{ display: 'block', textAlign: 'center' }}>
-                                                    Đang chờ Admin phân công hội đồng
+                                                <Tag color="blue" style={{ display: 'block', textAlign: 'center', padding: '4px 8px', whiteSpace: 'normal', height: 'auto' }}>
+                                                    Đang chờ Admin phân công {pendingRequest.LoaiHoiDong?.TenLoaiHoiDong || 'hội đồng'}
                                                 </Tag>
                                             )}
                                             {canSubmitApproval && (
@@ -625,9 +672,10 @@ const TopicDetail: React.FC = () => {
                         <CouncilCreateModal
                             topic={topic}
                             open={submitModalOpen}
-                            isResubmission={!!rejectedRequest}
+                            isResubmission={Boolean(rejectedRequestForSelectedType)}
                             councilTypes={councilTypes}
-                            allowedBusiness={requestBusiness}
+                            allowedBusinesses={requestBusinesses}
+                            disabledCouncilTypeIds={acceptedCouncilTypeIds}
                             councilTypeId={selectedCouncilTypeId}
                             note={submitNotes}
                             files={attachedFiles}

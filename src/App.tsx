@@ -1,5 +1,5 @@
 import { Routes, Route, Link, useNavigate } from "react-router-dom";
-import { Button, Dropdown, Space, message, Layout } from "antd";
+import { Button, Dropdown, Space, message, Layout, Avatar } from "antd";
 import { DownOutlined, LogoutOutlined, SettingOutlined, UserOutlined } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import Home from "./pages/Home";
@@ -33,15 +33,21 @@ import ApiAxios from "./axios.config";
 import StatisticsDashboard from "./pages/StatisticsDashboard";
 import MyTopicsStatistics from "./pages/MyTopicsStatistics";
 import CouncilStatistics from "./pages/CouncilStatistics";
+import { getAvatarUrl, PROFILE_UPDATED_EVENT } from "./services/auth/AuthService";
 
 interface JwtPayload {
   TaiKhoan: string;
   TenDayDu: string;
 }
 
+interface UserProfileData {
+  TenDayDu?: string;
+  Avatar?: string;
+}
+
 function App() {
 
-  const [profile, setProfile] = useState<{ TenDayDu?: string } | null>(null);
+  const [profile, setProfile] = useState<UserProfileData | null>(null);
 
   const token = localStorage.getItem("access_token") || sessionStorage.getItem("access_token");
   const user: JwtPayload | null = token ? jwtDecode(token) : null;
@@ -59,6 +65,19 @@ function App() {
     };
 
     fetchProfile();
+
+    const handleProfileUpdated = (event: any) => {
+      if (event?.detail?.avatar !== undefined) {
+        setProfile((prev) => (prev ? { ...prev, Avatar: event.detail.avatar ?? undefined } : prev));
+      } else {
+        fetchProfile();
+      }
+    };
+
+    window.addEventListener(PROFILE_UPDATED_EVENT, handleProfileUpdated);
+    return () => {
+      window.removeEventListener(PROFILE_UPDATED_EVENT, handleProfileUpdated);
+    };
   }, [token]);
 
   const handleLogout = () => {
@@ -115,7 +134,12 @@ function App() {
             </Link>
           ) : (
             <Dropdown menu={{ items: userMenu }} trigger={["click"]}>
-              <Button type="primary" className="header-auth">
+              <Button type="primary" className="header-auth" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <Avatar
+                  size={24}
+                  src={getAvatarUrl(profile?.Avatar)}
+                  icon={!profile?.Avatar ? <UserOutlined /> : undefined}
+                />
                 <Space>
                   {profile?.TenDayDu || user?.TaiKhoan}
                   <DownOutlined />

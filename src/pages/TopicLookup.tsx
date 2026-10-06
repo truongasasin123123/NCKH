@@ -4,7 +4,7 @@ import { ReloadOutlined, RightOutlined, SearchOutlined } from '@ant-design/icons
 import { lookupTopics, type TopicLoad } from '../services/topic/TopicService';
 import DOMPurify from 'dompurify';
 const { Paragraph, Text } = Typography;
-const statusColors: Record<string, string> = { 'Nháp': 'default', 'Chờ phê duyệt': 'gold', 'Chờ xét duyệt': 'gold', 'Từ chối': 'red', 'Đã phê duyệt': 'blue', 'Bắt đầu': 'cyan', 'Đang thực hiện': 'blue', 'Chờ nghiệm thu': 'purple', 'Đang nghiệm thu': 'purple', 'Đã nghiệm thu': 'green' };
+const statusColors: Record<string, string> = { 'Nháp': 'default', 'Chờ phê duyệt': 'gold', 'Chờ xét duyệt': 'gold', 'Từ chối': 'red', 'Đã phê duyệt': 'blue', 'Bắt đầu': 'cyan', 'Đang thực hiện': 'blue', 'Chờ phân công hội đồng thanh lý': 'volcano', 'Chờ thanh lý': 'orange', 'Đã thanh lý': 'default', 'Chờ nghiệm thu': 'purple', 'Đang nghiệm thu': 'purple', 'Đã nghiệm thu': 'green' };
 const progressColor = (progress: number) => progress >= 100 ? '#299b5e' : progress < 50 ? '#d97706' : '#2f9b65';
 
 export default function TopicLookup({ compact = false }: { compact?: boolean }) {

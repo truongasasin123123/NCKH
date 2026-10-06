@@ -16,7 +16,7 @@ const CONCLUSION_OPTIONS: Array<{
   { value: 'accepted', label: 'Đạt', color: 'green', description: 'Báo cáo đáp ứng yêu cầu theo dõi.' },
   { value: 'supplement', label: 'Yêu cầu bổ sung', color: 'orange', description: 'Nhóm trưởng được mở lại hồ sơ để bổ sung và gửi lại.' },
   { value: 'adjustment', label: 'Yêu cầu điều chỉnh', color: 'red', description: 'Ghi nhận kiến nghị điều chỉnh đề tài để thực hiện luồng xử lý tiếp theo.' },
-  { value: 'liquidation', label: 'Đề xuất thanh lý', color: 'volcano', description: 'Chỉ là đề xuất; không tự động chuyển trạng thái đề tài.' },
+  { value: 'liquidation', label: 'Đề xuất thanh lý', color: 'volcano', description: 'Gửi yêu cầu phân công Hội đồng thanh lý tới Admin và chuyển đề tài sang Chờ phân công hội đồng thanh lý.' },
 ];
 
 interface ReportConclusionModalProps {

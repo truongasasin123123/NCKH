@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, message, Spin, Badge, Modal, Input, Divider, Select, Row, Col } from 'antd';
+import { Table, Button, message, Spin, Badge, Modal, Input, Divider, Select, Row, Col, Grid } from 'antd';
 import { EyeOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { announceNotificationsChanged, getNotifications, markNotificationAsRead } from '../services/notification/NotificationService';
@@ -7,6 +7,8 @@ import type { Notification } from '../services/notification/NotificationService'
 import ApiAxios from '../axios.config';
 
 const Notifications: React.FC = () => {
+    const screens = Grid.useBreakpoint();
+    const isMobile = screens.md === false || (screens.md === undefined && typeof window !== 'undefined' && window.innerWidth < 768);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
@@ -124,7 +126,10 @@ const Notifications: React.FC = () => {
             key: 'TieuDe',
             ellipsis: true,
             render: (text: string, record: Notification) => (
-                <span>
+                <span
+                    onClick={() => handleViewNotification(record)}
+                    style={{ cursor: 'pointer', fontWeight: record.TrangThai ? 400 : 600 }}
+                >
                     {!record.TrangThai && <Badge status="processing" />}
                     {text}
                 </span>
@@ -134,8 +139,8 @@ const Notifications: React.FC = () => {
             title: 'Ngày gửi',
             dataIndex: 'NgayTao',
             key: 'NgayTao',
-            width: 150,
-            render: (date: Date) => new Date(date).toLocaleString(),
+            width: 170,
+            render: (date: Date) => new Date(date).toLocaleString('vi-VN'),
         },
         {
             title: 'Trạng thái',
@@ -159,6 +164,7 @@ const Notifications: React.FC = () => {
                         type="text"
                         icon={<EyeOutlined />}
                         onClick={() => handleViewNotification(record)}
+                        title="Xem chi tiết"
                     />
                     <Button
                         type="text"
@@ -168,6 +174,84 @@ const Notifications: React.FC = () => {
                             setSelectedToDelete(record);
                             setDeleteModalOpen(true);
                         }}
+                        title="Xóa"
+                    />
+                </div>
+            ),
+        },
+    ];
+
+    const mobileColumns: ColumnsType<Notification> = [
+        {
+            title: 'Thông báo',
+            key: 'notificationInfo',
+            render: (_, record: Notification) => (
+                <div
+                    onClick={() => handleViewNotification(record)}
+                    style={{ cursor: 'pointer', padding: '2px 0' }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                        {!record.TrangThai && (
+                            <span style={{ marginTop: 5 }}>
+                                <Badge status="processing" />
+                            </span>
+                        )}
+                        <span style={{
+                            fontWeight: record.TrangThai ? 500 : 700,
+                            color: '#1f1f1f',
+                            fontSize: 14,
+                            lineHeight: 1.4,
+                        }}>
+                            {record.TieuDe}
+                        </span>
+                    </div>
+                    <div style={{
+                        fontSize: 12,
+                        color: '#8c8c8c',
+                        marginTop: 6,
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: 6,
+                    }}>
+                        <span>{new Date(record.NgayTao).toLocaleString('vi-VN')}</span>
+                        <Badge
+                            status={record.TrangThai ? 'success' : 'processing'}
+                            text={
+                                <span style={{ fontSize: 12, color: record.TrangThai ? '#52c41a' : '#1677ff' }}>
+                                    {record.TrangThai ? 'Đã đọc' : 'Chưa đọc'}
+                                </span>
+                            }
+                        />
+                    </div>
+                </div>
+            ),
+        },
+        {
+            title: '',
+            key: 'action',
+            width: 76,
+            align: 'right',
+            render: (_, record) => (
+                <div style={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+                    <Button
+                        type="text"
+                        size="small"
+                        icon={<EyeOutlined />}
+                        onClick={() => handleViewNotification(record)}
+                        title="Xem chi tiết"
+                    />
+                    <Button
+                        type="text"
+                        size="small"
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={() => {
+                            setSelectedToDelete(record);
+                            setDeleteModalOpen(true);
+                        }}
+                        title="Xóa"
                     />
                 </div>
             ),
@@ -175,9 +259,16 @@ const Notifications: React.FC = () => {
     ];
 
     return (
-        <div style={{ background: '#fff', padding: 20, borderRadius: 4 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <h2 style={{ margin: 0 }}>🔔 THÔNG BÁO</h2>
+        <div style={{ background: '#fff', padding: isMobile ? 12 : 20, borderRadius: 8 }}>
+            <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 16,
+                flexWrap: 'wrap',
+                gap: 10,
+            }}>
+                <h2 style={{ margin: 0, fontSize: isMobile ? 18 : 22 }}>🔔 THÔNG BÁO</h2>
 
                 {/* Nút xóa nhiều — chỉ hiện khi đã chọn */}
                 {selectedRowKeys.length > 0 && (
@@ -186,14 +277,14 @@ const Notifications: React.FC = () => {
                         icon={<DeleteOutlined />}
                         onClick={() => setBulkDeleteModalOpen(true)}
                     >
-                        Xóa đã chọn ({selectedRowKeys.length})
+                        {isMobile ? `Xóa (${selectedRowKeys.length})` : `Xóa đã chọn (${selectedRowKeys.length})`}
                     </Button>
                 )}
             </div>
 
             {/* Filter */}
-            <div style={{ marginBottom: 20 }}>
-                <Row gutter={16}>
+            <div style={{ marginBottom: 16 }}>
+                <Row gutter={[12, 12]}>
                     <Col xs={24} sm={12}>
                         <Input.Search
                             placeholder="Tìm kiếm thông báo..."
@@ -220,11 +311,16 @@ const Notifications: React.FC = () => {
 
             <Spin spinning={loading}>
                 <Table
-                    columns={columns}
+                    columns={isMobile ? mobileColumns : columns}
                     dataSource={getFilteredNotifications()}
                     rowKey={(record) => record.idThongBao}
-                    pagination={{ pageSize: 10 }}
-                    scroll={{ x: 800 }}
+                    size={isMobile ? 'small' : 'middle'}
+                    pagination={{
+                        pageSize: 10,
+                        simple: isMobile,
+                        showSizeChanger: !isMobile,
+                    }}
+                    scroll={isMobile ? undefined : { x: 800 }}
                     rowClassName={(record) => record.TrangThai ? '' : 'unread-row'}
                     // Checkbox chọn nhiều
                     rowSelection={{
@@ -255,7 +351,8 @@ const Notifications: React.FC = () => {
                         Trả lời
                     </Button>,
                 ]}
-                width={800}
+                width={isMobile ? '95%' : 800}
+                style={{ top: isMobile ? 20 : 100 }}
             >
                 {selectedNotification && (
                     <div>
@@ -295,6 +392,7 @@ const Notifications: React.FC = () => {
             <Modal
                 title="Xác nhận xóa thông báo"
                 open={deleteModalOpen}
+                width={isMobile ? '90%' : 500}
                 onCancel={() => {
                     setDeleteModalOpen(false);
                     setSelectedToDelete(null);
@@ -318,6 +416,7 @@ const Notifications: React.FC = () => {
             <Modal
                 title="Xác nhận xóa nhiều thông báo"
                 open={bulkDeleteModalOpen}
+                width={isMobile ? '90%' : 500}
                 onCancel={() => setBulkDeleteModalOpen(false)}
                 footer={[
                     <Button key="cancel" onClick={() => setBulkDeleteModalOpen(false)}>

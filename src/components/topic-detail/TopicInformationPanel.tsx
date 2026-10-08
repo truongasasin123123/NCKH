@@ -4,8 +4,8 @@ import { DownloadOutlined, SearchOutlined, DeleteOutlined } from '@ant-design/ic
 import type { ThanhVienDT, TopicLoad } from '../../services/topic/TopicService';
 import type { ProjectDocumentItem } from './types';
 import type { DocumentQueryParams } from '../../services/topic/DocumentsService';
-import DOMPurify from 'dompurify';
 import 'react-quill-new/dist/quill.snow.css';
+import RichTextEditor from '../common/RichTextEditor';
 
 interface TopicInformationPanelProps {
   topic: TopicLoad;
@@ -76,16 +76,7 @@ export default function TopicInformationPanel({
       </Card>
 
       <Card title="Mô tả" style={{ marginTop: 16 }}>
-        {topic.MoTa ? (
-          <div
-            className="topic-description"
-            dangerouslySetInnerHTML={{
-              __html: DOMPurify.sanitize(topic.MoTa),
-            }}
-          />
-        ) : (
-          <p style={{ color: '#8c8c8c' }}>Chưa có mô tả</p>
-        )}
+        <RichTextEditor value={topic.MoTa} readOnly placeholder="Chưa có mô tả" />
       </Card>
 
       <Card title="Tổng hợp tài liệu dự án" style={{ marginTop: 16 }}>

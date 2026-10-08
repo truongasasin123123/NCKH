@@ -1,6 +1,14 @@
-import React from 'react';
-import { Layout, AutoComplete, Card, Button, Tabs, Input, Grid } from 'antd';
-import { CheckOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
+import React, { useState, useMemo } from 'react';
+import { Layout, AutoComplete, Card, Button, Tabs, Input, Grid, Select } from 'antd';
+import {
+  CheckOutlined,
+  EditOutlined,
+  PlusOutlined,
+  ClockCircleOutlined,
+  TableOutlined,
+  FileTextOutlined,
+  CheckSquareOutlined,
+} from '@ant-design/icons';
 import { useProgressManagement } from '../hooks/progress-management/useProgressManagement';
 import ProgressTimeline from '../components/progress-management/ProgressTimeline';
 import ProgressTable from '../components/progress-management/ProgressTable';
@@ -22,7 +30,8 @@ const { TabPane } = Tabs;
  */
 const ProgressManagement: React.FC = () => {
   const screens = Grid.useBreakpoint();
-  const isMobile = screens.md === false;
+  const isMobile = screens.md === false || (screens.md === undefined && typeof window !== 'undefined' && window.innerWidth < 768);
+  const [tabSelectOpen, setTabSelectOpen] = useState(false);
 
   const {
     isCommitteeRole, canManageMoc, memberOptions,
@@ -51,6 +60,49 @@ const ProgressManagement: React.FC = () => {
   } = useProgressManagement();
   const progressReports = baoCaoList.filter((report) => report.LoaiBaoCao !== 'Nghiệm thu từng phần');
   const partialAcceptanceReports = baoCaoList.filter((report) => report.LoaiBaoCao === 'Nghiệm thu từng phần');
+
+  const tabOptions = useMemo(() => [
+    {
+      value: 'timeline',
+      label: (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          <ClockCircleOutlined />
+          <span>Timeline</span>
+        </span>
+      ),
+    },
+    {
+      value: 'table',
+      label: (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          <TableOutlined />
+          <span>Bảng</span>
+        </span>
+      ),
+    },
+    ...(!isCommitteeRole
+      ? [
+          {
+            value: 'baocao',
+            label: (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <FileTextOutlined />
+                <span>Báo cáo tiến độ</span>
+              </span>
+            ),
+          },
+          {
+            value: 'nghiem-thu-tung-phan',
+            label: (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <CheckSquareOutlined />
+                <span>Nghiệm thu từng phần</span>
+              </span>
+            ),
+          },
+        ]
+      : []),
+  ], [isCommitteeRole]);
 
   return (
     <Content style={{ padding: isMobile ? 12 : 24 }}>
@@ -111,6 +163,31 @@ const ProgressManagement: React.FC = () => {
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
+          renderTabBar={
+            isMobile
+              ? () => (
+                  <div style={{ marginBottom: 16 }}>
+                    <Select
+                      open={tabSelectOpen}
+                      onOpenChange={setTabSelectOpen}
+                      onDropdownVisibleChange={setTabSelectOpen}
+                      value={activeTab}
+                      onSelect={(val) => {
+                        setActiveTab(val);
+                        setTabSelectOpen(false);
+                      }}
+                      onChange={(val) => {
+                        setActiveTab(val);
+                        setTabSelectOpen(false);
+                      }}
+                      options={tabOptions}
+                      style={{ width: '100%' }}
+                      size="large"
+                    />
+                  </div>
+                )
+              : undefined
+          }
         >
           <TabPane tab="Timeline" key="timeline">
             <ProgressTimeline mocList={progressData?.MocTienDo} />

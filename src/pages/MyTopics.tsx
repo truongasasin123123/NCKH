@@ -624,7 +624,7 @@ const MyTopics: React.FC = () => {
                             simple: isMobile,
                             showSizeChanger: !isMobile,
                         }}
-                        scroll={isMobile ? undefined : { x: 1000 }}
+                        scroll={isMobile ? undefined : { x: 800 }}
                     />
                 </Spin>
             </div>

@@ -38,6 +38,7 @@ export interface AdminTopicListResponse {
 
 export interface AdminTopicQuery {
     keyword?: string;
+    searchType?: 'all' | 'name' | 'content';
     phanLoai?: string;
     trangThai?: string;
     khoa?: string;

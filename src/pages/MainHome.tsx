@@ -185,9 +185,9 @@ const MainHome: React.FC = () => {
   return (
     <>
       <Content style={{ marginTop: 60 }}>
-        <Row gutter={16}>
-          {/* MOBILE DROPDOWN (chỉ hiển thị trên điện thoại < 768px) */}
-          <Col xs={24} md={0} className="mobile-dropdown-col" style={{ padding: '0 12px 14px 12px' }}>
+        <Row gutter={[16, 16]}>
+          {/* MOBILE & TABLET DROPDOWN (chỉ hiển thị trên điện thoại & tablet < 992px) */}
+          <Col xs={24} lg={0} className="mobile-dropdown-col" style={{ padding: '0 12px 14px 12px' }}>
             <Dropdown
               menu={{
                 items: dropdownMenuItems,
@@ -242,8 +242,8 @@ const MainHome: React.FC = () => {
             </Dropdown>
           </Col>
 
-          {/* DESKTOP SIDER (chỉ hiển thị trên máy tính >= 768px) */}
-          <Col xs={0} md={4} className="desktop-sider-col">
+          {/* DESKTOP SIDER (chỉ hiển thị trên máy tính >= 992px) */}
+          <Col xs={0} lg={5} xl={4} className="desktop-sider-col">
             <ul className="item-sider">
               {navItems.map((item) => (
                 <li key={item.path}>
@@ -268,7 +268,7 @@ const MainHome: React.FC = () => {
           </Col>
 
           {/* NỘI DUNG CHÍNH */}
-          <Col xs={24} md={20}>
+          <Col xs={24} lg={19} xl={20}>
             <Outlet />
           </Col>
         </Row>

@@ -50,6 +50,7 @@ const MainHome: React.FC = () => {
     .replace(/\s/g, '');
   const isCommitteeRole = normalizedRole.includes('hoidong');
   const isAdmin = normalizedRole === 'admin' || normalizedRole === 'quantri';
+  const isStudent = normalizedRole.includes('sinhvien');
   const canAccessCouncil = isCommitteeRole || isCouncilMember;
 
   const fetchUnreadCount = async () => {
@@ -105,10 +106,16 @@ const MainHome: React.FC = () => {
     icon: <UserOutlined style={{ fontSize: 18 }} />,
   });
 
-  if (isAdmin || !isCommitteeRole) {
+  if (isAdmin) {
     navItems.push({
       path: '/mainhome/statistics',
       label: 'Thống kê',
+      icon: <PieChartOutlined style={{ fontSize: 18 }} />,
+    });
+  } else if (isStudent) {
+    navItems.push({
+      path: '/mainhome/statistics',
+      label: 'Thống kê đề tài của tôi',
       icon: <PieChartOutlined style={{ fontSize: 18 }} />,
     });
   }

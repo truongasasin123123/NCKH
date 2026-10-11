@@ -1,4 +1,4 @@
-import { Button, Checkbox, Form, Input, message } from 'antd';
+import { Alert, Button, Checkbox, Form, Input } from 'antd';
 import "../style/auth.css";
 import ApiAxios, { formatErrorMessage } from '../axios.config';
 import { Link, useLocation } from 'react-router-dom';
@@ -16,6 +16,8 @@ interface LocationState {
 
 function Login() {
     const [loading, setLoading] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [form] = Form.useForm();
     const location = useLocation();
     const redirectTo = (location.state as LocationState | null)?.redirectTo;
 
@@ -23,12 +25,13 @@ function Login() {
         const { TaiKhoan, MatKhau, remember } = values;
 
         if (!TaiKhoan || !MatKhau) {
-            message.error("Không được để trống!");
+            setErrorMessage("Vui lòng nhập đầy đủ tài khoản và mật khẩu!");
             return;
         }
 
         try {
             setLoading(true);
+            setErrorMessage(null);
             const res = await ApiAxios.post("/auth/login", { TaiKhoan, MatKhau });
 
             if (remember) {
@@ -38,8 +41,6 @@ function Login() {
                 sessionStorage.setItem("access_token", res.data.access_token);
             }
 
-            message.success("Đăng nhập thành công!");
-
             if (res.data.requiresProfileCompletion) {
                 window.location.href = "/complete-profile";
             } else {
@@ -47,8 +48,20 @@ function Login() {
             }
 
         } catch (error: any) {
-            message.error(formatErrorMessage(error, "Sai tài khoản hoặc mật khẩu!"));
-            console.log(error);
+            const isUnauthorized = error?.response?.status === 401;
+            const friendlyMsg = isUnauthorized
+                ? "Tài khoản hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại."
+                : formatErrorMessage(error, "Đăng nhập không thành công. Vui lòng thử lại sau.");
+
+            setErrorMessage(friendlyMsg);
+            if (isUnauthorized) {
+                form.setFields([
+                    {
+                        name: 'MatKhau',
+                        errors: ['Mật khẩu không chính xác!'],
+                    },
+                ]);
+            }
         } finally {
             setLoading(false);
         }
@@ -62,10 +75,25 @@ function Login() {
                     <h2 className="auth-title">Chào mừng trở lại</h2>
                     <p className="auth-sub">Đăng nhập vào tài khoản của bạn</p>
 
+                    {errorMessage && (
+                        <Alert
+                            message={errorMessage}
+                            type="error"
+                            showIcon
+                            closable
+                            onClose={() => setErrorMessage(null)}
+                            style={{ marginBottom: 18 }}
+                        />
+                    )}
+
                     <Form
+                        form={form}
                         name="login-form"
                         initialValues={{ remember: true }}
                         onFinish={onFinish}
+                        onValuesChange={() => {
+                            if (errorMessage) setErrorMessage(null);
+                        }}
                         autoComplete="off"
                     >
                         <Form.Item

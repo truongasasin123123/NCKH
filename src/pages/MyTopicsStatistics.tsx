@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { jwtDecode } from 'jwt-decode';
 import {
   Card,
   Steps,
@@ -104,9 +105,24 @@ export default function MyTopicsStatistics() {
   const [exporting, setExporting] = useState(false);
   const [data, setData] = useState<OwnerStatisticsResponse | null>(null);
 
+  const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
+  const user = token ? jwtDecode<{ VaiTro?: string }>(token) : null;
+  const role = (user?.VaiTro || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .toLowerCase()
+    .replace(/\s/g, '');
+  const isStudent = role.includes('sinhvien');
+
   useEffect(() => {
+    if (!isStudent) {
+      message.error('Trang thống kê đề tài của tôi chỉ dành cho sinh viên');
+      navigate('/mainhome');
+      return;
+    }
     fetchData();
-  }, []);
+  }, [isStudent, navigate]);
 
   async function fetchData() {
     setLoading(true);

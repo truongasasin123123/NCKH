@@ -14,13 +14,13 @@ import {
 import { LockOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { jwtDecode } from 'jwt-decode';
-import ApiAxios from '../axios.config';
+import ApiAxios, { formatErrorMessage } from '../axios.config';
 
 interface UserItem {
   TaiKhoan: string;
   TenDayDu?: string;
   Gmail: string;
-  SDT?: number;
+  SDT?: string;
   VaiTro?: string;
 }
 
@@ -73,7 +73,7 @@ const AdminUsers = () => {
       setData(response.data.data);
       setTotal(response.data.total);
     } catch (error: any) {
-      message.error(error?.response?.data?.message || 'Không thể tải danh sách tài khoản');
+      message.error(formatErrorMessage(error, 'Không thể tải danh sách tài khoản'));
     } finally {
       setLoading(false);
     }
@@ -91,7 +91,7 @@ const AdminUsers = () => {
       createForm.resetFields();
       loadUsers();
     } catch (error: any) {
-      message.error(error?.response?.data?.message || 'Không thể tạo tài khoản');
+      message.error(formatErrorMessage(error, 'Không thể tạo tài khoản'));
     }
   };
 
@@ -103,7 +103,7 @@ const AdminUsers = () => {
       setEditingUser(null);
       loadUsers();
     } catch (error: any) {
-      message.error(error?.response?.data?.message || 'Không thể cập nhật tài khoản');
+      message.error(formatErrorMessage(error, 'Không thể cập nhật tài khoản'));
     }
   };
 
@@ -115,7 +115,7 @@ const AdminUsers = () => {
       setResettingUser(null);
       passwordForm.resetFields();
     } catch (error: any) {
-      message.error(error?.response?.data?.message || 'Không thể đặt lại mật khẩu');
+      message.error(formatErrorMessage(error, 'Không thể đặt lại mật khẩu'));
     }
   };
 
@@ -125,14 +125,33 @@ const AdminUsers = () => {
 
   const createUserFields = () => (
     <>
-      <Form.Item name="TaiKhoan" label="Tài khoản" rules={[{ required: true }]}>
+      <Form.Item name="TaiKhoan" label="Tài khoản" rules={[{ required: true, message: 'Vui lòng nhập tài khoản' }]}>
         <Input />
       </Form.Item>
-      <Form.Item name="MatKhau" label="Mật khẩu tạm" rules={[{ required: true, min: 6 }]}>
+      <Form.Item name="MatKhau" label="Mật khẩu tạm" rules={[{ required: true, min: 6, message: 'Mật khẩu phải từ 6 ký tự' }]}>
         <Input.Password />
       </Form.Item>
-      <Form.Item name="VaiTro" label="Vai trò gốc" rules={[{ required: true }]}>
+      <Form.Item name="VaiTro" label="Vai trò gốc" rules={[{ required: true, message: 'Vui lòng chọn vai trò' }]}>
         <Select options={roles.map((item) => ({ value: item, label: item }))} />
+      </Form.Item>
+      <Form.Item name="TenDayDu" label="Họ tên">
+        <Input placeholder="Không bắt buộc" />
+      </Form.Item>
+      <Form.Item name="Gmail" label="Email" rules={[{ type: 'email', message: 'Email không hợp lệ' }]}>
+        <Input placeholder="Không bắt buộc" />
+      </Form.Item>
+      <Form.Item
+        name="SDT"
+        label="Số điện thoại"
+        normalize={(value) => (value ? value.replace(/\D/g, '').slice(0, 10) : value)}
+        rules={[
+          {
+            pattern: /^0\d{9}$/,
+            message: 'Số điện thoại phải gồm đúng 10 chữ số và bắt đầu bằng số 0',
+          },
+        ]}
+      >
+        <Input inputMode="numeric" maxLength={10} placeholder="Ví dụ: 0912345678" />
       </Form.Item>
     </>
   );
@@ -146,8 +165,18 @@ const AdminUsers = () => {
       <Form.Item name="Gmail" label="Email" rules={[{ required: true, type: 'email' }]}>
         <Input />
       </Form.Item>
-      <Form.Item name="SDT" label="Số điện thoại">
-        <Input inputMode="numeric" />
+      <Form.Item
+        name="SDT"
+        label="Số điện thoại"
+        normalize={(value) => (value ? value.replace(/\D/g, '').slice(0, 10) : value)}
+        rules={[
+          {
+            pattern: /^0\d{9}$/,
+            message: 'Số điện thoại phải gồm đúng 10 chữ số và bắt đầu bằng số 0',
+          },
+        ]}
+      >
+        <Input inputMode="numeric" maxLength={10} placeholder="Ví dụ: 0912345678" />
       </Form.Item>
       <Form.Item name="VaiTro" label="Vai trò gốc" rules={[{ required: true }]}>
         <Select options={roles.map((item) => ({ value: item, label: item }))} />

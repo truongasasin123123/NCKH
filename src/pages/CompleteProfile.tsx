@@ -1,7 +1,6 @@
 import { Form, Input, Button, message } from "antd";
 import "../style/auth.css";
-import { useNavigate } from "react-router-dom";
-import ApiAxios from "../axios.config";
+import ApiAxios, { formatErrorMessage } from "../axios.config";
 
 interface FormType {
     TenDayDu: string;
@@ -10,8 +9,6 @@ interface FormType {
 }
 
 function CompleteProfile() {
-    const navigate = useNavigate();
-
     const onFinish = async (values: FormType) => {
         const { TenDayDu, Gmail, SDT } = values;
 
@@ -21,11 +18,18 @@ function CompleteProfile() {
         }
 
         try {
-            await ApiAxios.put("/auth/profile", { TenDayDu, Gmail, SDT });
+            const res = await ApiAxios.put("/auth/profile", { TenDayDu, Gmail, SDT });
+            if (res.data?.access_token) {
+                if (localStorage.getItem("access_token")) {
+                    localStorage.setItem("access_token", res.data.access_token);
+                } else {
+                    sessionStorage.setItem("access_token", res.data.access_token);
+                }
+            }
             message.success("Cập nhật thông tin thành công!");
-            navigate("/home");
+            window.location.href = "/home";
         } catch (error: any) {
-            message.error(error?.response?.data?.message || "Cập nhật thất bại, vui lòng thử lại!");
+            message.error(formatErrorMessage(error, "Cập nhật thông tin thất bại, vui lòng thử lại"));
             console.log(error);
         }
     };
@@ -70,12 +74,13 @@ function CompleteProfile() {
                         label="Số điện thoại:"
                         name="SDT"
                         className="auth-input"
+                        normalize={(value) => (value ? value.replace(/\D/g, '').slice(0, 10) : value)}
                         rules={[
                             { required: true, message: "Vui lòng nhập số điện thoại!" },
-                            { pattern: /^0\d{9}$/, message: "Số điện thoại không hợp lệ!" },
+                            { pattern: /^0\d{9}$/, message: "Số điện thoại phải gồm đúng 10 chữ số và bắt đầu bằng số 0!" },
                         ]}
                     >
-                        <Input />
+                        <Input inputMode="numeric" maxLength={10} placeholder="Ví dụ: 0912345678" />
                     </Form.Item>
 
                     <Form.Item>

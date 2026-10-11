@@ -60,7 +60,7 @@ export default function TopicInformationPanel({
     <>
       <Card title="Thông tin cơ bản">
         <p>
-          <strong>Mã đề tài:</strong> #{topic.MaDT}
+          <strong>Mã đề tài:</strong> {topic.MaDT}
         </p>
         <p>
           <strong>Danh mục:</strong> {topic.PhanLoai}

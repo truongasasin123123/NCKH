@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Checkbox, Col, Form, Input, Modal, Row, Select, Upload, message } from 'antd';
+import { Col, Form, Input, Modal, Row, Select, Upload, message, Spin } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
 import type { TopicLoad, ThanhVienDT } from '../../services/topic/TopicService';
 import ApiAxios from '../../axios.config';
 import RichTextEditor from '../common/RichTextEditor';
 import DOMPurify from 'dompurify';
+import debounce from 'lodash/debounce';
 
 const { TextArea } = Input;
 const { Dragger } = Upload;
@@ -20,6 +21,11 @@ interface SpecializationOption {
 interface FacultyOption {
   idPhanLoai: string;
   TenPhanLoai: string;
+}
+
+interface AdvisorOption {
+  value: string;
+  label: string;
 }
 
 export interface AdjustmentRequestPayload {
@@ -47,13 +53,27 @@ export default function AdjustmentRequestModal({ open, topicCode, topic, members
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [specializations, setSpecializations] = useState<SpecializationOption[]>([]);
   const [faculties, setFaculties] = useState<FacultyOption[]>([]);
+  const [proposedFaculties, setProposedFaculties] = useState<FacultyOption[]>([]);
+  const [advisors, setAdvisors] = useState<AdvisorOption[]>([]);
+  const [studentOptions, setStudentOptions] = useState<{ label: string; value: string }[]>([]);
+  const [fetchingStudents, setFetchingStudents] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     void ApiAxios.get<SpecializationOption[]>('/spec/chuyennganh')
       .then((response) => setSpecializations(response.data))
       .catch(() => setSpecializations([]));
+
+    fetchAdvisors();
   }, [open]);
+
+  const fetchAdvisors = (keyword?: string) => {
+    ApiAxios.get<AdvisorOption[]>('/spec/teacher', {
+      params: { search: keyword },
+    })
+      .then((res) => setAdvisors(res.data))
+      .catch(() => setAdvisors([]));
+  };
 
   useEffect(() => {
     if (!open || !topic?.ChuyenNganh) return;
@@ -61,6 +81,48 @@ export default function AdjustmentRequestModal({ open, topicCode, topic, members
       .then((response) => setFaculties(response.data))
       .catch(() => setFaculties([]));
   }, [open, topic?.ChuyenNganh]);
+
+  const handleProposedChuyenNganhChange = async (value: string) => {
+    form.setFieldValue(['deNghi', 'Khoa'], undefined);
+    try {
+      const [facRes, advRes] = await Promise.all([
+        ApiAxios.get<FacultyOption[]>(`/spec/phanloai/${encodeURIComponent(value)}`),
+        ApiAxios.get<AdvisorOption[]>(`/spec/teacherCN/${encodeURIComponent(value)}`),
+      ]);
+      setProposedFaculties(facRes.data);
+      if (Array.isArray(advRes.data) && advRes.data.length > 0) {
+        setAdvisors(advRes.data);
+      }
+    } catch {
+      setProposedFaculties([]);
+    }
+  };
+
+  const searchStudents = useMemo(
+    () =>
+      debounce(async (value: string) => {
+        if (!value?.trim()) {
+          setStudentOptions([]);
+          return;
+        }
+        setFetchingStudents(true);
+        try {
+          const res = await ApiAxios.get('/user/students', { params: { keyword: value.trim() } });
+          const data = Array.isArray(res.data) ? res.data : [];
+          setStudentOptions(
+            data.map((u: any) => ({
+              label: `${u.TaiKhoan}${u.TenDayDu ? ` — ${u.TenDayDu}` : ''}`,
+              value: u.TaiKhoan,
+            }))
+          );
+        } catch {
+          message.error('Không tìm thấy sinh viên, vui lòng kiểm tra lại!');
+        } finally {
+          setFetchingStudents(false);
+        }
+      }, 400),
+    []
+  );
 
   const topicSpecializationId = String(topic?.ChuyenNganh ?? '').trim();
   const topicFacultyId = String(topic?.Khoa ?? '').trim();
@@ -79,11 +141,18 @@ export default function AdjustmentRequestModal({ open, topicCode, topic, members
       { value: 'PhanLoai', label: 'Phân loại', current: topic?.PhanLoai || 'Chưa cập nhật' },
       { value: 'MoTa', label: 'Mô tả / nội dung nghiên cứu', current: topic?.MoTa || 'Chưa cập nhật' },
     ];
-    if (group === 'Thành viên thực hiện') return members.map((member) => ({
-      value: `TV:${member.TaiKhoan}`,
-      label: `${member.NguoiDung?.TenDayDu || member.TaiKhoan} — ${member.VaiTroDT}`,
-      current: `Tài khoản: ${member.TaiKhoan}; vai trò: ${member.VaiTroDT}`,
-    }));
+    if (group === 'Thành viên thực hiện') return [
+      ...members.map((member) => ({
+        value: `TV:${member.TaiKhoan}`,
+        label: `${member.NguoiDung?.TenDayDu || member.TaiKhoan} — ${member.VaiTroDT}`,
+        current: `Tài khoản: ${member.TaiKhoan}; vai trò: ${member.VaiTroDT}`,
+      })),
+      {
+        value: 'NguoiHD',
+        label: 'Giảng viên hướng dẫn',
+        current: topic?.NguoiHD?.NguoiDung?.TenDayDu || 'Chưa cập nhật',
+      },
+    ];
     return [];
   }, [facultyName, group, members, specializationName, topic]);
 
@@ -101,6 +170,8 @@ export default function AdjustmentRequestModal({ open, topicCode, topic, members
     setGroup(undefined);
     setSelectedKeys([]);
     setFiles([]);
+    setProposedFaculties([]);
+    setStudentOptions([]);
   };
 
   const handleSubmit = async () => {
@@ -110,8 +181,27 @@ export default function AdjustmentRequestModal({ open, topicCode, topic, members
       setSubmitting(true);
       const selectedFields = fieldOptions.filter((item) => selectedKeys.includes(item.value));
       const proposedInformation = selectedFields
-        .map((item) => `${item.label}: ${values.deNghi?.[item.value]?.trim() || ''}`)
+        .map((item) => {
+          const val = values.deNghi?.[item.value];
+          let displayVal = val;
+          if (item.value === 'ChuyenNganh') {
+            const spec = specializations.find((s) => String(s.idChuyenNganh) === String(val));
+            displayVal = spec ? spec.TenChuyenNganh : val;
+          } else if (item.value === 'Khoa') {
+            const allFacs = proposedFaculties.length > 0 ? proposedFaculties : faculties;
+            const fac = allFacs.find((f) => String(f.idPhanLoai) === String(val));
+            displayVal = fac ? fac.TenPhanLoai : val;
+          } else if (item.value === 'NguoiHD') {
+            const adv = advisors.find((a) => String(a.value) === String(val));
+            displayVal = adv ? adv.label : val;
+          } else if (item.value.startsWith('TV:')) {
+            const stu = studentOptions.find((s) => String(s.value) === String(val));
+            displayVal = stu ? stu.label : val;
+          }
+          return `${item.label}: ${typeof displayVal === 'string' ? displayVal.trim() : (displayVal || '')}`;
+        })
         .join('\n');
+
       await onSubmit(topicCode, {
         nhomDieuChinh: selectedFields.map((item) => `${group}: ${item.label}`),
         thongTinHienTai: currentInformation,
@@ -130,6 +220,81 @@ export default function AdjustmentRequestModal({ open, topicCode, topic, members
     }
   };
 
+  const renderProposedInput = (item: { value: string; label: string }) => {
+    if (item.value === 'MoTa') {
+      return <RichTextEditor placeholder={`Nhập ${item.label.toLowerCase()} mới`} minHeight={200} />;
+    }
+
+    if (item.value === 'ChuyenNganh') {
+      return (
+        <Select
+          showSearch
+          placeholder="Chọn chuyên ngành"
+          optionFilterProp="label"
+          filterOption={(input, option) =>
+            (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+          }
+          onChange={(val) => {
+            form.setFieldValue(['deNghi', 'ChuyenNganh'], val);
+            void handleProposedChuyenNganhChange(val);
+          }}
+          options={[...specializations]
+            .sort((a, b) => a.TenChuyenNganh.localeCompare(b.TenChuyenNganh, 'vi'))
+            .map((s) => ({
+              value: s.idChuyenNganh,
+              label: s.TenChuyenNganh,
+            }))}
+        />
+      );
+    }
+
+    if (item.value === 'Khoa') {
+      const activeFaculties = proposedFaculties.length > 0 ? proposedFaculties : faculties;
+      return (
+        <Select
+          showSearch
+          placeholder="Chọn khoa"
+          optionFilterProp="label"
+          filterOption={(input, option) =>
+            (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+          }
+          options={activeFaculties.map((f) => ({
+            value: f.idPhanLoai,
+            label: f.TenPhanLoai,
+          }))}
+        />
+      );
+    }
+
+    if (item.value === 'NguoiHD') {
+      return (
+        <Select
+          showSearch
+          placeholder="Chọn giảng viên hướng dẫn"
+          options={advisors}
+          filterOption={false}
+          onSearch={fetchAdvisors}
+        />
+      );
+    }
+
+    if (item.value.startsWith('TV:')) {
+      return (
+        <Select
+          showSearch
+          placeholder="Tìm kiếm và chọn sinh viên thay thế"
+          options={studentOptions}
+          filterOption={false}
+          onSearch={searchStudents}
+          loading={fetchingStudents}
+          notFoundContent={fetchingStudents ? <Spin size="small" /> : 'Nhập mã SV hoặc tên để tìm kiếm'}
+        />
+      );
+    }
+
+    return <Input placeholder={`Nhập ${item.label.toLowerCase()} mới`} />;
+  };
+
   return (
     <Modal title="Tạo phiếu điều chỉnh đề tài" open={open} onCancel={() => { resetForm(); onClose(); }} onOk={handleSubmit} confirmLoading={submitting} okText="Gửi cho admin duyệt" cancelText="Hủy" width={650}>
       <Form form={form} layout="vertical">
@@ -137,18 +302,33 @@ export default function AdjustmentRequestModal({ open, topicCode, topic, members
           <Select
             placeholder="Chọn một nhóm điều chỉnh"
             value={group}
-            onChange={(value: AdjustmentGroup) => { setGroup(value); setSelectedKeys([]); }}
+            onChange={(value: AdjustmentGroup) => {
+              setGroup(value);
+              setSelectedKeys([]);
+              form.setFieldValue('deNghi', {});
+            }}
             options={[
               { value: 'Nội dung nghiên cứu', label: 'Nội dung nghiên cứu' },
               { value: 'Thành viên thực hiện', label: 'Thành viên thực hiện' },
             ]}
           />
         </Form.Item>
-        {group && <Form.Item label="Thuộc tính cần điều chỉnh" required>
-          <Checkbox.Group value={selectedKeys} onChange={(values) => setSelectedKeys(values as string[])} style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '10px 16px' }}>
-            {fieldOptions.map((item) => <Checkbox key={item.value} value={item.value}>{item.label}</Checkbox>)}
-          </Checkbox.Group>
-        </Form.Item>}
+        {group && (
+          <Form.Item label="Thuộc tính cần điều chỉnh" required>
+            <Select
+              mode="multiple"
+              placeholder="Chọn các thuộc tính cần điều chỉnh"
+              value={selectedKeys}
+              onChange={(values) => setSelectedKeys(values)}
+              options={fieldOptions.map((item) => ({
+                value: item.value,
+                label: item.label,
+              }))}
+              style={{ width: '100%' }}
+              allowClear
+            />
+          </Form.Item>
+        )}
         {group && selectedKeys.length > 0 && <Row gutter={16}>
           <Col span={12}>
             <div style={{ fontWeight: 600, marginBottom: 8 }}>Thông tin hiện tại</div>
@@ -189,14 +369,10 @@ export default function AdjustmentRequestModal({ open, topicCode, topic, members
                           ? Promise.reject(new Error(`Nhập ${item.label.toLowerCase()} đề nghị`))
                           : Promise.resolve(),
                     }]
-                    : [{ required: true, whitespace: true, message: `Nhập ${item.label.toLowerCase()} đề nghị` }]
+                    : [{ required: true, whitespace: typeof item.value === 'string' && !item.value.startsWith('TV:') && item.value !== 'ChuyenNganh' && item.value !== 'Khoa' && item.value !== 'NguoiHD', message: `Chọn hoặc nhập ${item.label.toLowerCase()} đề nghị` }]
                 }
               >
-                {item.value === 'MoTa' ? (
-                  <RichTextEditor placeholder={`Nhập ${item.label.toLowerCase()} mới`} minHeight={200} />
-                ) : (
-                  <Input placeholder={`Nhập ${item.label.toLowerCase()} mới`} />
-                )}
+                {renderProposedInput(item)}
               </Form.Item>
             ))}
           </Col>

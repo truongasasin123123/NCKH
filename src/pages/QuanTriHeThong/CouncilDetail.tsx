@@ -45,6 +45,8 @@ const CouncilDetail = () => {
   const [account, setAccount] = useState('');
   const [position, setPosition] = useState<CouncilPosition>('Ủy viên');
   const [form] = Form.useForm();
+  const screens = Grid.useBreakpoint();
+  const isMobile = screens.md === false;
 
   const loadData = async () => {
     if (!Number.isInteger(councilId) || councilId <= 0) return;
@@ -154,8 +156,7 @@ const CouncilDetail = () => {
   if (loading) return <div style={{ padding: 24 }}>Đang tải...</div>;
   if (!council) return <div style={{ padding: 24 }}>Không tìm thấy hội đồng.</div>;
 
-  const screens = Grid.useBreakpoint();
-  const isMobile = screens.md === false;
+
 
   const desktopColumns = [
     { title: 'Tài khoản', dataIndex: 'TaiKhoan' },
@@ -353,9 +354,9 @@ const CouncilDetail = () => {
           expandable={
             isMobile
               ? {
-                  expandedRowRender: renderExpandedContent,
-                  expandRowByClick: true,
-                }
+                expandedRowRender: renderExpandedContent,
+                expandRowByClick: true,
+              }
               : undefined
           }
           pagination={false}

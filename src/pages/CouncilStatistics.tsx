@@ -8,9 +8,32 @@ import type { ColumnsType } from 'antd/es/table';
 const { Title, Text } = Typography;
 
 const STATUS_LABEL: Record<CouncilTopicStatus, { text: string; color: string }> = {
-  pending: { text: 'Chờ phê duyệt', color: 'blue' },
-  approved: { text: 'Đã phê duyệt', color: 'green' },
+  pending: { text: 'Chờ xử lý', color: 'gold' },
+  approved: { text: 'Đã hoàn thành', color: 'green' },
   rejected: { text: 'Từ chối', color: 'red' },
+};
+
+const getStatusTag = (record: CouncilTopic) => {
+  const text = record.statusText || STATUS_LABEL[record.status]?.text || record.status;
+  const lower = text.toLowerCase();
+  let color = 'blue';
+
+  if (lower.includes('không đạt') || lower.includes('từ chối') || lower.includes('hủy') || record.status === 'rejected') {
+    color = 'red';
+  } else if (
+    lower.includes('đã phê duyệt') ||
+    lower.includes('đã nghiệm thu') ||
+    lower.includes('đã thanh lý') ||
+    lower.includes('hoàn thành')
+  ) {
+    color = 'green';
+  } else if (lower.includes('đang nghiệm thu') || lower.includes('đang chấm') || lower.includes('đã chấm')) {
+    color = 'cyan';
+  } else if (lower.includes('chờ') || record.status === 'pending') {
+    color = 'gold';
+  }
+
+  return <Tag color={color} style={{ margin: 0 }}>{text}</Tag>;
 };
 
 export default function CouncilStatistics() {
@@ -50,7 +73,12 @@ export default function CouncilStatistics() {
   }
 
   const topics = data?.topics ?? [];
-  const overview = data?.overview ?? { totalTopics: 0, pending: 0, approved: 0 };
+  const overview = data?.overview ?? { totalTopics: 0, pending: 0, approved: 0, rejected: 0 };
+
+  const statusFilters = Array.from(new Set(topics.map((t) => t.statusText).filter(Boolean))).map((st) => ({
+    text: st as string,
+    value: st as string,
+  }));
 
   const desktopColumns: ColumnsType<CouncilTopic> = [
     {
@@ -67,16 +95,17 @@ export default function CouncilStatistics() {
     {
       title: 'Trạng thái',
       dataIndex: 'status',
-      width: 150,
-      filters: [
-        { text: 'Chờ phê duyệt', value: 'pending' },
-        { text: 'Đã phê duyệt', value: 'approved' },
-        { text: 'Từ chối', value: 'rejected' },
-      ],
-      onFilter: (value, record) => record.status === value,
-      render: (status: CouncilTopicStatus) => (
-        <Tag color={STATUS_LABEL[status].color}>{STATUS_LABEL[status].text}</Tag>
-      ),
+      width: 160,
+      filters: statusFilters.length
+        ? statusFilters
+        : [
+            { text: 'Chờ xử lý', value: 'pending' },
+            { text: 'Đã hoàn thành', value: 'approved' },
+            { text: 'Từ chối', value: 'rejected' },
+          ],
+      onFilter: (value, record) =>
+        record.statusText ? record.statusText === value : record.status === value,
+      render: (_, record: CouncilTopic) => getStatusTag(record),
     },
     {
       title: 'Ngày gửi',
@@ -112,13 +141,9 @@ export default function CouncilStatistics() {
     {
       title: 'Trạng thái',
       dataIndex: 'status',
-      width: 125,
+      width: 135,
       align: 'right',
-      render: (status: CouncilTopicStatus) => (
-        <Tag color={STATUS_LABEL[status].color} style={{ margin: 0 }}>
-          {STATUS_LABEL[status].text}
-        </Tag>
-      ),
+      render: (_, record: CouncilTopic) => getStatusTag(record),
     },
   ];
 
@@ -165,17 +190,22 @@ export default function CouncilStatistics() {
       </Space>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
-        <Col xs={12} md={8}>
+        <Col xs={12} sm={6}>
           <Card loading={loading}><Statistic title="Tổng đề tài" value={overview.totalTopics} /></Card>
         </Col>
-        <Col xs={12} md={8}>
+        <Col xs={12} sm={6}>
           <Card loading={loading}>
-            <Statistic title="Chờ phê duyệt" value={overview.pending} valueStyle={{ color: '#1677ff' }} />
+            <Statistic title="Chờ xử lý" value={overview.pending} valueStyle={{ color: '#fa8c16' }} />
           </Card>
         </Col>
-        <Col xs={12} md={8}>
+        <Col xs={12} sm={6}>
           <Card loading={loading}>
-            <Statistic title="Đã phê duyệt" value={overview.approved} valueStyle={{ color: '#389e0d' }} />
+            <Statistic title="Đã hoàn thành / Đạt" value={overview.approved} valueStyle={{ color: '#389e0d' }} />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card loading={loading}>
+            <Statistic title="Từ chối / Không đạt" value={overview.rejected ?? 0} valueStyle={{ color: '#cf1322' }} />
           </Card>
         </Col>
       </Row>
@@ -190,7 +220,7 @@ export default function CouncilStatistics() {
         }
       >
         <Table
-          rowKey="id"
+          rowKey={(record) => record.uniqueKey || record.id}
           dataSource={topics}
           locale={{ emptyText: <Empty description="Chưa có đề tài nào thuộc hội đồng" /> }}
           pagination={{ pageSize: 5, hideOnSinglePage: true, simple: isMobile }}

@@ -52,6 +52,21 @@ const RegisterTopic = () => {
   const [nguoiHuongDan, setNguoiHuongDan] = useState<NguoiHDOption[]>([]);
   const [phanLoai, setPhanLoai] = useState<ChuyenNganh[]>([]);
 
+  const currentYear = dayjs().year();
+  const [prefix, setPrefix] = useState<string>(`SV${currentYear}-`);
+  const maSoInput = Form.useWatch('MaDT', form);
+
+  const prefixOptions = [
+    currentYear - 2,
+    currentYear - 1,
+    currentYear,
+    currentYear + 1,
+    currentYear + 2,
+  ].map((y) => ({
+    value: `SV${y}-`,
+    label: `SV${y}-`,
+  }));
+
   const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
   const user: JwtPayload | null = token ? jwtDecode<JwtPayload>(token) : null;
   const displayRole = user?.VaiTro || null;
@@ -74,11 +89,14 @@ const RegisterTopic = () => {
 
   const onFinish = async (values: RegisterTopic) => {
     try {
+      const { taiLieu = [], NgayBatDau, NgayKetThuc, MaDT, ...rest } = values;
 
-      const { taiLieu = [], NgayBatDau, NgayKetThuc, ...rest } = values;
+      const cleanCode = String(MaDT || '').replace(/\D/g, '').padStart(3, '0');
+      const fullMaDT = `${prefix}${cleanCode}`;
 
       const payload = {
         ...rest,
+        MaDT: fullMaDT,
         NgayBatDau: NgayBatDau ? (dayjs.isDayjs(NgayBatDau) ? NgayBatDau.toISOString() : dayjs(NgayBatDau).toISOString()) : undefined,
         NgayKetThuc: NgayKetThuc ? (dayjs.isDayjs(NgayKetThuc) ? NgayKetThuc.toISOString() : dayjs(NgayKetThuc).toISOString()) : undefined,
       };
@@ -92,7 +110,7 @@ const RegisterTopic = () => {
           }
           return uploadDocument({
             file: uploadFile.originFileObj,
-            maDT: values.MaDT,
+            maDT: fullMaDT,
             loaiTaiLieu: 'Tài liệu đăng ký đề tài',
           });
         }),
@@ -100,6 +118,7 @@ const RegisterTopic = () => {
 
       message.success('Đã tạo đề tài ở trạng thái Nháp. Bạn có thể sửa hoặc xóa trước khi gửi Hội đồng xét duyệt.');
       form.resetFields();
+      setPrefix(`SV${currentYear}-`);
 
     } catch (error: any) {
       message.error(formatErrorMessage(error, "Đăng ký đề tài thất bại"));
@@ -190,9 +209,48 @@ const RegisterTopic = () => {
             <Form.Item
               label="Mã đề tài:"
               name="MaDT"
-              rules={[requiredRule("mã đề tài")]}
+              getValueFromEvent={(e) => {
+                const val = typeof e === 'string' ? e : e?.target?.value || '';
+                return val.replace(/\D/g, '');
+              }}
+              rules={[
+                { required: true, message: 'Vui lòng nhập số thứ tự mã đề tài' },
+                { pattern: /^\d+$/, message: 'Mã đề tài chỉ được nhập chữ số' },
+              ]}
+              extra={
+                maSoInput ? (
+                  <span style={{ fontSize: 13, color: '#1677ff' }}>
+                    Mã đề tài đầy đủ: <strong>{`${prefix}${String(maSoInput).trim().padStart(3, '0')}`}</strong>
+                  </span>
+                ) : (
+                  <span style={{ fontSize: 12, color: '#8c8c8c' }}>
+                    Chỉ cần nhập số, hệ thống ghép tiền tố tự động: <strong>{`${prefix}001`}</strong>
+                  </span>
+                )
+              }
             >
-              <Input placeholder="Nhập mã đề tài" />
+              <Input
+                addonBefore={
+                  <Select
+                    value={prefix}
+                    onChange={(val) => setPrefix(val)}
+                    options={prefixOptions}
+                    style={{ minWidth: 105 }}
+                  />
+                }
+                placeholder="Nhập số (vd: 001)"
+                inputMode="numeric"
+                maxLength={6}
+                onBlur={() => {
+                  const val = form.getFieldValue('MaDT');
+                  if (val && typeof val === 'string') {
+                    const digits = val.replace(/\D/g, '');
+                    if (digits) {
+                      form.setFieldsValue({ MaDT: digits.padStart(3, '0') });
+                    }
+                  }
+                }}
+              />
             </Form.Item>
           </Col>
 
@@ -211,13 +269,13 @@ const RegisterTopic = () => {
         <Row gutter={16}>
           <Col span={12}>
             <Form.Item
-              label="Chuyên Ngành:"
+              label="Khoa:"
               name="ChuyenNganh"
               rules={[requiredRuleDrop("Chuyên ngành")]}
             >
               <Select
                 showSearch
-                placeholder="Chọn chuyên ngành"
+                placeholder="Chọn khoa"
                 onChange={handleChuyenNganhchange}
                 optionFilterProp="label"
                 filterOption={(input, option) =>
@@ -235,12 +293,12 @@ const RegisterTopic = () => {
 
           <Col span={12}>
             <Form.Item
-              label="Khoa:"
+              label="Chuyên ngành:"
               name="Khoa"
               rules={[requiredRuleDrop("khoa")]}
             >
               <Select
-                placeholder="Chọn khoa"
+                placeholder="Chọn chuyên ngành"
                 options={phanLoai.map(item => ({
                   value: item.idPhanLoai,
                   label: item.TenPhanLoai
@@ -270,6 +328,11 @@ const RegisterTopic = () => {
                 style={{ width: "100%" }}
                 format="DD/MM/YYYY"
                 disabledDate={(current) => current && current < dayjs().startOf('day')}
+                onChange={(date) => {
+                  if (date) {
+                    setPrefix(`SV${date.year()}-`);
+                  }
+                }}
               />
             </Form.Item>
           </Col>

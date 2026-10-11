@@ -2,7 +2,7 @@ import { Alert, Form, Input, Button, message, Card, Row, Col, Avatar, Upload, Mo
 import { EditOutlined, SaveOutlined, CloseOutlined, UserOutlined, UploadOutlined, DeleteOutlined } from "@ant-design/icons";
 import { useState, useEffect } from "react";
 import { jwtDecode } from 'jwt-decode';
-import ApiAxios from "../axios.config";
+import ApiAxios, { formatErrorMessage } from "../axios.config";
 import { getAvatarUrl, uploadAvatar, removeAvatar } from "../services/auth/AuthService";
 
 interface UserProfile {
@@ -69,7 +69,7 @@ function Profile() {
       setUserProfile(profileToSave);
       form.setFieldsValue(profileToSave);
     } catch (error: any) {
-      message.error(error?.response?.data?.message || "Cập nhật thất bại");
+      message.error(formatErrorMessage(error, "Cập nhật thông tin thất bại"));
     } finally {
       setLoading(false);
     }
@@ -93,7 +93,7 @@ function Profile() {
       setAvatarUrl(result.avatarUrl);
       setUserProfile((prev) => (prev ? { ...prev, Avatar: result.avatarUrl } : null));
     } catch (error: any) {
-      message.error(error?.response?.data?.message || "Tải ảnh đại diện thất bại");
+      message.error(formatErrorMessage(error, "Tải ảnh đại diện thất bại"));
     } finally {
       setUploadingAvatar(false);
     }
@@ -108,7 +108,7 @@ function Profile() {
       setAvatarUrl(undefined);
       setUserProfile((prev) => (prev ? { ...prev, Avatar: undefined } : null));
     } catch (error: any) {
-      message.error(error?.response?.data?.message || "Gỡ ảnh đại diện thất bại");
+      message.error(formatErrorMessage(error, "Gỡ ảnh đại diện thất bại"));
     } finally {
       setUploadingAvatar(false);
     }

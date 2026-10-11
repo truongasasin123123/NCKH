@@ -26,6 +26,24 @@ const TECHNICAL_ERROR_PATTERNS = [
     /^not found$/i,
     /^cannot (get|post|put|delete|patch)/i,
     /^network error$/i,
+    /queryfailed/i,
+    /syntax error/i,
+    /violation of/i,
+    /foreign key/i,
+    /primary key/i,
+    /sql server/i,
+    /typeorm/i,
+    /database/i,
+    /cannot insert/i,
+    /statement has been terminated/i,
+    /unhandled/i,
+    /exception/i,
+    /null value in column/i,
+    /must match .* regular expression/i,
+    /validation failed/i,
+    /must be/i,
+    /econnrefused/i,
+    /etimedout/i,
 ];
 
 /**
@@ -80,7 +98,7 @@ export function formatErrorMessage(error: any, fallbackMessage?: string): string
     }
 
     // 3. Lỗi 500 hoặc máy chủ nội bộ
-    if (status >= 500 || /internal server error/i.test(rawMsg)) {
+    if (status >= 500 || /internal server error/i.test(rawMsg) || isTechnicalError(rawMsg)) {
         return fallbackMessage
             ? `${fallbackMessage} (Máy chủ đang gặp sự cố, vui lòng thử lại sau)`
             : 'Máy chủ đang gặp sự cố (Lỗi 500). Vui lòng thử lại sau hoặc liên hệ quản trị viên.';
@@ -105,18 +123,15 @@ export function formatErrorMessage(error: any, fallbackMessage?: string): string
 
     // 7. Lỗi 401 - Chưa xác thực / Sai thông tin đăng nhập
     if (status === 401) {
-        if (rawMsg && !isTechnicalError(rawMsg)) {
-            return rawMsg;
-        }
-        return fallbackMessage || 'Sai tài khoản hoặc mật khẩu!';
+        return fallbackMessage || 'Tài khoản hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại.';
     }
 
-    // 8. Lỗi 400 Bad Request chung chung
-    if (/^bad request$/i.test(rawMsg)) {
+    // 8. Lỗi 400 Bad Request chung chung hoặc lỗi kỹ thuật
+    if (/^bad request$/i.test(rawMsg) || isTechnicalError(rawMsg)) {
         return fallbackMessage || 'Dữ liệu yêu cầu không hợp lệ. Vui lòng kiểm tra lại.';
     }
 
-    // 8. Nếu là thông điệp nghiệp vụ cụ thể từ backend (ví dụ tiếng Việt có sẵn)
+    // 9. Nếu là thông điệp nghiệp vụ cụ thể từ backend (tiếng Việt có sẵn)
     if (rawMsg && !isTechnicalError(rawMsg)) {
         return rawMsg;
     }
@@ -128,15 +143,25 @@ export function formatErrorMessage(error: any, fallbackMessage?: string): string
 ApiAxios.interceptors.response.use(
     (response) => response,
     (error) => {
+        const url = error.config?.url || '';
+        const isAuthRequest = url.includes('/auth/login') || url.includes('/auth/signin');
+
         if (error.response?.status === 401) {
-            message.error("Hết hạn đăng nhập vui lòng đăng nhập lại");
+            // Khi người dùng đang ở luồng đăng nhập, KHÔNG can thiệp báo hết hạn và KHÔNG reload trang
+            if (isAuthRequest) {
+                if (error.response.data && typeof error.response.data === 'object') {
+                    error.response.data.message = 'Tài khoản hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại.';
+                }
+                return Promise.reject(error);
+            }
+            message.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
             localStorage.removeItem('access_token');
             sessionStorage.removeItem('access_token');
             window.location.href = "/login";
             return Promise.reject(error);
         }
 
-        // Tự động chuẩn hóa error.response.data.message
+        // Tự động chuẩn hóa error.response.data.message để không hiển thị lỗi thô từ backend
         if (error.response) {
             const status = error.response.status;
             if (!error.response.data || typeof error.response.data !== 'object') {
@@ -147,16 +172,18 @@ ApiAxios.interceptors.response.use(
                 ? originalMessage.filter(Boolean).join(', ')
                 : (typeof originalMessage === 'string' ? originalMessage : '');
 
-            if (status >= 500 || /internal server error/i.test(rawMsg)) {
-                error.response.data.message = 'Máy chủ đang gặp sự cố (Lỗi 500). Vui lòng thử lại sau hoặc liên hệ quản trị viên.';
+            if (status >= 500 || /internal server error/i.test(rawMsg) || isTechnicalError(rawMsg)) {
+                error.response.data.message = 'Máy chủ đang gặp sự cố. Vui lòng thử lại sau hoặc liên hệ quản trị viên.';
             } else if (status === 403 || /forbidden/i.test(rawMsg)) {
                 error.response.data.message = 'Bạn không có quyền thực hiện thao tác này.';
             } else if (status === 404 && (/cannot (get|post|put|delete|patch)/i.test(rawMsg) || /not found/i.test(rawMsg))) {
                 error.response.data.message = 'Không tìm thấy dữ liệu hoặc tài nguyên yêu cầu.';
             } else if (status === 429) {
                 error.response.data.message = 'Hệ thống đang nhận quá nhiều yêu cầu. Vui lòng thử lại sau ít phút.';
-            } else if (status === 400 && /^bad request$/i.test(rawMsg)) {
+            } else if (status === 400 && (/^bad request$/i.test(rawMsg) || isTechnicalError(rawMsg))) {
                 error.response.data.message = 'Dữ liệu yêu cầu không hợp lệ. Vui lòng kiểm tra lại.';
+            } else if (status === 401) {
+                error.response.data.message = 'Tài khoản hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại.';
             } else if (Array.isArray(originalMessage)) {
                 error.response.data.message = rawMsg;
             }

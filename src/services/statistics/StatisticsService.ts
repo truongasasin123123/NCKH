@@ -82,8 +82,10 @@ export type ExportFormat = 'excel' | 'pdf' | 'docx';
 
 export interface CouncilTopic {
   id: string;
+  uniqueKey?: string;
   topicName: string;
   status: CouncilTopicStatus;
+  statusText?: string;
   councilTypeName: string;   // loại hội đồng (Xét duyệt, Nghiệm thu...)
   submittedDate: string;
   processedDate: string | null;
@@ -93,6 +95,7 @@ export interface CouncilStatisticsOverview {
   totalTopics: number;
   pending: number;
   approved: number;
+  rejected?: number;
 }
 
 export interface CouncilStatisticsResponse {

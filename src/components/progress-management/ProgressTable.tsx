@@ -10,6 +10,7 @@ interface ProgressTableProps {
   loading: boolean;
   isCommitteeRole: boolean;
   canManageMoc: boolean;
+  isLiquidated?: boolean;
   onView: (moc: MocTienDo) => void;
   onEdit: (moc: MocTienDo) => void;
   onDelete: (moc: MocTienDo) => void;
@@ -20,7 +21,7 @@ interface ProgressTableProps {
  * Hiển thị các mốc tiến độ dưới dạng bảng, kèm thao tác theo vai trò.
  */
 const ProgressTable: React.FC<ProgressTableProps> = ({
-  mocList, searchText, loading, isCommitteeRole, canManageMoc,
+  mocList, searchText, loading, isCommitteeRole, canManageMoc, isLiquidated,
   onView, onEdit, onDelete, onUpload,
 }) => {
   const screens = Grid.useBreakpoint();
@@ -97,40 +98,42 @@ const ProgressTable: React.FC<ProgressTableProps> = ({
             Xem
           </Button>
 
-          {canManageMoc ? (
-            <>
+          {!isLiquidated && (
+            canManageMoc ? (
+              <>
+                <Button
+                  size="small"
+                  type="primary"
+                  icon={<EditOutlined />}
+                  onClick={() => onEdit(moc)}
+                >
+                  Sửa
+                </Button>
+
+                <Button
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={() => onDelete(moc)}
+                >
+                  Xóa
+                </Button>
+              </>
+            ) : (
               <Button
                 size="small"
                 type="primary"
-                icon={<EditOutlined />}
-                onClick={() => onEdit(moc)}
+                icon={<UploadOutlined />}
+                style={{
+                  backgroundColor: '#52c41a',
+                  borderColor: '#52c41a',
+                }}
+                disabled={moc.TrangThai === 'Trễ hạn'}
+                onClick={() => onUpload(moc)}
               >
-                Sửa
+                Nộp
               </Button>
-
-              <Button
-                size="small"
-                danger
-                icon={<DeleteOutlined />}
-                onClick={() => onDelete(moc)}
-              >
-                Xóa
-              </Button>
-            </>
-          ) : (
-            <Button
-              size="small"
-              type="primary"
-              icon={<UploadOutlined />}
-              style={{
-                backgroundColor: '#52c41a',
-                borderColor: '#52c41a',
-              }}
-              disabled={moc.TrangThai === 'Trễ hạn'}
-              onClick={() => onUpload(moc)}
-            >
-              Nộp
-            </Button>
+            )
           )}
         </Space>
       ),
@@ -190,39 +193,41 @@ const ProgressTable: React.FC<ProgressTableProps> = ({
             Chi tiết
           </Button>
 
-          {canManageMoc ? (
-            <>
-              <Button
-                size="small"
-                icon={<EditOutlined />}
-                onClick={(e) => { e.stopPropagation(); onEdit(moc); }}
-              >
-                Chỉnh sửa
-              </Button>
+          {!isLiquidated && (
+            canManageMoc ? (
+              <>
+                <Button
+                  size="small"
+                  icon={<EditOutlined />}
+                  onClick={(e) => { e.stopPropagation(); onEdit(moc); }}
+                >
+                  Chỉnh sửa
+                </Button>
 
+                <Button
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={(e) => { e.stopPropagation(); onDelete(moc); }}
+                >
+                  Xóa
+                </Button>
+              </>
+            ) : (
               <Button
                 size="small"
-                danger
-                icon={<DeleteOutlined />}
-                onClick={(e) => { e.stopPropagation(); onDelete(moc); }}
+                type="primary"
+                icon={<UploadOutlined />}
+                style={{
+                  backgroundColor: '#52c41a',
+                  borderColor: '#52c41a',
+                }}
+                disabled={moc.TrangThai === 'Trễ hạn'}
+                onClick={(e) => { e.stopPropagation(); onUpload(moc); }}
               >
-                Xóa
+                Nộp minh chứng
               </Button>
-            </>
-          ) : (
-            <Button
-              size="small"
-              type="primary"
-              icon={<UploadOutlined />}
-              style={{
-                backgroundColor: '#52c41a',
-                borderColor: '#52c41a',
-              }}
-              disabled={moc.TrangThai === 'Trễ hạn'}
-              onClick={(e) => { e.stopPropagation(); onUpload(moc); }}
-            >
-              Nộp minh chứng
-            </Button>
+            )
           )}
         </div>
       )}

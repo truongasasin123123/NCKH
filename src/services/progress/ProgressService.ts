@@ -6,7 +6,7 @@ export interface MocTienDo {
 }
 export interface TaoTienDo extends Omit<MocTienDo, 'MaMoc'> { ThanhVienIds?: number[] }
 export interface CapNhatTienDo { TenMoc?: string; MoTa?: string; NgayCapNhat: Date; ThuTu?: number; TrongSo?: number; GhiChu?: string; NgayBatDau?: Date; NgayKetThuc?: Date; ThanhVienIds?: number[] }
-export interface TopicProgress { MaDT: string; TenDT: string; PhanTramTongThe: number; MocTienDo: MocTienDo[] }
+export interface TopicProgress { MaDT: string; TenDT: string; PhanTramTongThe: number; MocTienDo: MocTienDo[]; TrangThai?: string; }
 export interface ThanhVienMocDT { Id: number; thanhVien: { idTV: number; VaiTroDT: string; NguoiDung: { TaiKhoan: string; TenDayDu: string; VaiTro: string } } }
 
 export type TrangThaiBaoCao =
@@ -51,7 +51,7 @@ export const getMocTienDoByTopic = async (maDT: string): Promise<MocTienDo[]> =>
   (await ApiAxios.get('/progress/getprogress', { params: { MaDT: maDT } })).data;
 export const getTopicProgress = async (maDT: string): Promise<TopicProgress> => {
   const [deTai, mocTienDo] = await Promise.all([ApiAxios.get(`/project/${maDT}`), getMocTienDoByTopic(maDT)]);
-  return { MaDT: maDT, TenDT: deTai.data.TenDT, PhanTramTongThe: deTai.data.TienDo, MocTienDo: mocTienDo };
+  return { MaDT: maDT, TenDT: deTai.data.TenDT, PhanTramTongThe: deTai.data.TienDo, MocTienDo: mocTienDo, TrangThai: deTai.data.TrangThai };
 };
 export const createMocTienDo = async (moc: TaoTienDo) => (await ApiAxios.post('/progress/createprogress', moc)).data;
 export const updateMocTienDo = async (id: number, moc: CapNhatTienDo) => (await ApiAxios.patch(`/progress/updateprogress/${id}`, moc)).data;

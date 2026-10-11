@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Button, Card, Collapse, Empty, Form, Input, Modal, Space, Spin, Tag, Typography, message } from 'antd';
+import { Button, Card, Collapse, Empty, Form, Input, Modal, Space, Spin, Tag, Typography, message, Alert } from 'antd';
 import { ArrowLeftOutlined, DownloadOutlined, FileTextOutlined } from '@ant-design/icons';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { downloadDocument } from '../../services/topic/DocumentsService';
 import { getBaoCaoTheoDeTai, getDeTaiDuocGan, getDeTaiTheoHoiDong, nhanXetBaoCao } from '../../services/progress/ProgressService';
-import type { BaoCaoTienDo } from '../../services/progress/ProgressService';
+import type { BaoCaoTienDo, DeTaiTheoDoi } from '../../services/progress/ProgressService';
 import ReportConclusionModal from '../../components/progress-management/ReportConclusionModal';
 
 const statusColor: Record<string, string> = {
@@ -23,6 +23,7 @@ export default function ReportDetail() {
   const [searchParams] = useSearchParams();
   const partialReportId = Number(searchParams.get('reportId')) || undefined;
   const [reports, setReports] = useState<BaoCaoTienDo[]>([]);
+  const [currentTopic, setCurrentTopic] = useState<DeTaiTheoDoi | null>(null);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<BaoCaoTienDo>();
   const [reviewing, setReviewing] = useState<BaoCaoTienDo>();
@@ -47,6 +48,7 @@ export default function ReportDetail() {
         project.MaDT === maDT
         && (!partialReportId || project.MaBaoCaoTienDo === partialReportId)
       ));
+      setCurrentTopic(membership || null);
       const normalizedPosition = membership?.VaiTroTrongHoiDong
         ?.normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
@@ -108,6 +110,14 @@ export default function ReportDetail() {
           }
           extra={<Tag color="blue">{maDT}</Tag>}
         >
+          {currentTopic?.TrangThai === 'Đã thanh lý' && (
+            <Alert
+              type="info"
+              showIcon
+              message="Đề tài đã hoàn tất thanh lý và dừng nghiên cứu. Các chức năng đánh giá và kết luận báo cáo đã được đóng."
+              style={{ marginBottom: 16 }}
+            />
+          )}
           {reports.length === 0 ? (
             <Empty description="Chưa có báo cáo cho đề tài này" />
           ) : (
@@ -190,7 +200,7 @@ export default function ReportDetail() {
                       </Card>
                     )}
 
-                    {report.TrangThai === 'Đã gửi' && (
+                    {report.TrangThai === 'Đã gửi' && currentTopic?.TrangThai !== 'Đã thanh lý' && (
                       <Space wrap>
                         <Button onClick={() => setReviewing(report)}>Thêm nhận xét</Button>
                         {canFinalize && (

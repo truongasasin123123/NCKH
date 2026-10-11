@@ -4,7 +4,7 @@ import { UploadOutlined } from "@ant-design/icons";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from 'jwt-decode';
-import ApiAxios from "../axios.config";
+import ApiAxios, { formatErrorMessage } from "../axios.config";
 import type { UploadFile } from 'antd/es/upload/interface';
 import { uploadDocument } from '../services/topic/DocumentsService';
 import RichTextEditor from "../components/common/RichTextEditor";
@@ -38,8 +38,8 @@ export interface RegisterTopic {
   idNguoiHD: string;
   ThanhVienIds: string[];
   MoTa?: string;
-  NgayBatDau?: string; // thêm
-  NgayKetThuc?: string; // thêm
+  NgayBatDau?: any; // dayjs hoặc string
+  NgayKetThuc?: any; // dayjs hoặc string
   taiLieu?: UploadFile[];
 }
 
@@ -75,7 +75,13 @@ const RegisterTopic = () => {
   const onFinish = async (values: RegisterTopic) => {
     try {
 
-      const { taiLieu = [], ...payload } = values;
+      const { taiLieu = [], NgayBatDau, NgayKetThuc, ...rest } = values;
+
+      const payload = {
+        ...rest,
+        NgayBatDau: NgayBatDau ? (dayjs.isDayjs(NgayBatDau) ? NgayBatDau.toISOString() : dayjs(NgayBatDau).toISOString()) : undefined,
+        NgayKetThuc: NgayKetThuc ? (dayjs.isDayjs(NgayKetThuc) ? NgayKetThuc.toISOString() : dayjs(NgayKetThuc).toISOString()) : undefined,
+      };
 
       await ApiAxios.post("/project/registerproject", payload);
 
@@ -96,7 +102,7 @@ const RegisterTopic = () => {
       form.resetFields();
 
     } catch (error: any) {
-      message.error(error?.response?.data?.message || "Đăng ký thất bại");
+      message.error(formatErrorMessage(error, "Đăng ký đề tài thất bại"));
     }
   };
 

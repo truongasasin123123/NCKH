@@ -158,7 +158,7 @@ export default function TopicInformationPanel({
                         >
                           Tải xuống
                         </Button>
-                        {isTopicLeader && (
+                        {isTopicLeader && topic.TrangThai !== 'Đã thanh lý' && (
                           <Popconfirm
                             title="Xóa tài liệu này?"
                             description="Tài liệu sẽ bị xóa vĩnh viễn, không thể khôi phục."

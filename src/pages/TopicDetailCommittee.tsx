@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import {
     Spin, Button, Tag, Card, Row, Col, List, Collapse,
-    message, Modal, Input, Divider, Form, Space, Popconfirm
+    message, Modal, Input, Divider, Form, Space, Popconfirm, Alert
 } from 'antd';
 import {
     ArrowLeftOutlined, BarChartOutlined, CheckCircleOutlined, CloseCircleOutlined,
@@ -59,6 +59,19 @@ const TopicDetailCommittee: React.FC = () => {
     const scrollRef = useRef<HTMLDivElement>(null);
     const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
     const user: JwtPayload | null = token ? jwtDecode<JwtPayload>(token) : null;
+    const isTopicLiquidated = topic?.TrangThai === 'Đã thanh lý';
+
+    const hasCommented = useMemo(() => {
+        if (!user?.TaiKhoan) return false;
+        return projectComments.some((comment) => comment.TaiKhoan === user.TaiKhoan);
+    }, [projectComments, user?.TaiKhoan]);
+
+    const scrollToComments = () => {
+        const element = document.getElementById('committee-comments-section');
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
 
     const handleCommentSubmit = async () => {
         if (!commentText.trim()) {
@@ -70,7 +83,7 @@ const TopicDetailCommittee: React.FC = () => {
             const comment = await createProjectComment(MaDT, commentText);
             setProjectComments((current) => [comment, ...current]);
             setCommentText('');
-            message.success('Đã thêm nhận xét');
+            message.success('Đã thêm nhận xét. Bây giờ bạn có thể thực hiện phê duyệt đề tài.');
         } catch (error: any) {
             message.error(error?.response?.data?.message || 'Không thể thêm nhận xét');
         }
@@ -204,6 +217,11 @@ const TopicDetailCommittee: React.FC = () => {
 
     // Xử lý phê duyệt
     const handleApprove = async () => {
+        if (!hasCommented) {
+            message.warning(isLiquidationReview ? 'Bạn cần gửi nhận xét / ý kiến về đề tài trước khi quyết định thanh lý!' : 'Bạn cần gửi nhận xét về đề tài trước khi phê duyệt!');
+            return;
+        }
+
         if (!approveNote.trim()) {
             message.warning(isLiquidationReview ? 'Vui lòng nhập nhận xét / ý kiến thanh lý' : 'Vui lòng nhập nhận xét trước khi phê duyệt');
             return;
@@ -244,6 +262,11 @@ const TopicDetailCommittee: React.FC = () => {
     };
 
     const handleReject = async () => {
+        if (!hasCommented) {
+            message.warning(isLiquidationReview ? 'Bạn cần gửi nhận xét / ý kiến về đề tài trước khi từ chối thanh lý!' : 'Bạn cần gửi nhận xét về đề tài trước khi từ chối phê duyệt!');
+            return;
+        }
+
         if (!rejectReason.trim()) {
             message.warning(isLiquidationReview ? 'Vui lòng nhập lý do không đồng ý thanh lý' : 'Vui lòng nhập lý do từ chối');
             return;
@@ -289,12 +312,14 @@ const TopicDetailCommittee: React.FC = () => {
                             >
                                 Quay lại
                             </Button>
-                            <Button
-                                icon={<BarChartOutlined />}
-                                onClick={() => navigate(`/mainhome/progress/${MaDT}`)}
-                            >
-                                Quản lý tiến độ
-                            </Button>
+                            {!isTopicLiquidated && (
+                                <Button
+                                    icon={<BarChartOutlined />}
+                                    onClick={() => navigate(`/mainhome/progress/${MaDT}`)}
+                                >
+                                    Quản lý tiến độ
+                                </Button>
+                            )}
                         </div>
 
 
@@ -305,14 +330,24 @@ const TopicDetailCommittee: React.FC = () => {
                                     <div style={{ marginBottom: 12 }}>
                                         {getStatusTag(topic.TrangThai)}
                                     </div>
+                                    {isTopicLiquidated && (
+                                        <Alert
+                                            type="info"
+                                            showIcon
+                                            message="Đề tài đã hoàn tất thanh lý và dừng nghiên cứu. Tất cả các chức năng phê duyệt và đánh giá đã được đóng."
+                                            style={{ marginTop: 8 }}
+                                        />
+                                    )}
                                 </Col>
                                 <Col xs={24} md={6}>
                                     <ApprovalReviewActions
-                                        canReview={myApprovalStatus === 'Chờ phê duyệt'}
+                                        canReview={myApprovalStatus === 'Chờ phê duyệt' && !isTopicLiquidated}
+                                        hasCommented={hasCommented}
                                         approveText={isLiquidationReview ? 'Đồng ý thanh lý' : 'Phê duyệt đề tài'}
                                         rejectText={isLiquidationReview ? 'Không đồng ý thanh lý' : 'Từ chối phê duyệt'}
                                         onApprove={() => setApproveModalOpen(true)}
                                         onReject={() => setRejectModalOpen(true)}
+                                        onScrollToComments={scrollToComments}
                                     />
                                 </Col>
                             </Row>
@@ -389,13 +424,15 @@ const TopicDetailCommittee: React.FC = () => {
                             </Card>
                         </div>
 
-                        <Card title="Nhận xét" style={{ marginTop: 16 }}>
-                            <Form layout="vertical" onFinish={handleCommentSubmit}>
-                                <Form.Item label="Ý kiến của hội đồng">
-                                    <Input.TextArea rows={4} value={commentText} onChange={(e) => setCommentText(e.target.value)} placeholder="Nhập nhận xét về đề tài..." />
-                                </Form.Item>
-                                <Form.Item><Button type="primary" htmlType="submit">Thêm nhận xét</Button></Form.Item>
-                            </Form>
+                        <Card id="committee-comments-section" title="Nhận xét" style={{ marginTop: 16 }}>
+                            {!isTopicLiquidated && (
+                                <Form layout="vertical" onFinish={handleCommentSubmit}>
+                                    <Form.Item label="Ý kiến của hội đồng">
+                                        <Input.TextArea rows={4} value={commentText} onChange={(e) => setCommentText(e.target.value)} placeholder="Nhập nhận xét về đề tài..." />
+                                    </Form.Item>
+                                    <Form.Item><Button type="primary" htmlType="submit">Thêm nhận xét</Button></Form.Item>
+                                </Form>
+                            )}
                             <List
                                 locale={{ emptyText: 'Chưa có nhận xét' }}
                                 dataSource={projectComments}
@@ -403,7 +440,7 @@ const TopicDetailCommittee: React.FC = () => {
                                     const isAuthor = comment.TaiKhoan === user?.TaiKhoan;
                                     const isEditingComment = editingCommentId === comment.Id;
                                     return (
-                                        <List.Item actions={isAuthor ? [
+                                        <List.Item actions={isAuthor && !isTopicLiquidated ? [
                                             <Button key="edit" type="link" onClick={() => { setEditingCommentId(comment.Id); setEditingCommentContent(comment.NoiDung); }}>Sửa</Button>,
                                             <Popconfirm
                                                 key="delete"

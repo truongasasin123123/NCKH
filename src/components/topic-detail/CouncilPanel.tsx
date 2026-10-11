@@ -12,6 +12,7 @@ interface CouncilPanelProps {
   approvedCount: number;
   totalReviewers: number;
   isTopicLeader: boolean;
+  isLiquidated?: boolean;
   canOpenAcceptance: boolean;
   acceptanceItems: CollapseProps['items'];
   onResend: (reviewer: ReviewerApproval) => void;
@@ -32,6 +33,7 @@ export default function CouncilPanel({
   approvedCount,
   totalReviewers,
   isTopicLeader,
+  isLiquidated,
   canOpenAcceptance,
   acceptanceItems,
   onResend,
@@ -112,7 +114,7 @@ export default function CouncilPanel({
                         gap: 8,
                       }}
                     >
-                      {reviewer.status === 'Từ chối' && isTopicLeader && (
+                      {reviewer.status === 'Từ chối' && isTopicLeader && !isLiquidated && (
                         <Button
                           type="primary"
                           className="btn-see-upload"

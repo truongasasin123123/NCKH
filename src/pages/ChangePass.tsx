@@ -1,7 +1,7 @@
 import { Form, Input, Button, message } from "antd";
 import "../style/auth.css";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import ApiAxios from "../axios.config";
+import ApiAxios, { formatErrorMessage } from "../axios.config";
 import { useState } from "react";
 
 
@@ -31,7 +31,7 @@ function ChangePass() {
             }, 1500);
 
         } catch (error: any) {
-            message.error(error?.response?.data?.message);
+            message.error(formatErrorMessage(error, "Đổi mật khẩu thất bại, vui lòng thử lại"));
         } finally{
             setLoading(false);
         }

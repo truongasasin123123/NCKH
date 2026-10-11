@@ -1,6 +1,6 @@
 import { Button, Checkbox, Form, Input, message } from 'antd';
 import "../style/auth.css";
-import ApiAxios from '../axios.config';
+import ApiAxios, { formatErrorMessage } from '../axios.config';
 import { Link, useLocation } from 'react-router-dom';
 import { useState } from "react";
 
@@ -40,8 +40,6 @@ function Login() {
 
             message.success("Đăng nhập thành công!");
 
-            // Ưu tiên hoàn thiện hồ sơ trước, kể cả khi có redirectTo — vào thẳng
-            // trang khác lúc hồ sơ chưa đủ có thể khiến các trang đó lỗi do thiếu dữ liệu user.
             if (res.data.requiresProfileCompletion) {
                 window.location.href = "/complete-profile";
             } else {
@@ -49,7 +47,7 @@ function Login() {
             }
 
         } catch (error: any) {
-            message.error("Sai tài khoản hoặc mật khẩu!");
+            message.error(formatErrorMessage(error, "Sai tài khoản hoặc mật khẩu!"));
             console.log(error);
         } finally {
             setLoading(false);

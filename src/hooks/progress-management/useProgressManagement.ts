@@ -3,6 +3,7 @@ import { Form, message, Modal } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import dayjs from 'dayjs';
+import { formatErrorMessage } from '../../axios.config';
 import { getMemberByTopic, getMyTopics } from '../../services/topic/TopicService';
 import type { ThanhVienDT, TopicLoad } from '../../services/topic/TopicService';
 import {
@@ -21,10 +22,16 @@ interface JwtPayload {
 }
 
 /**
- * Hook quản lý toàn bộ dữ liệu và nghiệp vụ của trang Quản lý tiến độ đề tài.
- * Chịu trách nhiệm: gọi API, quản lý state, xử lý logic nghiệp vụ.
- * Không chứa JSX — phần giao diện nằm ở pages/ProgressManagement.tsx.
+ * Kiểm tra xem đề tài đã ở trạng thái bắt đầu trở lên hay chưa
+ * Loại trừ các trạng thái chưa được duyệt: 'Nháp', 'Chờ phê duyệt', 'Chờ xét duyệt', 'Từ chối'
  */
+export const isTopicStartedOrBeyond = (status?: string): boolean => {
+  if (!status) return false;
+  const s = status.trim();
+  const unstartedStatuses = ['Nháp', 'Chờ phê duyệt', 'Chờ xét duyệt', 'Từ chối', 'Đã thanh lý'];
+  return !unstartedStatuses.includes(s);
+};
+
 export const useProgressManagement = () => {
   const { maDT } = useParams<{ maDT: string }>();
   const navigate = useNavigate();
@@ -79,7 +86,8 @@ export const useProgressManagement = () => {
 
   const handleTopicChange = async (newMaDT: string) => {
     setPendingTopicId(newMaDT);
-    setTopicKeyword(topics.find((topic) => topic.MaDT === newMaDT)?.TenDT || '');
+    const foundTopic = topics.find((topic) => topic.MaDT === newMaDT);
+    setTopicKeyword(foundTopic?.TenDT || foundTopic?.MaDT || newMaDT);
     setMilestoneMembers([]);
     editForm.resetFields(['ThanhVienIds']);
 
@@ -94,7 +102,7 @@ export const useProgressManagement = () => {
 
   const handleTopicKeywordChange = (value: string) => {
     setTopicKeyword(value);
-    if (!topics.some((topic) => topic.TenDT === value)) {
+    if (!topics.some((topic) => topic.TenDT === value || topic.MaDT === value)) {
       setPendingTopicId('');
     }
   };
@@ -161,7 +169,7 @@ export const useProgressManagement = () => {
       setIsBaoCaoModalVisible(false);
       await fetchBaoCao();
     } catch (error: any) {
-      message.error(error.response?.data?.message || 'Gửi báo cáo thất bại');
+      message.error(formatErrorMessage(error, 'Gửi báo cáo thất bại'));
       // Nếu tạo báo cáo thất bại (chưa tạo được), xóa file đã chọn để tránh tồn đọng
       if (!reportCreated) {
         setBaoCaoFiles([]);
@@ -178,7 +186,7 @@ export const useProgressManagement = () => {
       message.success('Đã gửi báo cáo tiến độ');
       await fetchBaoCao();
     } catch (error: any) {
-      message.error(error.response?.data?.message || 'Không thể gửi báo cáo');
+      message.error(formatErrorMessage(error, 'Không thể gửi báo cáo'));
     } finally {
       setSubmittingBaoCao(false);
     }
@@ -191,7 +199,7 @@ export const useProgressManagement = () => {
       message.success('Đã gửi yêu cầu phân công Hội đồng nghiệm thu đến Admin');
       await fetchBaoCao();
     } catch (error: any) {
-      message.error(error.response?.data?.message || 'Không thể gửi yêu cầu Hội đồng');
+      message.error(formatErrorMessage(error, 'Không thể gửi yêu cầu Hội đồng'));
     } finally {
       setSubmittingBaoCao(false);
     }
@@ -225,7 +233,7 @@ export const useProgressManagement = () => {
 
   const handleDeleteBaoCaoDocument = async (documentId: number) => {
     try { await deleteDocument(documentId); message.success('Đã xóa tài liệu'); await fetchBaoCao(); }
-    catch (error: any) { message.error(error.response?.data?.message || 'Không thể xóa tài liệu'); }
+    catch (error: any) { message.error(formatErrorMessage(error, 'Không thể xóa tài liệu')); }
   };
 
   useEffect(() => {
@@ -271,7 +279,8 @@ export const useProgressManagement = () => {
     try {
       if (isCommitteeRole) {
         const assigned = await getDeTaiDuocGan();
-        setTopics(assigned.map((topic) => ({
+        const startedAssigned = assigned.filter((topic) => isTopicStartedOrBeyond(topic.TrangThai));
+        setTopics(startedAssigned.map((topic) => ({
           MaDT: topic.MaDT,
           TenDT: topic.TenDT,
           PhanLoai: '',
@@ -287,10 +296,12 @@ export const useProgressManagement = () => {
         const myTopics = await getMyTopics();
         // API /project/getproject trả về bản ghi thành viên có đề tài nằm trong
         // trường DeTai. Chuẩn hóa về TopicLoad để giao diện luôn có MaDT/TenDT.
-        setTopics(myTopics.map((item) => {
+        const normalized = myTopics.map((item) => {
           const nestedTopic = (item as TopicLoad & { DeTai?: TopicLoad }).DeTai;
           return nestedTopic ? { ...nestedTopic, ThanhVienDT: nestedTopic.ThanhVienDT || [] } : item;
-        }));
+        });
+        const startedTopics = normalized.filter((topic) => isTopicStartedOrBeyond(topic.TrangThai));
+        setTopics(startedTopics);
       }
     } catch (error) {
       message.error('Lỗi khi tải danh sách đề tài');
@@ -328,7 +339,8 @@ export const useProgressManagement = () => {
   const currentMember = members.find(
     (member) => member.TaiKhoan === user?.TaiKhoan,
   );
-  const canManageMoc = normalizeRole(currentMember?.VaiTroDT).includes('nhom truong');
+  const isLiquidated = progressData?.TrangThai === 'Đã thanh lý';
+  const canManageMoc = !isLiquidated && normalizeRole(currentMember?.VaiTroDT).includes('nhom truong');
   const memberOptions = useMemo(
     () => members.map((member) => ({
       label: `${member.NguoiDung.TenDayDu} (${member.VaiTroDT})`,
@@ -473,12 +485,8 @@ export const useProgressManagement = () => {
       fetchProgressData();
     } catch (error: any) {
       console.error(error);
-      const errorMessage = error.response?.data?.message || error.message || 'Lỗi khi tạo mốc';
-      if (Array.isArray(errorMessage)) {
-        message.error(errorMessage.join(', '));
-      } else {
-        message.error(errorMessage);
-      }
+      const errorMessage = formatErrorMessage(error, 'Lỗi khi tạo mốc');
+      message.error(errorMessage);
     }
   };
 
@@ -528,7 +536,7 @@ export const useProgressManagement = () => {
 
   return {
     // dữ liệu chung
-    maDT, maDTToUse, isCommitteeRole, canManageMoc, memberOptions,
+    maDT, maDTToUse, isCommitteeRole, canManageMoc, memberOptions, isLiquidated,
     // đề tài
     selectedTopicId, pendingTopicId, topicKeyword, topics, topicLoading, showTopicSearch, setShowTopicSearch,
     handleTopicChange, handleTopicKeywordChange, handleGoToTopic,

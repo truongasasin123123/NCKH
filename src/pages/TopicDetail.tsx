@@ -7,6 +7,7 @@ import { ArrowLeftOutlined, EditOutlined, CloseOutlined, SendOutlined, BarChartO
 import type { UploadFile } from 'antd/es/upload/interface';
 import { getTopicById, resendProjectApproval, submitProjectForApproval, updateProject } from '../services/topic/TopicService';
 import { downloadDocument, uploadDocument, deleteDocument } from '../services/topic/DocumentsService';
+import { formatErrorMessage } from '../axios.config';
 import { createAdjustmentRequest } from '../services/topic/AdjustmentRequestService';
 import {
     createCouncilAssignmentRequest,
@@ -77,7 +78,8 @@ const TopicDetail: React.FC = () => {
         .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase()
         .replace(/đ/g, 'd');
-    const canComment = normalizedRole.includes('hoi dong') || normalizedRole.includes('nguoi huong dan');
+    const isTopicLiquidated = topic?.TrangThai === 'Đã thanh lý';
+    const canComment = !isTopicLiquidated && (normalizedRole.includes('hoi dong') || normalizedRole.includes('nguoi huong dan'));
 
     const approvalReviewers = topicApprovals.approvalStatus.filter((reviewer) => reviewer.councilType === 'Xét duyệt');
     const approvedCount = approvalReviewers.filter((reviewer) => reviewer.status === 'Đã phê duyệt').length;
@@ -144,6 +146,7 @@ const TopicDetail: React.FC = () => {
         .replace(/đ/g, 'd')
         .trim();
     const canCreateAdjustmentRequest = isTopicLeader
+        && !isTopicLiquidated
         // Dữ liệu cũ dùng "Đã phê duyệt" nhưng giao diện hiển thị là "Bắt đầu".
         && ['da phe duyet', 'bat dau', 'dang thuc hien'].includes(normalizedTopicStatus);
     useEffect(() => {
@@ -157,7 +160,7 @@ const TopicDetail: React.FC = () => {
             message.success('Đã xóa tài liệu');
             await topicDocuments.refresh(MaDT);
         } catch (error: any) {
-            message.error(error?.response?.data?.message || 'Không thể xóa tài liệu');
+            message.error(formatErrorMessage(error, 'Không thể xóa tài liệu'));
         }
     };
 
@@ -312,7 +315,7 @@ const TopicDetail: React.FC = () => {
             setSubmitNotes('');
             setAttachedFiles([]);
         } catch (error: any) {
-            message.error(error?.response?.data?.message || error.message || 'Không thể upload tài liệu');
+            message.error(formatErrorMessage(error, 'Không thể upload tài liệu'));
         }
     };
 
@@ -350,7 +353,7 @@ const TopicDetail: React.FC = () => {
             const [requests] = await Promise.all([getMyCouncilRequests(), fetchTopicDetail()]);
             setCouncilRequests(requests);
         } catch (error: any) {
-            message.error(error?.response?.data?.message || error.message || 'Không thể gửi yêu cầu phân công hội đồng');
+            message.error(formatErrorMessage(error, 'Không thể gửi yêu cầu phân công hội đồng'));
         }
     };
 
@@ -365,7 +368,7 @@ const TopicDetail: React.FC = () => {
             setResendTarget(null);
             await topicApprovals.refresh();
         } catch (error: any) {
-            message.error(error?.response?.data?.message || 'Không thể gửi lại');
+            message.error(formatErrorMessage(error, 'Không thể gửi lại'));
         }
     };
 
@@ -419,7 +422,7 @@ const TopicDetail: React.FC = () => {
             setEditing(false);
             message.success('Cập nhật đề tài thành công!');
         } catch (error: any) {
-            message.error(error?.response?.data?.message || 'Không thể cập nhật đề tài');
+            message.error(formatErrorMessage(error, 'Không thể cập nhật đề tài'));
         }
     };
 
@@ -543,7 +546,7 @@ const TopicDetail: React.FC = () => {
                                                     Gửi hồ sơ xét duyệt
                                                 </Button>
                                             )}
-                                            {topic?.TrangThai === 'Đã phê duyệt' && (
+                                            {!['Nháp', 'Chờ phê duyệt', 'Chờ xét duyệt', 'Từ chối', 'Đã thanh lý'].includes(topic?.TrangThai || '') && (
                                                 <Button
                                                     type="default"
                                                     icon={<BarChartOutlined />}
@@ -623,6 +626,7 @@ const TopicDetail: React.FC = () => {
                                 approvedCount={approvedCount}
                                 totalReviewers={approvalReviewers.length}
                                 isTopicLeader={isTopicLeader}
+                                isLiquidated={isTopicLiquidated}
                                 canOpenAcceptance={['Chờ nghiệm thu', 'Đang nghiệm thu', 'Đã nghiệm thu', 'Không đạt nghiệm thu'].includes(topic.TrangThai)}
                                 acceptanceItems={collapseItems}
                                 onResend={(reviewer) => {

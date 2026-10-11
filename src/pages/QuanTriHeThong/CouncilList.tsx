@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Form, Input, Modal, Popconfirm, Select, Space, Table, Tabs, Tag, message, DatePicker, Radio, Descriptions, Grid } from 'antd';
+import { Button, Form, Input, Modal, Popconfirm, Select, Space, Table, Tabs, Tag, message, DatePicker, Radio, Descriptions, Grid, Switch } from 'antd';
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { formatErrorMessage } from '../../axios.config';
 import {
   approveCouncilRequest,
   createCouncil,
@@ -134,9 +135,17 @@ const CouncilList = () => {
   const submitCouncil = async () => {
     try {
       const values = await councilForm.validateFields();
+      const { CoLichHop, ThoiGianHop, HinhThucHop, DiaDiem, LinkHop, ...rest } = values;
       const payload = {
-        ...values,
-        ThoiGianHop: values.ThoiGianHop ? (values.ThoiGianHop as Dayjs).toISOString() : undefined,
+        ...rest,
+        ...(CoLichHop
+          ? {
+              HinhThucHop,
+              ThoiGianHop: ThoiGianHop ? (ThoiGianHop as Dayjs).toISOString() : undefined,
+              DiaDiem: HinhThucHop === 'offline' ? DiaDiem : undefined,
+              LinkHop: HinhThucHop === 'online' ? LinkHop : undefined,
+            }
+          : {}),
       };
       await createCouncil(payload);
       message.success('Đã tạo hội đồng');
@@ -144,7 +153,7 @@ const CouncilList = () => {
       setCouncilOpen(false);
       councilForm.resetFields();
     } catch (error: any) {
-      if (!error?.errorFields) message.error(error?.response?.data?.message || 'Không thể tạo hội đồng');
+      if (!error?.errorFields) message.error(formatErrorMessage(error, 'Không thể tạo hội đồng'));
     }
   };
 
@@ -732,10 +741,21 @@ const CouncilList = () => {
         onReject={handleRejectRequest}
       />
 
-      <Modal title="Tạo hội đồng" open={councilOpen} onCancel={() => setCouncilOpen(false)} onOk={submitCouncil} okText="Tạo hội đồng" cancelText="Hủy" destroyOnClose>
-        <Form form={councilForm} layout="vertical" initialValues={{ HinhThucHop: 'offline' }}>
+      <Modal
+        title="Tạo hội đồng"
+        open={councilOpen}
+        onCancel={() => {
+          setCouncilOpen(false);
+          councilForm.resetFields();
+        }}
+        onOk={submitCouncil}
+        okText="Tạo hội đồng"
+        cancelText="Hủy"
+        destroyOnClose
+      >
+        <Form form={councilForm} layout="vertical" initialValues={{ CoLichHop: false, HinhThucHop: 'offline' }}>
           <Form.Item name="TenHoiDong" label="Tên hội đồng" rules={[{ required: true, message: 'Vui lòng nhập tên hội đồng' }]}>
-            <Input />
+            <Input placeholder="Ví dụ: Hội đồng xét duyệt đề tài CNTT đợt 1" />
           </Form.Item>
 
           <Form.Item name="MaLoaiHoiDong" label="Loại hội đồng" rules={[{ required: true, message: 'Vui lòng chọn loại hội đồng' }]}>
@@ -745,50 +765,79 @@ const CouncilList = () => {
             />
           </Form.Item>
 
-          <Form.Item name="ThoiGianHop" label="Thời gian họp">
-            <DatePicker
-              showTime={{ format: 'HH:mm' }}
-              format="DD/MM/YYYY HH:mm"
-              style={{ width: '100%' }}
-              placeholder="Chọn ngày giờ họp"
-            />
+          <Form.Item
+            name="CoLichHop"
+            label="Tổ chức họp"
+            valuePropName="checked"
+          >
+            <Switch checkedChildren="" unCheckedChildren="" />
           </Form.Item>
 
-          <Form.Item name="HinhThucHop" label="Hình thức họp" rules={[{ required: true }]}>
-            <Radio.Group>
-              <Radio.Button value="offline">Họp trực tiếp</Radio.Button>
-              <Radio.Button value="online">Họp online</Radio.Button>
-            </Radio.Group>
-          </Form.Item>
-
-          <Form.Item shouldUpdate={(prev, curr) => prev.HinhThucHop !== curr.HinhThucHop} noStyle>
+          <Form.Item
+            noStyle
+            shouldUpdate={(prev, curr) => prev.CoLichHop !== curr.CoLichHop}
+          >
             {({ getFieldValue }) => {
-              const hinhThuc: CouncilMeetingType = getFieldValue('HinhThucHop');
-              if (hinhThuc === 'online') {
-                return (
-                  <Form.Item
-                    name="LinkHop"
-                    label="Link họp online"
-                    rules={[{ required: true, message: 'Vui lòng nhập link họp' }]}
-                  >
-                    <Input placeholder="https://meet.google.com/xxx-xxxx-xxx" />
-                  </Form.Item>
-                );
-              }
+              const coLichHop = getFieldValue('CoLichHop');
+              if (!coLichHop) return null;
+
               return (
-                <Form.Item
-                  name="DiaDiem"
-                  label="Địa điểm họp"
-                  rules={[{ required: true, message: 'Vui lòng nhập địa điểm họp' }]}
-                >
-                  <Input placeholder="Ví dụ: Phòng họp A2, Học viện Nông nghiệp Việt Nam" />
-                </Form.Item>
+                <div style={{ background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 8, padding: '16px 16px 4px 16px', marginBottom: 16 }}>
+                  <Form.Item
+                    name="ThoiGianHop"
+                    label="Thời gian họp"
+                    rules={[{ required: true, message: 'Vui lòng chọn ngày giờ họp' }]}
+                  >
+                    <DatePicker
+                      showTime={{ format: 'HH:mm' }}
+                      format="DD/MM/YYYY HH:mm"
+                      style={{ width: '100%' }}
+                      placeholder="Chọn ngày giờ họp"
+                    />
+                  </Form.Item>
+
+                  <Form.Item name="HinhThucHop" label="Hình thức họp" rules={[{ required: true, message: 'Vui lòng chọn hình thức họp' }]}>
+                    <Radio.Group>
+                      <Radio.Button value="offline">Họp trực tiếp</Radio.Button>
+                      <Radio.Button value="online">Họp online</Radio.Button>
+                    </Radio.Group>
+                  </Form.Item>
+
+                  <Form.Item
+                    noStyle
+                    shouldUpdate={(prev, curr) => prev.HinhThucHop !== curr.HinhThucHop}
+                  >
+                    {({ getFieldValue: getChildFieldValue }) => {
+                      const hinhThuc: CouncilMeetingType = getChildFieldValue('HinhThucHop');
+                      if (hinhThuc === 'online') {
+                        return (
+                          <Form.Item
+                            name="LinkHop"
+                            label="Link họp online"
+                            rules={[{ required: true, message: 'Vui lòng nhập link họp online' }]}
+                          >
+                            <Input placeholder="https://meet.google.com/xxx-xxxx-xxx" />
+                          </Form.Item>
+                        );
+                      }
+                      return (
+                        <Form.Item
+                          name="DiaDiem"
+                          label="Địa điểm họp"
+                          rules={[{ required: true, message: 'Vui lòng nhập địa điểm họp' }]}
+                        >
+                          <Input placeholder="Ví dụ: Phòng họp A2, Học viện Nông nghiệp Việt Nam" />
+                        </Form.Item>
+                      );
+                    }}
+                  </Form.Item>
+                </div>
               );
             }}
           </Form.Item>
 
           <Form.Item name="MoTa" label="Ghi chú thêm">
-            <Input.TextArea rows={3} placeholder="Nội dung/ghi chú khác cho buổi họp (không bắt buộc)" />
+            <Input.TextArea rows={3} placeholder="Nội dung/ghi chú khác cho hội đồng (không bắt buộc)" />
           </Form.Item>
         </Form>
       </Modal>

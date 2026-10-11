@@ -6,6 +6,7 @@ import type { BaoCaoTienDo } from '../../services/progress/ProgressService';
 
 interface BaoCaoTabProps {
   canManageMoc: boolean;
+  isLiquidated?: boolean;
   baoCaoList: BaoCaoTienDo[];
   baoCaoLoading: boolean;
   submittingBaoCao: boolean;
@@ -24,7 +25,7 @@ interface BaoCaoTabProps {
  * tạo / sửa / xóa / gửi báo cáo và quản lý tài liệu minh chứng.
  */
 const BaoCaoTab: React.FC<BaoCaoTabProps> = ({
-  canManageMoc, baoCaoList, baoCaoLoading, submittingBaoCao,
+  canManageMoc, isLiquidated, baoCaoList, baoCaoLoading, submittingBaoCao,
   onOpenCreate, onEdit, onDelete, onDeleteDocument, onSubmitExisting, downloadDocument, partialAcceptance = false, onRequestCouncil,
 }) => {
   const screens = Grid.useBreakpoint();
@@ -33,7 +34,7 @@ const BaoCaoTab: React.FC<BaoCaoTabProps> = ({
 
   return (
     <>
-      {canManageMoc && (
+      {canManageMoc && !isLiquidated && (
         <Button
           type="primary"
           block={isMobile}
@@ -137,12 +138,12 @@ const BaoCaoTab: React.FC<BaoCaoTabProps> = ({
                   {bc.TaiLieu.map((document) => (
                     <div key={document.MaTL} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '8px 10px', background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 6 }}>
                       <Button type="link" size="small" icon={<DownloadOutlined />} style={{ padding: 0, height: 'auto', textAlign: 'left', whiteSpace: 'normal' }} onClick={() => downloadDocument(document.MaTL, document.TenFile)}>{document.TenFile}</Button>
-                      {['Nháp', 'Yêu cầu bổ sung'].includes(bc.TrangThai) && <Button danger size="small" type="text" onClick={() => onDeleteDocument(document.MaTL)}>Xóa</Button>}
+                      {['Nháp', 'Yêu cầu bổ sung'].includes(bc.TrangThai) && !isLiquidated && <Button danger size="small" type="text" onClick={() => onDeleteDocument(document.MaTL)}>Xóa</Button>}
                     </div>
                   ))}
                 </Space>
               ) : <p>Chưa có tài liệu minh chứng.</p>}
-              {['Nháp', 'Yêu cầu bổ sung'].includes(bc.TrangThai) && (
+              {['Nháp', 'Yêu cầu bổ sung'].includes(bc.TrangThai) && !isLiquidated && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, paddingTop: 14, borderTop: '1px solid #f0f0f0' }}>
                   <Space wrap>
                     <Button onClick={() => onEdit(bc)}>Chỉnh sửa</Button>

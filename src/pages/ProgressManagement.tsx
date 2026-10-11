@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Layout, AutoComplete, Card, Button, Tabs, Input, Grid, Select } from 'antd';
+import { Layout, AutoComplete, Card, Button, Tabs, Input, Grid, Select, Alert } from 'antd';
 import {
   CheckOutlined,
   EditOutlined,
@@ -9,7 +9,7 @@ import {
   FileTextOutlined,
   CheckSquareOutlined,
 } from '@ant-design/icons';
-import { useProgressManagement } from '../hooks/progress-management/useProgressManagement';
+import { useProgressManagement, isTopicStartedOrBeyond } from '../hooks/progress-management/useProgressManagement';
 import ProgressTimeline from '../components/progress-management/ProgressTimeline';
 import ProgressTable from '../components/progress-management/ProgressTable';
 import BaoCaoTab from '../components/progress-management/BaoCaoTab';
@@ -34,7 +34,7 @@ const ProgressManagement: React.FC = () => {
   const [tabSelectOpen, setTabSelectOpen] = useState(false);
 
   const {
-    isCommitteeRole, canManageMoc, memberOptions,
+    isCommitteeRole, canManageMoc, memberOptions, isLiquidated,
     pendingTopicId, topicKeyword, topics, showTopicSearch, setShowTopicSearch,
     handleTopicChange, handleTopicKeywordChange, handleGoToTopic,
     progressData, loading, searchText, setSearchText,
@@ -137,11 +137,26 @@ const ProgressManagement: React.FC = () => {
                   onChange={handleTopicKeywordChange}
                   onSelect={(value) => { void handleTopicChange(value); }}
                   options={topics
-                    .filter((topic) => (topic.TenDT || '').toLocaleLowerCase('vi-VN').includes(topicKeyword.toLocaleLowerCase('vi-VN')))
+                    .filter((topic) => {
+                      const isStarted = isTopicStartedOrBeyond(topic.TrangThai);
+                      const kw = topicKeyword.trim().toLowerCase();
+                      const matchKw = !kw
+                        || (topic.TenDT || '').toLowerCase().includes(kw)
+                        || (topic.MaDT || '').toLowerCase().includes(kw);
+                      return isStarted && matchKw;
+                    })
                     .slice(0, 10)
-                    .map((topic) => ({ value: topic.MaDT, label: topic.TenDT || topic.MaDT }))}
+                    .map((topic) => ({
+                      value: topic.MaDT,
+                      label: (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span>{topic.TenDT || topic.MaDT}</span>
+                          <span style={{ fontSize: 12, color: '#8c8c8c', marginLeft: 8 }}>{topic.MaDT}</span>
+                        </div>
+                      ),
+                    }))}
                 >
-                  <Input allowClear placeholder="Nhập tên đề tài..." />
+                  <Input allowClear placeholder="Nhập tên hoặc mã đề tài (đã bắt đầu)..." />
                 </AutoComplete>
 
                 <Button
@@ -160,6 +175,14 @@ const ProgressManagement: React.FC = () => {
           </div>
         }
       >
+        {isLiquidated && (
+          <Alert
+            type="info"
+            showIcon
+            message="Đề tài đã hoàn tất thanh lý và dừng nghiên cứu. Tất cả các chức năng cập nhật tiến độ, nộp báo cáo và nghiệm thu đã được đóng."
+            style={{ marginBottom: 16 }}
+          />
+        )}
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
@@ -220,6 +243,7 @@ const ProgressManagement: React.FC = () => {
               loading={loading}
               isCommitteeRole={isCommitteeRole}
               canManageMoc={canManageMoc}
+              isLiquidated={isLiquidated}
               onView={handleViewMoc}
               onEdit={handleEditMoc}
               onDelete={handleDeleteMoc}
@@ -232,6 +256,7 @@ const ProgressManagement: React.FC = () => {
             <TabPane tab="Báo cáo tiến độ" key="baocao">
               <BaoCaoTab
                 canManageMoc={canManageMoc}
+                isLiquidated={isLiquidated}
                 baoCaoList={progressReports}
                 baoCaoLoading={baoCaoLoading}
                 submittingBaoCao={submittingBaoCao}
@@ -249,6 +274,7 @@ const ProgressManagement: React.FC = () => {
             <TabPane tab="Nghiệm thu từng phần" key="nghiem-thu-tung-phan">
               <BaoCaoTab
                 canManageMoc={canManageMoc}
+                isLiquidated={isLiquidated}
                 baoCaoList={partialAcceptanceReports}
                 baoCaoLoading={baoCaoLoading}
                 submittingBaoCao={submittingBaoCao}

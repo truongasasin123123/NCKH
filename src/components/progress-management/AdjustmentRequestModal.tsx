@@ -3,7 +3,6 @@ import { Checkbox, Col, Form, Input, Modal, Row, Select, Upload, message } from 
 import { InboxOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
 import type { TopicLoad, ThanhVienDT } from '../../services/topic/TopicService';
-import { getMocTienDoByTopic, type MocTienDo } from '../../services/progress/ProgressService';
 import ApiAxios from '../../axios.config';
 import RichTextEditor from '../common/RichTextEditor';
 import DOMPurify from 'dompurify';
@@ -11,7 +10,7 @@ import DOMPurify from 'dompurify';
 const { TextArea } = Input;
 const { Dragger } = Upload;
 
-type AdjustmentGroup = 'Nội dung nghiên cứu' | 'Thành viên thực hiện' | 'Tiến độ / mốc thực hiện';
+type AdjustmentGroup = 'Nội dung nghiên cứu' | 'Thành viên thực hiện';
 
 interface SpecializationOption {
   idChuyenNganh: string;
@@ -40,22 +39,14 @@ interface AdjustmentRequestModalProps {
   onSubmit: (topicCode: string, payload: AdjustmentRequestPayload) => Promise<void>;
 }
 
-const formatDate = (value?: Date | string) => value ? new Date(value).toLocaleDateString('vi-VN') : 'Chưa cập nhật';
-
 export default function AdjustmentRequestModal({ open, topicCode, topic, members, onClose, onSubmit }: AdjustmentRequestModalProps) {
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const [files, setFiles] = useState<UploadFile[]>([]);
   const [group, setGroup] = useState<AdjustmentGroup>();
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
-  const [milestones, setMilestones] = useState<MocTienDo[]>([]);
   const [specializations, setSpecializations] = useState<SpecializationOption[]>([]);
   const [faculties, setFaculties] = useState<FacultyOption[]>([]);
-
-  useEffect(() => {
-    if (!open || !topicCode) return;
-    void getMocTienDoByTopic(topicCode).then(setMilestones).catch(() => setMilestones([]));
-  }, [open, topicCode]);
 
   useEffect(() => {
     if (!open) return;
@@ -93,13 +84,8 @@ export default function AdjustmentRequestModal({ open, topicCode, topic, members
       label: `${member.NguoiDung?.TenDayDu || member.TaiKhoan} — ${member.VaiTroDT}`,
       current: `Tài khoản: ${member.TaiKhoan}; vai trò: ${member.VaiTroDT}`,
     }));
-    if (group === 'Tiến độ / mốc thực hiện') return milestones.map((milestone) => ({
-      value: `MOC:${milestone.MaMoc}`,
-      label: milestone.TenMoc,
-      current: `Mốc “${milestone.TenMoc}”: ${formatDate(milestone.NgayBatDau)} → ${formatDate(milestone.NgayKetThuc)}; trạng thái: ${milestone.TrangThai}`,
-    }));
     return [];
-  }, [facultyName, group, members, milestones, specializationName, topic]);
+  }, [facultyName, group, members, specializationName, topic]);
 
   const currentInformation = fieldOptions
     .filter((item) => selectedKeys.includes(item.value))
@@ -155,7 +141,6 @@ export default function AdjustmentRequestModal({ open, topicCode, topic, members
             options={[
               { value: 'Nội dung nghiên cứu', label: 'Nội dung nghiên cứu' },
               { value: 'Thành viên thực hiện', label: 'Thành viên thực hiện' },
-              { value: 'Tiến độ / mốc thực hiện', label: 'Tiến độ / mốc thực hiện' },
             ]}
           />
         </Form.Item>

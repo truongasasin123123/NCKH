@@ -85,7 +85,7 @@ export const getCouncils = async (typeId?: number): Promise<Council[]> =>
 export const getCouncilDetail = async (id: number): Promise<Council> =>
   (await ApiAxios.get(`/admin/councils/${id}`)).data;
 
-export const createCouncil = async (payload: Pick<Council, 'TenHoiDong' | 'MaLoaiHoiDong' | 'HinhThucHop'> & Partial<Pick<Council, 'MoTa' | 'ThoiGianHop' | 'DiaDiem' | 'LinkHop'>>) =>
+export const createCouncil = async (payload: Pick<Council, 'TenHoiDong' | 'MaLoaiHoiDong'> & Partial<Pick<Council, 'HinhThucHop' | 'MoTa' | 'ThoiGianHop' | 'DiaDiem' | 'LinkHop'>>) =>
   (await ApiAxios.post('/admin/councils', payload)).data;
 
 export const updateCouncil = async (id: number, payload: Partial<Pick<Council, 'TenHoiDong' | 'MaLoaiHoiDong' | 'MoTa' | 'ThoiGianHop' | 'HinhThucHop' | 'DiaDiem' | 'LinkHop'>>) =>

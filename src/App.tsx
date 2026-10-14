@@ -76,10 +76,14 @@ function App() {
         ? '/mainhome/approvedtopics'
         : '/mainhome',
     },
-    {
-      label: 'Tiến độ',
-      to: !token ? '/login' : '/mainhome/progress-demo',
-    },
+    ...(!isAdmin
+      ? [
+          {
+            label: 'Tiến độ',
+            to: !token ? '/login' : '/mainhome/progress-demo',
+          },
+        ]
+      : []),
     {
       label: 'Thống kê',
       to: !token

@@ -39,6 +39,8 @@ import ScrollToTop from "./components/common/ScrollToTop";
 interface JwtPayload {
   TaiKhoan: string;
   TenDayDu: string;
+  VaiTro?: string;
+  role?: string;
 }
 
 interface UserProfileData {
@@ -53,6 +55,40 @@ function App() {
   const token = localStorage.getItem("access_token") || sessionStorage.getItem("access_token");
   const user: JwtPayload | null = token ? jwtDecode(token) : null;
   const navigate = useNavigate();
+
+  const roleStr = (user?.VaiTro || user?.role || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .toLowerCase()
+    .replace(/\s/g, '');
+  const isAdmin = roleStr === 'admin' || roleStr === 'quantri';
+  const isCouncil = roleStr.includes('hoidong');
+
+  const systemLinks = [
+    {
+      label: 'Đề tài',
+      to: !token
+        ? '/login'
+        : isAdmin
+        ? '/mainhome/admin/topics'
+        : isCouncil
+        ? '/mainhome/approvedtopics'
+        : '/mainhome',
+    },
+    {
+      label: 'Tiến độ',
+      to: !token ? '/login' : '/mainhome/progress-demo',
+    },
+    {
+      label: 'Thống kê',
+      to: !token
+        ? '/login'
+        : isCouncil
+        ? '/mainhome/statistics/council'
+        : '/mainhome/statistics',
+    },
+  ];
   useEffect(() => {
     if (!token) return;
 
@@ -200,8 +236,14 @@ function App() {
           <div style={{ display: 'flex', gap: '3rem' }}>
             <div>
               <h4 style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.55)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Hệ thống</h4>
-              {['Đề tài', 'Tiến độ', 'Báo cáo'].map(l => (
-                <a key={l} href="#" style={{ display: 'block', fontSize: 13, color: 'rgba(255,255,255,0.45)', marginBottom: 6, textDecoration: 'none' }}>{l}</a>
+              {systemLinks.map(item => (
+                <Link
+                  key={item.label}
+                  to={item.to}
+                  className="footer-link"
+                >
+                  {item.label}
+                </Link>
               ))}
             </div>
             <div>

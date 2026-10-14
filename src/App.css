@@ -106,3 +106,17 @@
 .topic-description ul > li {
   list-style-type: disc !important;
 }
+
+.footer-link {
+  display: block;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.45);
+  margin-bottom: 6px;
+  text-decoration: none;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.footer-link:hover {
+  color: #fff !important;
+  transform: translateX(3px);
+}
